@@ -88,13 +88,13 @@ class FootballApiService {
 
     const response = await fetch(url, {
       headers: {
-        'x-rapidapi-key': this.apiKey,
-        'x-rapidapi-host': 'v3.football.api-sports.io',
+        'x-apisports-key': this.apiKey, // For api-football.com direct access
       },
       next: { revalidate: 300 }, // Cache for 5 minutes
     });
 
     if (!response.ok) {
+      console.error(`Football API error: ${response.status}`);
       throw new Error(`Football API error: ${response.status}`);
     }
 
@@ -122,6 +122,9 @@ class FootballApiService {
           date,
           league: leagueId.toString(),
           timezone: 'Africa/Porto-Novo', // West Africa timezone
+        }).catch(err => {
+          console.error(`Error fetching league ${leagueId}:`, err);
+          return null;
         })
       );
 
@@ -130,11 +133,17 @@ class FootballApiService {
       const matches: FootballMatch[] = [];
 
       for (const result of results) {
-        if (result?.response) {
+        if (result?.response && Array.isArray(result.response)) {
           for (const fixture of result.response) {
             matches.push(this.mapFixtureToMatch(fixture));
           }
         }
+      }
+
+      // If no matches found from API, return mock data
+      if (matches.length === 0) {
+        console.log('No matches from API, using mock data');
+        return this.getMockMatches(date, leagueCodes);
       }
 
       // Sort by time
