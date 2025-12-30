@@ -264,7 +264,7 @@ export default function UnlockVIPPage() {
 
             {/* 1xBet CTA */}
             <a
-              href={`https://1xbet.com/fr/registration?promo=${PROMO_CODE}`}
+              href="https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599"
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full bg-gradient-to-r from-primary to-primary-dark text-white font-bold py-6 rounded-2xl hover:opacity-90 transition-opacity mb-8 text-center text-xl"
