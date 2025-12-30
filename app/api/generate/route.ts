@@ -8,134 +8,48 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+interface SelectedMatch {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  league: string;
+  leagueCode: string;
+  country: string;
+  date: string;
+  time: string;
+  odds?: {
+    home: number;
+    draw: number;
+    away: number;
+  };
+}
+
 interface CombineParameters {
-  date: string | string[];
+  date: string;
   leagues: string[];
   oddsRange: { min: number; max: number };
   matchCount: number;
   riskLevel: 'safe' | 'balanced' | 'risky';
+  betType: 'single' | 'double' | 'triple' | 'accumulator';
+  selectedMatches?: SelectedMatch[];
 }
 
 // Generate cache key from parameters
 function generateCacheKey(params: CombineParameters): string {
   const normalized = {
-    date: Array.isArray(params.date)
-      ? params.date.map((d) => new Date(d).toISOString().split('T')[0]).sort()
-      : new Date(params.date).toISOString().split('T')[0],
+    date: new Date(params.date).toISOString().split('T')[0],
     leagues: [...params.leagues].sort(),
     oddsMin: params.oddsRange.min,
     oddsMax: params.oddsRange.max,
     matchCount: params.matchCount,
     riskLevel: params.riskLevel,
+    betType: params.betType,
+    selectedMatchIds: params.selectedMatches?.map(m => m.id).sort() || [],
   };
 
   const str = JSON.stringify(normalized);
   const hash = createHash('sha256').update(str).digest('hex');
   return hash.substring(0, 16);
-}
-
-// Mock match data (in production, this would come from a sports API)
-function getMockMatches(leagues: string[]) {
-  const allMatches = [
-    {
-      id: 'match_1',
-      homeTeam: 'Manchester City',
-      awayTeam: 'Liverpool',
-      league: 'Premier League',
-      leagueCode: 'PL',
-      kickoffTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      venue: 'Etihad Stadium',
-      homeForm: ['W', 'W', 'D', 'W', 'W'],
-      awayForm: ['W', 'D', 'W', 'W', 'L'],
-      odds: { home: 1.85, draw: 3.6, away: 4.2, over25: 1.65, under25: 2.2 },
-    },
-    {
-      id: 'match_2',
-      homeTeam: 'Real Madrid',
-      awayTeam: 'Barcelona',
-      league: 'La Liga',
-      leagueCode: 'LA',
-      kickoffTime: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-      venue: 'Santiago Bernabéu',
-      homeForm: ['W', 'W', 'W', 'D', 'W'],
-      awayForm: ['W', 'W', 'D', 'W', 'W'],
-      odds: { home: 2.1, draw: 3.4, away: 3.5, over25: 1.55, under25: 2.4 },
-    },
-    {
-      id: 'match_3',
-      homeTeam: 'Bayern Munich',
-      awayTeam: 'Borussia Dortmund',
-      league: 'Bundesliga',
-      leagueCode: 'BL',
-      kickoffTime: new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString(),
-      venue: 'Allianz Arena',
-      homeForm: ['W', 'W', 'W', 'W', 'D'],
-      awayForm: ['W', 'D', 'W', 'L', 'W'],
-      odds: { home: 1.6, draw: 4.0, away: 5.5, over25: 1.45, under25: 2.7 },
-    },
-    {
-      id: 'match_4',
-      homeTeam: 'Inter Milan',
-      awayTeam: 'AC Milan',
-      league: 'Serie A',
-      leagueCode: 'SA',
-      kickoffTime: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-      venue: 'San Siro',
-      homeForm: ['W', 'W', 'D', 'W', 'W'],
-      awayForm: ['D', 'W', 'L', 'W', 'D'],
-      odds: { home: 1.9, draw: 3.5, away: 4.0, over25: 1.7, under25: 2.1 },
-    },
-    {
-      id: 'match_5',
-      homeTeam: 'PSG',
-      awayTeam: 'Marseille',
-      league: 'Ligue 1',
-      leagueCode: 'FL',
-      kickoffTime: new Date(Date.now() + 60 * 60 * 60 * 1000).toISOString(),
-      venue: 'Parc des Princes',
-      homeForm: ['W', 'W', 'W', 'W', 'W'],
-      awayForm: ['W', 'D', 'W', 'D', 'L'],
-      odds: { home: 1.45, draw: 4.5, away: 7.0, over25: 1.5, under25: 2.5 },
-    },
-    {
-      id: 'match_6',
-      homeTeam: 'Arsenal',
-      awayTeam: 'Chelsea',
-      league: 'Premier League',
-      leagueCode: 'PL',
-      kickoffTime: new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString(),
-      venue: 'Emirates Stadium',
-      homeForm: ['W', 'D', 'W', 'W', 'W'],
-      awayForm: ['W', 'W', 'D', 'L', 'W'],
-      odds: { home: 1.75, draw: 3.8, away: 4.5, over25: 1.6, under25: 2.3 },
-    },
-    {
-      id: 'match_7',
-      homeTeam: 'Senegal',
-      awayTeam: 'Cameroon',
-      league: 'CAN',
-      leagueCode: 'CAN',
-      kickoffTime: new Date(Date.now() + 84 * 60 * 60 * 1000).toISOString(),
-      venue: 'Stade Abdoulaye Wade',
-      homeForm: ['W', 'W', 'D', 'W', 'D'],
-      awayForm: ['W', 'D', 'W', 'W', 'L'],
-      odds: { home: 2.0, draw: 3.2, away: 3.8, over25: 1.85, under25: 1.95 },
-    },
-    {
-      id: 'match_8',
-      homeTeam: 'Atletico Madrid',
-      awayTeam: 'Sevilla',
-      league: 'La Liga',
-      leagueCode: 'LA',
-      kickoffTime: new Date(Date.now() + 42 * 60 * 60 * 1000).toISOString(),
-      venue: 'Wanda Metropolitano',
-      homeForm: ['D', 'W', 'W', 'D', 'W'],
-      awayForm: ['L', 'W', 'D', 'W', 'D'],
-      odds: { home: 1.7, draw: 3.6, away: 5.0, over25: 1.9, under25: 1.9 },
-    },
-  ];
-
-  return allMatches.filter((m) => leagues.includes(m.leagueCode));
 }
 
 export async function POST(request: Request) {
@@ -167,9 +81,27 @@ export async function POST(request: Request) {
       );
     }
 
-    if (params.matchCount < 2 || params.matchCount > 10) {
+    // Validate match count based on bet type
+    const minMatches = params.betType === 'single' ? 1 : params.betType === 'double' ? 2 : params.betType === 'triple' ? 3 : 4;
+
+    if (params.matchCount < minMatches) {
       return NextResponse.json(
-        { error: 'Match count must be between 2 and 10' },
+        { error: `At least ${minMatches} match(es) required for ${params.betType}` },
+        { status: 400 }
+      );
+    }
+
+    // Check if we have selected matches
+    if (!params.selectedMatches || params.selectedMatches.length === 0) {
+      return NextResponse.json(
+        { error: 'No matches selected' },
+        { status: 400 }
+      );
+    }
+
+    if (params.selectedMatches.length < minMatches) {
+      return NextResponse.json(
+        { error: `Select at least ${minMatches} match(es) for ${params.betType}` },
         { status: 400 }
       );
     }
@@ -207,64 +139,66 @@ export async function POST(request: Request) {
       });
     }
 
-    // Get available matches
-    const availableMatches = getMockMatches(params.leagues);
+    // Prepare match data for Claude
+    const matchesForAnalysis = params.selectedMatches.map(m => ({
+      id: m.id,
+      homeTeam: m.homeTeam,
+      awayTeam: m.awayTeam,
+      league: m.league,
+      country: m.country,
+      date: m.date,
+      time: m.time,
+      odds: m.odds || { home: 1.5, draw: 3.5, away: 5.0 },
+    }));
 
-    if (availableMatches.length < params.matchCount) {
-      return NextResponse.json(
-        {
-          error: 'Not enough matches available',
-          available: availableMatches.length,
-          requested: params.matchCount,
-        },
-        { status: 400 }
-      );
-    }
+    // Determine bet type label
+    const betTypeLabel = params.betType === 'single' ? 'pari simple' :
+                         params.betType === 'double' ? 'doublé' :
+                         params.betType === 'triple' ? 'triplé' :
+                         `combiné de ${params.selectedMatches.length} matchs`;
 
     // Call Claude Sonnet for analysis
     const prompt = `Tu es AlgoPronos AI, l'analyste sportif le plus précis d'Afrique de l'Ouest.
 
 # MISSION
-Génère un combiné de paris sportifs optimal basé sur une analyse approfondie.
+Génère un ${betTypeLabel} optimal basé sur une analyse approfondie des ${params.selectedMatches.length} match(s) sélectionné(s) par l'utilisateur.
 
-# DONNÉES FOURNIES
-${availableMatches.length} matchs disponibles :
+# MATCHS À ANALYSER
+${JSON.stringify(matchesForAnalysis, null, 2)}
 
-${JSON.stringify(availableMatches, null, 2)}
-
-# PARAMÈTRES DU COMBINÉ
-- Nombre de matchs à sélectionner : ${params.matchCount}
-- Fourchette de cotes : ${params.oddsRange.min} - ${params.oddsRange.max}
-- Niveau de risque : ${params.riskLevel}
-- Championnats : ${params.leagues.join(', ')}
+# PARAMÈTRES DU PARI
+- Type de pari : ${betTypeLabel}
+- Nombre de matchs : ${params.selectedMatches.length}
+- Niveau de risque : ${params.riskLevel === 'safe' ? 'Prudent (cotes 1.2-2.0)' : params.riskLevel === 'balanced' ? 'Équilibré (cotes 2.0-4.0)' : 'Risqué (cotes 4.0+)'}
+- Fourchette de cotes visée : ${params.oddsRange.min} - ${params.oddsRange.max}
 
 # TON TRAVAIL
-1. Analyse chaque match en profondeur (statistiques, forme, etc.)
-2. Sélectionne exactement ${params.matchCount} matchs
-3. Choisis les paris les plus sûrs pour atteindre la fourchette de cotes
-4. Fournis une analyse détaillée pour chaque match
+1. Analyse chaque match en profondeur
+2. Pour chaque match, choisis le meilleur pronostic (1X2, Over/Under, etc.)
+3. Fournis une analyse détaillée et professionnelle
+4. Calcule la cote totale et la probabilité estimée
 
 # FORMAT DE RÉPONSE (JSON STRICT)
 {
   "selectedMatches": [
     {
-      "matchId": "match_id_ici",
-      "homeTeam": "Nom équipe domicile",
-      "awayTeam": "Nom équipe extérieur",
+      "matchId": "id du match",
+      "homeTeam": "Équipe domicile",
+      "awayTeam": "Équipe extérieur",
       "league": "Championnat",
-      "kickoffTime": "ISO datetime",
+      "kickoffTime": "Date et heure au format: 2025-01-15 20:00",
       "selection": {
-        "type": "1X2",
-        "value": "1",
+        "type": "1X2|Over/Under|BTTS",
+        "value": "1|X|2|Over 2.5|Under 2.5|Oui|Non",
         "odds": 1.85,
-        "reasoning": "Raison courte du choix (1 phrase)"
+        "reasoning": "Raison du choix en 1-2 phrases"
       }
     }
   ],
   "totalOdds": 8.50,
   "probability": 72,
   "analysis": {
-    "summary": "Résumé global du combiné (2-3 phrases)",
+    "summary": "Résumé global du ${betTypeLabel} (2-3 phrases percutantes)",
     "keyFactors": [
       "Facteur clé 1",
       "Facteur clé 2",
@@ -272,26 +206,27 @@ ${JSON.stringify(availableMatches, null, 2)}
     ],
     "matchAnalyses": [
       {
-        "matchId": "match_id_ici",
+        "matchId": "id du match",
         "tacticalAnalysis": "Analyse tactique approfondie (3-4 phrases)",
         "formAnalysis": "Analyse de forme des équipes (2-3 phrases)",
-        "refereeImpact": "Impact de l'arbitre (1-2 phrases)",
-        "keyPlayers": "Joueurs clés à surveiller (2-3 joueurs)",
-        "prediction": "Prédiction détaillée du résultat (2-3 phrases)",
+        "keyPlayers": "Joueurs clés à surveiller",
+        "prediction": "Prédiction détaillée (2-3 phrases)",
         "confidenceLevel": 85
       }
     ],
-    "riskAssessment": "Évaluation globale des risques (2-3 phrases)"
+    "riskAssessment": "Évaluation des risques du ${betTypeLabel} (2-3 phrases)"
   }
 }
 
 # RÈGLES CRITIQUES
-- La cote totale DOIT être entre ${params.oddsRange.min} et ${params.oddsRange.max}
+- Analyse TOUS les ${params.selectedMatches.length} match(s) fournis
 - Sois PRÉCIS et PROFESSIONNEL dans tes analyses
-- Utilise des DONNÉES CONCRÈTES, pas de généralités
-- Si ${params.riskLevel} = 'safe', privilégie cotes basses (1.5-2.5)
-- Si ${params.riskLevel} = 'balanced', mix de cotes (1.8-3.5)
-- Si ${params.riskLevel} = 'risky', cotes plus élevées acceptables (2.5+)
+- Utilise des données CONCRÈTES (forme récente, confrontations, etc.)
+- La probabilité doit refléter le niveau de risque choisi
+- Pour un pari simple, sois particulièrement approfondi dans l'analyse
+- Si ${params.riskLevel} = 'safe', privilégie les favoris clairs
+- Si ${params.riskLevel} = 'balanced', mix équilibré
+- Si ${params.riskLevel} = 'risky', ose des pronostics audacieux
 
 RÉPONDS UNIQUEMENT AVEC LE JSON, RIEN D'AUTRE.`;
 
