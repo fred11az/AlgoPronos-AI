@@ -109,7 +109,7 @@
       "title": "Free VIP For Life",
       "price": "0 FCFA",
       "period": "free forever",
-      "description": "Create a 1xBet account with our promo code",
+      "description": "Create a NEW 1xBet account with our exclusive promo code",
       "features": [
         "Unlimited combines",
         "All odds (1.5 to 100+)",
@@ -358,25 +358,26 @@
   "vip": {
     "unlock": {
       "title": "Unlock Free VIP For Life",
-      "subtitle": "3 simple steps for unlimited free access forever",
+      "subtitle": "Create a NEW 1xBet account and access AlgoPronos AI for free forever!",
+      "important": "⚠️ IMPORTANT: You must create a NEW 1xBet account. Existing accounts are not eligible.",
       "step1": {
-        "title": "Create your 1xBet account",
-        "description": "Use our link and promo code to get all bonuses"
+        "title": "Create a NEW 1xBet account",
+        "description": "Click the button below and sign up with our promo code. You'll also get a welcome bonus!"
       },
       "step2": {
-        "title": "Submit your ID",
-        "description": "Give us your 1xBet identifier for verification"
+        "title": "Submit your new 1xBet ID",
+        "description": "After signing up, copy your 1xBet ID and submit it below"
       },
       "step3": {
-        "title": "Enjoy VIP for life",
-        "description": "Access validated within 24h, free forever!"
+        "title": "Enjoy AlgoPronos AI for free!",
+        "description": "Verification within 24h, then unlimited VIP access for life!"
       },
       "promoCode": {
         "label": "Your exclusive promo code:",
-        "warning": "Important: Use THIS code when signing up on 1xBet"
+        "warning": "⚠️ REQUIRED: Use THIS code when creating your NEW 1xBet account"
       },
-      "createAccount": "Create my 1xBet account now",
-      "afterCreation": "After creating your account",
+      "createAccount": "Create my NEW 1xBet account now",
+      "afterCreation": "After creating your NEW 1xBet account",
       "form": {
         "identifier": {
           "label": "Your 1xBet ID OR Email used",

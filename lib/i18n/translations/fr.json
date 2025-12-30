@@ -109,7 +109,7 @@
       "title": "VIP Gratuit À Vie",
       "price": "0 FCFA",
       "period": "gratuit pour toujours",
-      "description": "Créez un compte 1xBet avec notre code promo",
+      "description": "Créez un NOUVEAU compte 1xBet avec notre code promo exclusif",
       "features": [
         "Combinés illimités",
         "Toutes les cotes (1.5 à 100+)",
@@ -358,25 +358,26 @@
   "vip": {
     "unlock": {
       "title": "Débloquez VIP Gratuit À Vie",
-      "subtitle": "3 étapes simples pour un accès illimité gratuit pour toujours",
+      "subtitle": "Créez un NOUVEAU compte 1xBet et accédez gratuitement à AlgoPronos AI pour toujours !",
+      "important": "⚠️ IMPORTANT : Vous devez créer un NOUVEAU compte 1xBet. Les comptes existants ne sont pas éligibles.",
       "step1": {
-        "title": "Créez votre compte 1xBet",
-        "description": "Utilisez notre lien et code promo pour bénéficier de tous les bonus"
+        "title": "Créez un NOUVEAU compte 1xBet",
+        "description": "Cliquez sur le bouton ci-dessous et inscrivez-vous avec notre code promo. Vous recevrez aussi un bonus de bienvenue !"
       },
       "step2": {
-        "title": "Soumettez votre ID",
-        "description": "Donnez-nous votre identifiant 1xBet pour vérification"
+        "title": "Soumettez votre nouvel ID 1xBet",
+        "description": "Après inscription, copiez votre ID 1xBet et soumettez-le ci-dessous"
       },
       "step3": {
-        "title": "Profitez du VIP à vie",
-        "description": "Accès validé sous 24h, gratuit pour toujours !"
+        "title": "Profitez d'AlgoPronos AI gratuitement !",
+        "description": "Vérification sous 24h, puis accès VIP illimité à vie !"
       },
       "promoCode": {
         "label": "Votre code promo exclusif :",
-        "warning": "Important : Utilisez CE code lors de votre inscription sur 1xBet"
+        "warning": "⚠️ OBLIGATOIRE : Utilisez CE code lors de votre NOUVELLE inscription sur 1xBet"
       },
-      "createAccount": "Créer mon compte 1xBet maintenant",
-      "afterCreation": "Après avoir créé votre compte",
+      "createAccount": "Créer mon NOUVEAU compte 1xBet maintenant",
+      "afterCreation": "Après avoir créé votre NOUVEAU compte 1xBet",
       "form": {
         "identifier": {
           "label": "Votre ID 1xBet OU Email utilisé",
