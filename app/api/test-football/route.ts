@@ -10,9 +10,16 @@ export async function GET() {
     });
   }
 
-  // Test the API with a simple request
+  // Test the API with a fixtures request for today
   try {
-    const response = await fetch('https://v3.football.api-sports.io/status', {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Test with Premier League (id: 39) for today
+    const fixturesUrl = `https://v3.football.api-sports.io/fixtures?date=${today}&league=39&season=2024`;
+
+    console.log('Testing fixtures URL:', fixturesUrl);
+
+    const response = await fetch(fixturesUrl, {
       headers: {
         'x-apisports-key': apiKey,
       },
@@ -22,10 +29,14 @@ export async function GET() {
 
     return NextResponse.json({
       keyPresent: true,
-      keyLength: apiKey.length,
-      keyPreview: `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`,
+      testDate: today,
+      testLeague: 'Premier League (39)',
+      testSeason: 2024,
       apiStatus: response.status,
-      apiResponse: data,
+      resultsCount: data.results,
+      errors: data.errors,
+      fixtures: data.response?.slice(0, 5) || [], // First 5 fixtures
+      message: data.results > 0 ? 'Fixtures found!' : 'No fixtures for this date'
     });
   } catch (error) {
     return NextResponse.json({
