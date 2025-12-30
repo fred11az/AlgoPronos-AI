@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222.2 47.4% 11.2%;
+    --foreground: 210 40% 98%;
+    --card: 217.2 32.6% 17.5%;
+    --card-foreground: 210 40% 98%;
+    --popover: 217.2 32.6% 17.5%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 239 84% 67%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 27.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 27.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 160 84% 39%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
+  .text-gradient {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary;
+  }
+
+  .glass {
+    @apply bg-white/5 backdrop-blur-lg border border-white/10;
+  }
+
+  .glass-dark {
+    @apply bg-black/20 backdrop-blur-lg border border-white/5;
+  }
+
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(var(--background), var(--background)) padding-box,
+                linear-gradient(135deg, var(--primary), var(--secondary)) border-box;
+    border: 2px solid transparent;
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .glow {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+
+  .glow-secondary {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1E293B;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Selection */
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: #F8FAFC;
+}
+
+/* Focus styles */
+*:focus-visible {
+  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+}
+
+/* Loading spinner */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-all duration-300;
+}
+
+.card-hover:hover {
+  @apply -translate-y-1 shadow-xl shadow-primary/10;
+}
+
+/* Gradient backgrounds */
+.bg-mesh {
+  background-color: #0F172A;
+  background-image:
+    radial-gradient(at 40% 20%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(245, 158, 11, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%);
+}
+
+/* Number input without spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
