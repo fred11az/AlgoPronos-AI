@@ -201,7 +201,9 @@ export async function getUserRecentCombines(userId: string, limit = 5): Promise<
   }
 
   return usageLogs.map((log) => {
-    const combine = log.generated_combines as {
+    // Supabase returns the joined table as an object (single relation)
+    const combineData = log.generated_combines as unknown;
+    const combine = combineData as {
       id: string;
       matches: unknown[];
       total_odds: number;
