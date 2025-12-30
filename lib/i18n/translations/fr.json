@@ -105,21 +105,21 @@
     "title": "Choisissez votre accès",
     "subtitle": "Deux options. Même accès illimité. Vous choisissez.",
     "vip": {
-      "badge": "RECOMMANDÉ",
-      "title": "VIP Gratuit À Vie",
+      "badge": "COMPTE OPTIMISÉ",
+      "title": "Compte 1xBet Optimisé IA",
       "price": "0 FCFA",
       "period": "gratuit pour toujours",
-      "description": "Créez un NOUVEAU compte 1xBet avec notre code promo exclusif",
+      "description": "Créez un compte 1xBet optimisé avec notre code promo exclusif",
       "features": [
-        "Combinés illimités",
-        "Toutes les cotes (1.5 à 100+)",
-        "Analyses IA complètes",
-        "Support prioritaire",
-        "Historique complet",
-        "Communauté VIP",
-        "🎁 BONUS 200% jusqu'à 250 000 FCFA avec notre code !"
+        "🤖 Compte synchronisé avec l'IA",
+        "🎁 BONUS 200% jusqu'à 250 000 FCFA",
+        "💰 Cashback permanent sur dépôts",
+        "👥 Bonus parrainage 500F/filleul",
+        "📊 Analyses IA illimitées à vie",
+        "⚡ Support prioritaire VIP",
+        "🏆 Communauté VIP exclusive"
       ],
-      "cta": "Débloquer VIP Gratuit"
+      "cta": "Créer Mon Compte Optimisé"
     },
     "premium": {
       "title": "Premium",
@@ -357,12 +357,12 @@
   },
   "vip": {
     "unlock": {
-      "title": "Débloquez VIP Gratuit À Vie",
-      "subtitle": "Créez un NOUVEAU compte 1xBet et profitez de l'analyse IA la plus performante d'Afrique - GRATUITEMENT pour toujours !",
-      "important": "⚠️ IMPORTANT : Vous devez créer un NOUVEAU compte 1xBet. Les comptes existants ne sont pas éligibles.",
+      "title": "Créez Votre Compte 1xBet Optimisé IA",
+      "subtitle": "Avec notre code promo exclusif, obtenez un compte 1xBet spécialement configuré pour maximiser vos gains avec l'IA AlgoPronos !",
+      "important": "⚠️ IMPORTANT : Seuls les NOUVEAUX comptes créés avec notre code promo bénéficient de tous ces avantages. Les comptes existants ne sont pas éligibles.",
       "step1": {
-        "title": "Créez un NOUVEAU compte 1xBet",
-        "description": "Cliquez sur le bouton ci-dessous et inscrivez-vous avec notre code promo. Grâce à ce code, vous recevrez un BONUS de 200% jusqu'à 250 000 FCFA sur votre 1er dépôt + accès illimité aux analyses IA ultra-performantes !"
+        "title": "Créez votre compte optimisé avec notre code",
+        "description": "Notre code promo vous donne accès à un compte 1xBet PREMIUM avec : Bonus 200% (jusqu'à 250 000 FCFA), Cashback permanent, Bonus parrainage + Synchronisation avec l'IA AlgoPronos !"
       },
       "step2": {
         "title": "Soumettez votre nouvel ID 1xBet",
@@ -373,8 +373,8 @@
         "description": "Vérification sous 24h, puis accès VIP illimité à vie !"
       },
       "promoCode": {
-        "label": "Votre code promo exclusif :",
-        "warning": "⚠️ OBLIGATOIRE : Utilisez CE code lors de votre NOUVELLE inscription sur 1xBet"
+        "label": "Code d'activation compte optimisé :",
+        "warning": "⚠️ OBLIGATOIRE : Ce code active tous les bonus et la synchronisation IA sur votre nouveau compte"
       },
       "createAccount": "Créer mon NOUVEAU compte 1xBet maintenant",
       "afterCreation": "Après avoir créé votre NOUVEAU compte 1xBet",
@@ -396,26 +396,26 @@
       }
     },
     "widget": {
-      "badge": "OFFRE EXCLUSIVE",
+      "badge": "COMPTE OPTIMISÉ IA",
       "limitedPlaces": "Places limitées !",
       "partnership": "Partenariat officiel",
-      "title": "Débloquez VIP Gratuit À VIE",
-      "bonus": "+ {{amount}} FCFA de Bonus !",
+      "title": "Compte 1xBet Optimisé + VIP À VIE",
+      "bonus": "Jusqu'à {{amount}} FCFA de Bonus !",
       "benefits": {
         "vip": {
-          "title": "VIP AlgoPronos AI gratuit à vie",
-          "value": "Accès illimité"
+          "title": "🤖 Synchronisation IA AlgoPronos",
+          "value": "Analyses optimisées à vie"
         },
         "bonus": {
-          "title": "🎁 BONUS 200% avec notre code promo",
-          "value": "jusqu'à 250 000 FCFA sur 1er dépôt !"
+          "title": "🎁 BONUS 200% sur 1er dépôt",
+          "value": "jusqu'à 250 000 FCFA !"
         },
         "cashback": {
-          "title": "Cashback sur tous vos dépôts",
-          "value": "économie continue"
+          "title": "💰 Cashback permanent",
+          "value": "sur tous vos dépôts"
         },
         "referral": {
-          "title": "Bonus parrainage exclusif",
+          "title": "👥 Bonus parrainage",
           "value": "{{amount}} FCFA par filleul"
         }
       },
@@ -439,19 +439,19 @@
     "faq": {
       "verificationTime": {
         "question": "Combien de temps prend la vérification ?",
-        "answer": "Généralement sous 24h. Nous vérifions manuellement chaque demande pour garantir la sécurité."
+        "answer": "Généralement sous 24h. Nous vérifions que votre compte a bien été créé avec notre code promo pour activer tous les avantages."
       },
       "depositRequired": {
-        "question": "Dois-je déposer de l'argent sur 1xBet ?",
-        "answer": "Non, juste créer le compte suffit pour avoir l'accès VIP AlgoPronos. Mais grâce à notre code promo, si vous déposez, vous recevez automatiquement un BONUS de 200% jusqu'à 250 000 FCFA sur votre 1er dépôt !"
+        "question": "Dois-je déposer de l'argent ?",
+        "answer": "Non, créer le compte optimisé suffit pour l'accès IA. Mais si vous déposez, votre compte reçoit automatiquement le BONUS de 200% jusqu'à 250 000 FCFA + cashback permanent !"
       },
       "reallyFree": {
-        "question": "Le VIP est vraiment gratuit à vie ?",
-        "answer": "Oui ! Une fois activé, vous avez accès illimité pour toujours, sans aucun paiement récurrent."
+        "question": "Pourquoi c'est gratuit ?",
+        "answer": "Grâce à notre partenariat officiel 1xBet ! En créant votre compte optimisé avec notre code, vous bénéficiez de tous les avantages sans frais."
       },
-      "premiumAndVip": {
-        "question": "Puis-je avoir Premium ET VIP ?",
-        "answer": "Non besoin ! VIP vous donne exactement le même accès illimité que Premium, gratuitement."
+      "whyNewAccount": {
+        "question": "Pourquoi un NOUVEAU compte ?",
+        "answer": "Les bonus et la synchronisation IA ne peuvent être activés que sur un nouveau compte créé avec notre code promo. Les comptes existants ne peuvent pas être convertis."
       }
     }
   },

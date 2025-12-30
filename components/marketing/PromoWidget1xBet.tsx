@@ -40,24 +40,24 @@ export function PromoWidget1xBet({
 
   const benefits = [
     {
-      icon: Crown,
-      title: 'Analyses IA ultra-performantes',
-      value: 'VIP gratuit à vie',
+      icon: Rocket,
+      title: 'Compte synchronisé avec l\'IA',
+      value: 'Analyses optimisées à vie',
     },
     {
       icon: Gift,
-      title: '🎁 BONUS 200% avec notre code promo',
-      value: "jusqu'à 250,000 FCFA sur 1er dépôt !",
+      title: 'BONUS 200% sur 1er dépôt',
+      value: "jusqu'à 250,000 FCFA !",
       highlight: true,
     },
     {
       icon: Percent,
-      title: 'Cashback sur tous vos dépôts',
-      value: 'économie continue',
+      title: 'Cashback permanent',
+      value: 'sur tous vos dépôts',
     },
     {
       icon: Users,
-      title: 'Bonus parrainage exclusif',
+      title: 'Bonus parrainage',
       value: '500 FCFA par filleul',
     },
   ];
@@ -94,9 +94,9 @@ export function PromoWidget1xBet({
       <div className="relative z-10">
         {/* Header avec badges */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
-          <span className="bg-red-500 text-white px-4 py-1.5 rounded-full text-sm font-bold animate-pulse flex items-center gap-2">
-            <Flame className="h-4 w-4" />
-            OFFRE EXCLUSIVE
+          <span className="bg-gradient-to-r from-primary to-[#00D4FF] text-white px-4 py-1.5 rounded-full text-sm font-bold animate-pulse flex items-center gap-2">
+            <Rocket className="h-4 w-4" />
+            COMPTE OPTIMISÉ IA
           </span>
           <span className="bg-[#00D4FF]/20 backdrop-blur-sm text-[#00D4FF] px-4 py-1.5 rounded-full text-sm font-semibold flex items-center gap-2 border border-[#00D4FF]/30">
             <Clock className="h-4 w-4" />
@@ -112,17 +112,17 @@ export function PromoWidget1xBet({
               AlgoPronos AI + 1xBet
             </h3>
             <p className="text-[#00D4FF] text-sm font-medium">
-              Partenariat officiel
+              Partenariat officiel exclusif
             </p>
           </div>
         </div>
 
         {/* Titre accrocheur */}
         <h4 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight">
-          Débloquez VIP Gratuit À VIE
+          Créez Votre Compte 1xBet Optimisé
         </h4>
-        <p className="text-3xl md:text-4xl font-bold text-primary mb-6">
-          + BONUS 200% jusqu&apos;à 250,000 F avec le code !
+        <p className="text-2xl md:text-3xl font-bold text-primary mb-6">
+          4 Avantages Exclusifs avec Notre Code !
         </p>
 
         {/* Liste avantages */}
@@ -152,7 +152,7 @@ export function PromoWidget1xBet({
         <div className="bg-gradient-to-r from-[#00D4FF]/10 to-primary/10 rounded-2xl p-4 mb-6 border border-[#00D4FF]/30">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-text-muted mb-1">Votre code promo exclusif :</p>
+              <p className="text-xs text-text-muted mb-1">Code d&apos;activation compte optimisé :</p>
               <p className="text-2xl font-bold text-white tracking-wider">{promoCode}</p>
             </div>
             <button
@@ -177,21 +177,21 @@ export function PromoWidget1xBet({
         {/* Calcul Total */}
         <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 mb-6 border border-white/10">
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between items-center text-text-secondary">
-              <span>VIP AlgoPronos AI à vie</span>
-              <span className="font-semibold text-white">GRATUIT</span>
+            <div className="flex justify-between items-center text-[#00D4FF]">
+              <span className="font-medium">🤖 Synchronisation IA</span>
+              <span className="font-semibold">INCLUS</span>
             </div>
             <div className="flex justify-between items-center text-yellow-400">
-              <span className="font-bold">🎁 Bonus 200% (avec code)</span>
+              <span className="font-bold">🎁 Bonus 200% 1er dépôt</span>
               <span className="font-bold">jusqu&apos;à 250,000 F</span>
             </div>
             <div className="flex justify-between items-center text-text-secondary">
-              <span>Cashback + Parrainage</span>
-              <span className="font-semibold text-white">Bonus continus</span>
+              <span>💰 Cashback + 👥 Parrainage</span>
+              <span className="font-semibold text-white">INCLUS</span>
             </div>
             <div className="h-px bg-white/20 my-2"></div>
             <div className="flex justify-between items-center">
-              <span className="font-bold text-white">TOTAL AVANTAGES</span>
+              <span className="font-bold text-white">VALEUR TOTALE</span>
               <span className="font-bold text-xl text-primary">250,000+ F</span>
             </div>
           </div>
@@ -205,7 +205,7 @@ export function PromoWidget1xBet({
         >
           <Link href="/unlock-vip">
             <Rocket className="mr-2 h-5 w-5" />
-            Débloquer Maintenant (100% Gratuit)
+            Créer Mon Compte Optimisé (Gratuit)
             <ArrowRight className="ml-2 h-5 w-5" />
           </Link>
         </Button>
