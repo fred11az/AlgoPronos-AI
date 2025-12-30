@@ -9,9 +9,10 @@ import type { Profile } from '@/types';
 interface DashboardShellProps {
   user: Profile | null;
   children: React.ReactNode;
+  isAdmin?: boolean;
 }
 
-export function DashboardShell({ user, children }: DashboardShellProps) {
+export function DashboardShell({ user, children, isAdmin = false }: DashboardShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -35,6 +36,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           user={user}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          isAdmin={isAdmin}
         />
       </div>
 
@@ -57,6 +59,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           user={user}
           collapsed={false}
           onToggle={() => setMobileMenuOpen(false)}
+          isAdmin={isAdmin}
         />
       </div>
 
@@ -67,7 +70,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
         )}
       >
-        <TopBar user={user} onMenuClick={() => setMobileMenuOpen(true)} />
+        <TopBar user={user} onMenuClick={() => setMobileMenuOpen(true)} isAdmin={isAdmin} />
         <main className="p-4 lg:p-6">{children}</main>
       </div>
     </div>
