@@ -36,6 +36,7 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
           user={user}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          isAdmin={isAdmin}
         />
       </div>
 
@@ -58,6 +59,7 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
           user={user}
           collapsed={false}
           onToggle={() => setMobileMenuOpen(false)}
+          isAdmin={isAdmin}
         />
       </div>
 

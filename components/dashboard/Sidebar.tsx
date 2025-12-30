@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import type { Profile } from '@/types';
 
@@ -24,6 +25,7 @@ interface SidebarProps {
   user: Profile | null;
   collapsed: boolean;
   onToggle: () => void;
+  isAdmin?: boolean;
 }
 
 const navItems = [
@@ -55,12 +57,25 @@ const navItems = [
   },
 ];
 
-export function Sidebar({ user, collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ user, collapsed, onToggle, isAdmin = false }: SidebarProps) {
   const pathname = usePathname();
 
   const isVIP = user?.tier === 'vip_lifetime';
   const isPremium = user?.tier === 'premium';
   const hasAccess = isVIP || isPremium;
+
+  // Add admin nav items if user is admin
+  const allNavItems = isAdmin
+    ? [
+        ...navItems,
+        {
+          label: 'Administration',
+          href: '/admin',
+          icon: ShieldCheck,
+          badge: 'Admin',
+        },
+      ]
+    : navItems;
 
   return (
     <aside
@@ -124,7 +139,7 @@ export function Sidebar({ user, collapsed, onToggle }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
+          {allNavItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
 
