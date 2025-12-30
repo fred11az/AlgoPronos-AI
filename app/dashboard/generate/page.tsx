@@ -203,7 +203,7 @@ export default function GeneratePage() {
       if (data.matches) {
         setAvailableMatches(data.matches);
         // Expand all leagues by default
-        const uniqueLeagues = [...new Set(data.matches.map((m: FootballMatch) => m.leagueCode))];
+        const uniqueLeagues = Array.from(new Set(data.matches.map((m: FootballMatch) => m.leagueCode))) as string[];
         setExpandedLeagues(uniqueLeagues);
       }
     } catch (error) {
@@ -234,7 +234,7 @@ export default function GeneratePage() {
     if (allSelected) {
       setSelectedLeagues((prev) => prev.filter((c) => !codes.includes(c)));
     } else {
-      setSelectedLeagues((prev) => [...new Set([...prev, ...codes])]);
+      setSelectedLeagues((prev) => Array.from(new Set([...prev, ...codes])));
     }
   };
 
