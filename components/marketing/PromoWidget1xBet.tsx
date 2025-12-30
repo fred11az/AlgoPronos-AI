@@ -41,8 +41,8 @@ export function PromoWidget1xBet({
   const benefits = [
     {
       icon: Crown,
-      title: 'VIP AlgoPronos AI gratuit à vie',
-      value: 'Accès illimité',
+      title: 'Analyses IA ultra-performantes',
+      value: 'VIP gratuit à vie',
     },
     {
       icon: Gift,
