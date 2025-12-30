@@ -58,9 +58,18 @@ export default function CombinesPage() {
         .order('created_at', { ascending: false })
         .limit(20);
 
-      const uniqueCombines = data
-        ?.map((item) => item.combine)
-        .filter((c, i, arr) => c && arr.findIndex((x) => x?.id === c?.id) === i) as Combine[] || [];
+      const uniqueCombines: Combine[] = [];
+      const seenIds = new Set<string>();
+
+      if (data) {
+        for (const item of data) {
+          const combine = item.combine as unknown as Combine | null;
+          if (combine && !seenIds.has(combine.id)) {
+            seenIds.add(combine.id);
+            uniqueCombines.push(combine);
+          }
+        }
+      }
 
       setCombines(uniqueCombines);
       setLoading(false);
