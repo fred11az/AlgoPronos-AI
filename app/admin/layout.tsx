@@ -11,6 +11,8 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 const adminNavItems = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { label: 'Utilisateurs', href: '/admin/users', icon: Users },
