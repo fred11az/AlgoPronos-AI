@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getCurrentUser } from '@/lib/supabase/server';
+import { getCurrentUser, getUserStats, getUserRecentCombines, getVipVerificationStatus } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,22 +14,57 @@ import {
   Trophy,
   Target,
   Calendar,
+  Clock,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
+
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "À l'instant";
+  if (diffMins < 60) return `Il y a ${diffMins} min`;
+  if (diffHours < 24) return `Il y a ${diffHours}h`;
+  return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+}
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center">
+            <Crown className="h-12 w-12 text-primary mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">Connexion requise</h2>
+            <p className="text-text-secondary mb-6">
+              Connectez-vous pour accéder à votre tableau de bord
+            </p>
+            <Button variant="gradient" asChild>
+              <Link href="/login">Se connecter</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const isVIP = user?.tier === 'vip_lifetime';
   const isPremium = user?.tier === 'premium';
   const hasAccess = isVIP || isPremium;
 
-  // Mock stats - in real app, fetch from database
-  const stats = {
-    combinesGenerated: 12,
-    successRate: 78,
-    totalWinnings: 45000,
-    streak: 4,
-  };
+  // Fetch real data from Supabase
+  const [stats, recentCombines, vipStatus] = await Promise.all([
+    getUserStats(user.id),
+    getUserRecentCombines(user.id, 5),
+    getVipVerificationStatus(user.id),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -37,10 +72,12 @@ export default async function DashboardPage() {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-white">
-            Tableau de bord
+            Bienvenue, {user.full_name || 'Utilisateur'}
           </h1>
           <p className="text-text-secondary mt-1">
-            Générez et suivez vos combinés IA
+            {hasAccess
+              ? 'Prêt à générer des combinés gagnants ?'
+              : 'Débloquez votre accès pour commencer'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -55,15 +92,34 @@ export default async function DashboardPage() {
             <Button size="lg" variant="gradient" asChild>
               <Link href="/unlock-vip">
                 <Crown className="mr-2 h-5 w-5" />
-                Débloquer VIP Gratuit
+                Créer Mon Compte Optimisé
               </Link>
             </Button>
           )}
         </div>
       </div>
 
+      {/* VIP Verification Status */}
+      {!hasAccess && vipStatus.status === 'pending' && (
+        <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/30">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                <Clock className="h-6 w-6 text-yellow-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Vérification en cours</h3>
+                <p className="text-text-secondary">
+                  Votre demande VIP est en cours de vérification. Réponse sous 24h.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Access Card (if no tier) */}
-      {!hasAccess && (
+      {!hasAccess && vipStatus.status !== 'pending' && (
         <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -73,18 +129,17 @@ export default async function DashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white mb-1">
-                    Débloquez l&apos;accès illimité
+                    Créez votre compte 1xBet optimisé
                   </h3>
                   <p className="text-text-secondary max-w-xl">
-                    Créez un compte 1xBet avec notre code promo et obtenez l&apos;accès
-                    VIP gratuit à vie. Ou choisissez Premium à 1000F/semaine.
+                    Obtenez un compte synchronisé avec l&apos;IA + Bonus 200% jusqu&apos;à 250 000 FCFA + Cashback permanent. Ou choisissez Premium à 1000F/semaine.
                   </p>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button variant="gradient" asChild>
                   <Link href="/unlock-vip">
-                    VIP Gratuit à Vie
+                    Compte Optimisé Gratuit
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -126,7 +181,7 @@ export default async function DashboardPage() {
               <div>
                 <p className="text-text-muted text-sm">Taux de réussite</p>
                 <p className="text-2xl font-bold text-white">
-                  {stats.successRate}%
+                  {stats.successRate > 0 ? `${stats.successRate}%` : '-'}
                 </p>
               </div>
             </div>
@@ -142,7 +197,7 @@ export default async function DashboardPage() {
               <div>
                 <p className="text-text-muted text-sm">Gains estimés</p>
                 <p className="text-2xl font-bold text-white">
-                  {stats.totalWinnings.toLocaleString()}F
+                  {stats.totalWinnings > 0 ? `${stats.totalWinnings.toLocaleString()}F` : '-'}
                 </p>
               </div>
             </div>
@@ -158,7 +213,7 @@ export default async function DashboardPage() {
               <div>
                 <p className="text-text-muted text-sm">Série en cours</p>
                 <p className="text-2xl font-bold text-white">
-                  {stats.streak} wins
+                  {stats.streak > 0 ? `${stats.streak} wins` : '-'}
                 </p>
               </div>
             </div>
@@ -238,12 +293,11 @@ export default async function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {hasAccess ? (
+          {hasAccess && recentCombines.length > 0 ? (
             <div className="space-y-4">
-              {/* Mock recent combines */}
-              {[1, 2, 3].map((_, index) => (
+              {recentCombines.map((combine, index) => (
                 <div
-                  key={index}
+                  key={combine.id}
                   className="flex items-center justify-between p-4 rounded-xl bg-surface-light/50 hover:bg-surface-light transition-colors"
                 >
                   <div className="flex items-center gap-4">
@@ -252,22 +306,42 @@ export default async function DashboardPage() {
                     </div>
                     <div>
                       <p className="font-medium text-white">
-                        Combiné #{12 - index} matchs
+                        Combiné {Array.isArray(combine.matches) ? combine.matches.length : 0} matchs
                       </p>
                       <p className="text-sm text-text-muted">
-                        Il y a {index + 1} jour{index > 0 ? 's' : ''}
+                        {formatTimeAgo(combine.createdAt)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-medium text-white">Cote: {(5.2 + index * 1.3).toFixed(2)}</p>
-                      <Badge variant={index === 0 ? 'success' : 'outline'}>
-                        {index === 0 ? 'Gagné' : 'En cours'}
+                      <p className="font-medium text-white">
+                        Cote: {combine.totalOdds.toFixed(2)}
+                      </p>
+                      <Badge
+                        variant={
+                          combine.status === 'won'
+                            ? 'success'
+                            : combine.status === 'lost'
+                            ? 'destructive'
+                            : 'outline'
+                        }
+                      >
+                        {combine.status === 'won' && (
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                        )}
+                        {combine.status === 'lost' && (
+                          <XCircle className="h-3 w-3 mr-1" />
+                        )}
+                        {combine.status === 'won'
+                          ? 'Gagné'
+                          : combine.status === 'lost'
+                          ? 'Perdu'
+                          : 'En cours'}
                       </Badge>
                     </div>
                     <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/dashboard/combines/${12 - index}`}>
+                      <Link href={`/dashboard/combines/${combine.id}`}>
                         Voir
                       </Link>
                     </Button>
@@ -275,17 +349,32 @@ export default async function DashboardPage() {
                 </div>
               ))}
             </div>
+          ) : hasAccess ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 rounded-full bg-surface-light flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="h-8 w-8 text-text-muted" />
+              </div>
+              <p className="text-text-secondary mb-4">
+                Vous n&apos;avez pas encore généré de combinés
+              </p>
+              <Button variant="gradient" asChild>
+                <Link href="/dashboard/generate">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Générer mon premier combiné
+                </Link>
+              </Button>
+            </div>
           ) : (
             <div className="text-center py-8">
               <div className="w-16 h-16 rounded-full bg-surface-light flex items-center justify-center mx-auto mb-4">
                 <Crown className="h-8 w-8 text-text-muted" />
               </div>
               <p className="text-text-secondary mb-4">
-                Débloquez l&apos;accès pour générer vos premiers combinés
+                Créez votre compte optimisé pour générer vos premiers combinés
               </p>
               <Button variant="gradient" asChild>
                 <Link href="/unlock-vip">
-                  Débloquer VIP Gratuit
+                  Créer Mon Compte Optimisé
                 </Link>
               </Button>
             </div>
@@ -293,32 +382,38 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Performance Chart Placeholder */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Performance</CardTitle>
-          <CardDescription>
-            Évolution de vos résultats sur les 30 derniers jours
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-text-muted">Objectif mensuel</span>
-              <span className="text-sm font-medium text-white">75%</span>
+      {/* Performance Chart */}
+      {hasAccess && stats.combinesGenerated > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Performance</CardTitle>
+            <CardDescription>
+              Évolution de vos résultats
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-text-muted">Progression</span>
+                <span className="text-sm font-medium text-white">
+                  {stats.combinesGenerated} combiné{stats.combinesGenerated > 1 ? 's' : ''} généré{stats.combinesGenerated > 1 ? 's' : ''}
+                </span>
+              </div>
+              <Progress value={Math.min(stats.combinesGenerated * 10, 100)} className="h-3" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-muted">
+                  Continuez à générer pour améliorer vos stats
+                </span>
+                {stats.successRate > 0 && (
+                  <span className="text-primary font-medium">
+                    {stats.successRate}% de réussite
+                  </span>
+                )}
+              </div>
             </div>
-            <Progress value={stats.successRate} className="h-3" />
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-text-muted">
-                {stats.combinesGenerated} combinés générés
-              </span>
-              <span className="text-primary font-medium">
-                {stats.successRate}% de réussite
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
