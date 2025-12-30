@@ -117,7 +117,7 @@
         "Support prioritaire",
         "Historique complet",
         "Communauté VIP",
-        "🎁 BONUS 1xBet 200% jusqu'à 250 000 FCFA !"
+        "🎁 BONUS 200% jusqu'à 250 000 FCFA avec notre code !"
       ],
       "cta": "Débloquer VIP Gratuit"
     },
@@ -362,7 +362,7 @@
       "important": "⚠️ IMPORTANT : Vous devez créer un NOUVEAU compte 1xBet. Les comptes existants ne sont pas éligibles.",
       "step1": {
         "title": "Créez un NOUVEAU compte 1xBet",
-        "description": "Cliquez sur le bouton ci-dessous et inscrivez-vous avec notre code promo. Vous recevrez aussi un bonus de bienvenue !"
+        "description": "Cliquez sur le bouton ci-dessous et inscrivez-vous avec notre code promo. Grâce à ce code, vous recevrez un BONUS de 200% jusqu'à 250 000 FCFA sur votre 1er dépôt !"
       },
       "step2": {
         "title": "Soumettez votre nouvel ID 1xBet",
@@ -407,8 +407,8 @@
           "value": "Accès illimité"
         },
         "bonus": {
-          "title": "🎁 BONUS 1xBet 200% sur 1er dépôt",
-          "value": "jusqu'à 250 000 FCFA !"
+          "title": "🎁 BONUS 200% avec notre code promo",
+          "value": "jusqu'à 250 000 FCFA sur 1er dépôt !"
         },
         "cashback": {
           "title": "Cashback sur tous vos dépôts",
@@ -443,7 +443,7 @@
       },
       "depositRequired": {
         "question": "Dois-je déposer de l'argent sur 1xBet ?",
-        "answer": "Non, juste créer le compte suffit pour avoir l'accès VIP. Mais si vous déposez, vous recevez un BONUS de 200% jusqu'à 250 000 FCFA !"
+        "answer": "Non, juste créer le compte suffit pour avoir l'accès VIP AlgoPronos. Mais grâce à notre code promo, si vous déposez, vous recevez automatiquement un BONUS de 200% jusqu'à 250 000 FCFA sur votre 1er dépôt !"
       },
       "reallyFree": {
         "question": "Le VIP est vraiment gratuit à vie ?",

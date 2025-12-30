@@ -117,7 +117,7 @@
         "Priority support",
         "Full history",
         "VIP Community",
-        "🎁 1xBet 200% BONUS up to 250,000 FCFA!"
+        "🎁 200% BONUS up to 250,000 FCFA with our code!"
       ],
       "cta": "Unlock Free VIP"
     },
@@ -362,7 +362,7 @@
       "important": "⚠️ IMPORTANT: You must create a NEW 1xBet account. Existing accounts are not eligible.",
       "step1": {
         "title": "Create a NEW 1xBet account",
-        "description": "Click the button below and sign up with our promo code. You'll also get a welcome bonus!"
+        "description": "Click the button below and sign up with our promo code. With this code, you'll get a 200% BONUS up to 250,000 FCFA on your 1st deposit!"
       },
       "step2": {
         "title": "Submit your new 1xBet ID",
@@ -407,8 +407,8 @@
           "value": "Unlimited access"
         },
         "bonus": {
-          "title": "🎁 1xBet 200% BONUS on 1st deposit",
-          "value": "up to 250,000 FCFA!"
+          "title": "🎁 200% BONUS with our promo code",
+          "value": "up to 250,000 FCFA on 1st deposit!"
         },
         "cashback": {
           "title": "Cashback on all deposits",
@@ -443,7 +443,7 @@
       },
       "depositRequired": {
         "question": "Do I need to deposit money on 1xBet?",
-        "answer": "No, just creating the account is enough to get VIP access. But if you deposit, you get a 200% BONUS up to 250,000 FCFA!"
+        "answer": "No, just creating the account is enough to get AlgoPronos VIP access. But thanks to our promo code, if you deposit, you automatically get a 200% BONUS up to 250,000 FCFA on your 1st deposit!"
       },
       "reallyFree": {
         "question": "Is VIP really free for life?",

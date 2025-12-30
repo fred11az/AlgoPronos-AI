@@ -46,8 +46,8 @@ export function PromoWidget1xBet({
     },
     {
       icon: Gift,
-      title: '🎁 BONUS 1xBet 200% sur 1er dépôt',
-      value: "jusqu'à 250,000 FCFA !",
+      title: '🎁 BONUS 200% avec notre code promo',
+      value: "jusqu'à 250,000 FCFA sur 1er dépôt !",
       highlight: true,
     },
     {
@@ -122,7 +122,7 @@ export function PromoWidget1xBet({
           Débloquez VIP Gratuit À VIE
         </h4>
         <p className="text-3xl md:text-4xl font-bold text-primary mb-6">
-          + BONUS 200% jusqu&apos;à 250,000 F !
+          + BONUS 200% jusqu&apos;à 250,000 F avec le code !
         </p>
 
         {/* Liste avantages */}
@@ -182,7 +182,7 @@ export function PromoWidget1xBet({
               <span className="font-semibold text-white">GRATUIT</span>
             </div>
             <div className="flex justify-between items-center text-yellow-400">
-              <span className="font-bold">🎁 Bonus 1xBet 200%</span>
+              <span className="font-bold">🎁 Bonus 200% (avec code)</span>
               <span className="font-bold">jusqu&apos;à 250,000 F</span>
             </div>
             <div className="flex justify-between items-center text-text-secondary">
