@@ -70,15 +70,16 @@ const leagueIdMap: Record<string, number> = {
 };
 
 class FootballApiService {
-  private apiKey: string;
   private baseUrl = 'https://v3.football.api-sports.io';
 
-  constructor() {
-    this.apiKey = process.env.FOOTBALL_API_KEY || '';
+  private getApiKey(): string {
+    return process.env.FOOTBALL_API_KEY || '';
   }
 
   private async fetch(endpoint: string, params: Record<string, string> = {}) {
-    if (!this.apiKey) {
+    const apiKey = this.getApiKey();
+
+    if (!apiKey) {
       console.warn('Football API key not configured, using mock data');
       return null;
     }
@@ -86,24 +87,32 @@ class FootballApiService {
     const queryString = new URLSearchParams(params).toString();
     const url = `${this.baseUrl}${endpoint}${queryString ? `?${queryString}` : ''}`;
 
+    console.log(`Fetching: ${url}`);
+
     const response = await fetch(url, {
       headers: {
-        'x-apisports-key': this.apiKey, // For api-football.com direct access
+        'x-apisports-key': apiKey,
       },
-      next: { revalidate: 300 }, // Cache for 5 minutes
+      cache: 'no-store', // Don't cache to ensure fresh data
     });
 
     if (!response.ok) {
-      console.error(`Football API error: ${response.status}`);
+      const text = await response.text();
+      console.error(`Football API error: ${response.status} - ${text}`);
       throw new Error(`Football API error: ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log(`API Response for ${endpoint}:`, data.results, 'results');
+    return data;
   }
 
   async getMatchesByDate(date: string, leagueCodes: string[]): Promise<FootballMatch[]> {
+    const apiKey = this.getApiKey();
+
     // If no API key, return mock data
-    if (!this.apiKey) {
+    if (!apiKey) {
+      console.log('No API key, using mock data');
       return this.getMockMatches(date, leagueCodes);
     }
 
