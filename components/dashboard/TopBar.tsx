@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
   Crown,
   Sparkles,
   CreditCard,
+  ShieldCheck,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -32,11 +33,28 @@ import type { Profile } from '@/types';
 interface TopBarProps {
   user: Profile | null;
   onMenuClick: () => void;
+  isAdmin?: boolean;
 }
 
-export function TopBar({ user, onMenuClick }: TopBarProps) {
+export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
   const router = useRouter();
-  const [notifications] = useState(3);
+  const [pendingVerifications, setPendingVerifications] = useState(0);
+
+  // Fetch pending verifications count for admins
+  useEffect(() => {
+    if (isAdmin) {
+      fetchPendingCount();
+    }
+  }, [isAdmin]);
+
+  async function fetchPendingCount() {
+    const { count } = await supabase
+      .from('vip_verifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+
+    setPendingVerifications(count || 0);
+  }
 
   async function handleLogout() {
     try {
@@ -86,15 +104,20 @@ export function TopBar({ user, onMenuClick }: TopBarProps) {
             </Button>
           )}
 
-          {/* Notifications */}
-          <button className="relative p-2 rounded-lg hover:bg-surface-light text-text-muted hover:text-white transition-colors">
-            <Bell className="h-5 w-5" />
-            {notifications > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-error rounded-full text-xs text-white flex items-center justify-center">
-                {notifications}
-              </span>
-            )}
-          </button>
+          {/* Admin Link */}
+          {isAdmin && (
+            <Link
+              href="/admin/verifications"
+              className="relative p-2 rounded-lg hover:bg-surface-light text-text-muted hover:text-white transition-colors"
+            >
+              <ShieldCheck className="h-5 w-5" />
+              {pendingVerifications > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 bg-warning rounded-full text-xs text-white flex items-center justify-center">
+                  {pendingVerifications}
+                </span>
+              )}
+            </Link>
+          )}
 
           {/* User Menu */}
           <DropdownMenu>
@@ -147,6 +170,17 @@ export function TopBar({ user, onMenuClick }: TopBarProps) {
                     Abonnement
                   </Link>
                 </DropdownMenuItem>
+              )}
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="text-warning">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Administration
+                    </Link>
+                  </DropdownMenuItem>
+                </>
               )}
               {!isVIP && !isPremium && (
                 <>
