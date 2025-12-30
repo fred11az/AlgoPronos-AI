@@ -124,12 +124,20 @@ class FootballApiService {
       return [];
     }
 
+    // Get current season (use current year, or previous year if we're in early months)
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 0-indexed
+    // Most European leagues run Aug-May, so use previous year's season if before August
+    const season = currentMonth < 8 ? currentYear - 1 : currentYear;
+
     try {
       // Fetch matches for each league
       const matchPromises = leagueIds.map(leagueId =>
         this.fetch('/fixtures', {
           date,
           league: leagueId.toString(),
+          season: season.toString(),
           timezone: 'Africa/Porto-Novo', // West Africa timezone
         }).catch(err => {
           console.error(`Error fetching league ${leagueId}:`, err);
