@@ -117,7 +117,7 @@
         "Support prioritaire",
         "Historique complet",
         "Communauté VIP",
-        "Bonus 1xBet 100% (jusqu'à 50k FCFA)"
+        "🎁 BONUS 1xBet 200% jusqu'à 250 000 FCFA !"
       ],
       "cta": "Débloquer VIP Gratuit"
     },
@@ -404,14 +404,14 @@
       "benefits": {
         "vip": {
           "title": "VIP AlgoPronos AI gratuit à vie",
-          "value": "{{amount}} FCFA/an"
+          "value": "Accès illimité"
         },
         "bonus": {
-          "title": "Bonus 1xBet 100% sur 1er dépôt",
-          "value": "jusqu'à {{amount}} FCFA"
+          "title": "🎁 BONUS 1xBet 200% sur 1er dépôt",
+          "value": "jusqu'à 250 000 FCFA !"
         },
         "cashback": {
-          "title": "Cashback 2% sur tous vos dépôts",
+          "title": "Cashback sur tous vos dépôts",
           "value": "économie continue"
         },
         "referral": {
@@ -422,8 +422,8 @@
       "total": {
         "label": "TOTAL AVANTAGES",
         "vipAnnual": "VIP à vie (valeur annuelle)",
-        "bonus1xbet": "Bonus 1xBet 100%",
-        "cashbackBonus": "Cashback + Bonus"
+        "bonus1xbet": "Bonus 1xBet 200%",
+        "cashbackBonus": "Jusqu'à 250 000 FCFA"
       },
       "cta": "Débloquer Maintenant (100% Gratuit)",
       "trust": {
@@ -443,7 +443,7 @@
       },
       "depositRequired": {
         "question": "Dois-je déposer de l'argent sur 1xBet ?",
-        "answer": "Non, juste créer le compte suffit. Le dépôt est optionnel (mais recommandé pour profiter du bonus 100%)."
+        "answer": "Non, juste créer le compte suffit pour avoir l'accès VIP. Mais si vous déposez, vous recevez un BONUS de 200% jusqu'à 250 000 FCFA !"
       },
       "reallyFree": {
         "question": "Le VIP est vraiment gratuit à vie ?",

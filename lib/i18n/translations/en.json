@@ -117,7 +117,7 @@
         "Priority support",
         "Full history",
         "VIP Community",
-        "1xBet 100% bonus (up to 50k FCFA)"
+        "🎁 1xBet 200% BONUS up to 250,000 FCFA!"
       ],
       "cta": "Unlock Free VIP"
     },
@@ -404,14 +404,14 @@
       "benefits": {
         "vip": {
           "title": "Free AlgoPronos AI VIP for life",
-          "value": "{{amount}} FCFA/year"
+          "value": "Unlimited access"
         },
         "bonus": {
-          "title": "1xBet 100% bonus on 1st deposit",
-          "value": "up to {{amount}} FCFA"
+          "title": "🎁 1xBet 200% BONUS on 1st deposit",
+          "value": "up to 250,000 FCFA!"
         },
         "cashback": {
-          "title": "2% cashback on all deposits",
+          "title": "Cashback on all deposits",
           "value": "continuous savings"
         },
         "referral": {
@@ -422,8 +422,8 @@
       "total": {
         "label": "TOTAL BENEFITS",
         "vipAnnual": "VIP for life (annual value)",
-        "bonus1xbet": "1xBet 100% bonus",
-        "cashbackBonus": "Cashback + Bonus"
+        "bonus1xbet": "1xBet 200% bonus",
+        "cashbackBonus": "Up to 250,000 FCFA"
       },
       "cta": "Unlock Now (100% Free)",
       "trust": {
@@ -443,7 +443,7 @@
       },
       "depositRequired": {
         "question": "Do I need to deposit money on 1xBet?",
-        "answer": "No, just creating the account is enough. Deposit is optional (but recommended to enjoy the 100% bonus)."
+        "answer": "No, just creating the account is enough to get VIP access. But if you deposit, you get a 200% BONUS up to 250,000 FCFA!"
       },
       "reallyFree": {
         "question": "Is VIP really free for life?",

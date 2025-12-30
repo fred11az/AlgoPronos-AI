@@ -42,16 +42,17 @@ export function PromoWidget1xBet({
     {
       icon: Crown,
       title: 'VIP AlgoPronos AI gratuit à vie',
-      value: '208,000 FCFA/an',
+      value: 'Accès illimité',
     },
     {
       icon: Gift,
-      title: 'Bonus 1xBet 100% sur 1er dépôt',
-      value: "jusqu'à 50,000 FCFA",
+      title: '🎁 BONUS 1xBet 200% sur 1er dépôt',
+      value: "jusqu'à 250,000 FCFA !",
+      highlight: true,
     },
     {
       icon: Percent,
-      title: 'Cashback 2% sur tous vos dépôts',
+      title: 'Cashback sur tous vos dépôts',
       value: 'économie continue',
     },
     {
@@ -121,7 +122,7 @@ export function PromoWidget1xBet({
           Débloquez VIP Gratuit À VIE
         </h4>
         <p className="text-3xl md:text-4xl font-bold text-primary mb-6">
-          + 259,200 FCFA de Bonus !
+          + BONUS 200% jusqu&apos;à 250,000 F !
         </p>
 
         {/* Liste avantages */}
@@ -177,21 +178,21 @@ export function PromoWidget1xBet({
         <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 mb-6 border border-white/10">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between items-center text-text-secondary">
-              <span>VIP à vie (valeur annuelle)</span>
-              <span className="font-semibold text-white">208,000 F</span>
+              <span>VIP AlgoPronos AI à vie</span>
+              <span className="font-semibold text-white">GRATUIT</span>
+            </div>
+            <div className="flex justify-between items-center text-yellow-400">
+              <span className="font-bold">🎁 Bonus 1xBet 200%</span>
+              <span className="font-bold">jusqu&apos;à 250,000 F</span>
             </div>
             <div className="flex justify-between items-center text-text-secondary">
-              <span>Bonus 1xBet 100%</span>
-              <span className="font-semibold text-white">50,000 F</span>
-            </div>
-            <div className="flex justify-between items-center text-text-secondary">
-              <span>Cashback + Bonus</span>
-              <span className="font-semibold text-white">1,200 F</span>
+              <span>Cashback + Parrainage</span>
+              <span className="font-semibold text-white">Bonus continus</span>
             </div>
             <div className="h-px bg-white/20 my-2"></div>
             <div className="flex justify-between items-center">
               <span className="font-bold text-white">TOTAL AVANTAGES</span>
-              <span className="font-bold text-xl text-primary">259,200 F</span>
+              <span className="font-bold text-xl text-primary">250,000+ F</span>
             </div>
           </div>
         </div>
