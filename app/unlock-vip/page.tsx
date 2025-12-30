@@ -183,13 +183,28 @@ export default function UnlockVIPPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-12">
         {/* Title */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
             {t('vip.unlock.title')}
           </h1>
           <p className="text-xl text-text-secondary">
             {t('vip.unlock.subtitle')}
           </p>
+        </div>
+
+        {/* Important Warning */}
+        <div className="bg-warning/10 border-2 border-warning/50 rounded-2xl p-6 mb-12">
+          <div className="flex items-start gap-4">
+            <AlertCircle className="h-8 w-8 text-warning flex-shrink-0" />
+            <div>
+              <p className="text-lg font-bold text-warning mb-2">
+                {t('vip.unlock.important')}
+              </p>
+              <p className="text-text-secondary">
+                {t('vip.unlock.step1.description')}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Process Steps */}

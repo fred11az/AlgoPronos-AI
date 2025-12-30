@@ -105,21 +105,21 @@
     "title": "Choose your access",
     "subtitle": "Two options. Same unlimited access. You choose.",
     "vip": {
-      "badge": "RECOMMENDED",
-      "title": "Free VIP For Life",
+      "badge": "OPTIMIZED ACCOUNT",
+      "title": "AI-Optimized 1xBet Account",
       "price": "0 FCFA",
       "period": "free forever",
-      "description": "Create a 1xBet account with our promo code",
+      "description": "Create an optimized 1xBet account with our exclusive promo code",
       "features": [
-        "Unlimited combines",
-        "All odds (1.5 to 100+)",
-        "Complete AI analysis",
-        "Priority support",
-        "Full history",
-        "VIP Community",
-        "1xBet 100% bonus (up to 50k FCFA)"
+        "🤖 AI-synchronized account",
+        "🎁 200% BONUS up to 250,000 FCFA",
+        "💰 Permanent cashback on deposits",
+        "👥 Referral bonus 500F/friend",
+        "📊 Unlimited AI analysis for life",
+        "⚡ Priority VIP support",
+        "🏆 Exclusive VIP community"
       ],
-      "cta": "Unlock Free VIP"
+      "cta": "Create My Optimized Account"
     },
     "premium": {
       "title": "Premium",
@@ -357,26 +357,27 @@
   },
   "vip": {
     "unlock": {
-      "title": "Unlock Free VIP For Life",
-      "subtitle": "3 simple steps for unlimited free access forever",
+      "title": "Create Your AI-Optimized 1xBet Account",
+      "subtitle": "With our exclusive promo code, get a 1xBet account specially configured to maximize your wins with AlgoPronos AI!",
+      "important": "⚠️ IMPORTANT: Only NEW accounts created with our promo code get all these benefits. Existing accounts are not eligible.",
       "step1": {
-        "title": "Create your 1xBet account",
-        "description": "Use our link and promo code to get all bonuses"
+        "title": "Create your optimized account with our code",
+        "description": "Our promo code gives you a PREMIUM 1xBet account with: 200% Bonus (up to 250,000 FCFA), Permanent Cashback, Referral Bonus + AI AlgoPronos Sync!"
       },
       "step2": {
-        "title": "Submit your ID",
-        "description": "Give us your 1xBet identifier for verification"
+        "title": "Submit your new 1xBet ID",
+        "description": "After signing up, copy your 1xBet ID and submit it below"
       },
       "step3": {
-        "title": "Enjoy VIP for life",
-        "description": "Access validated within 24h, free forever!"
+        "title": "Enjoy AlgoPronos AI for free!",
+        "description": "Verification within 24h, then unlimited VIP access for life!"
       },
       "promoCode": {
-        "label": "Your exclusive promo code:",
-        "warning": "Important: Use THIS code when signing up on 1xBet"
+        "label": "Optimized account activation code:",
+        "warning": "⚠️ REQUIRED: This code activates all bonuses and AI sync on your new account"
       },
-      "createAccount": "Create my 1xBet account now",
-      "afterCreation": "After creating your account",
+      "createAccount": "Create my NEW 1xBet account now",
+      "afterCreation": "After creating your NEW 1xBet account",
       "form": {
         "identifier": {
           "label": "Your 1xBet ID OR Email used",
@@ -395,34 +396,34 @@
       }
     },
     "widget": {
-      "badge": "EXCLUSIVE OFFER",
+      "badge": "AI OPTIMIZED ACCOUNT",
       "limitedPlaces": "Limited places!",
-      "partnership": "Official partnership",
-      "title": "Unlock Free VIP FOR LIFE",
-      "bonus": "+ {{amount}} FCFA Bonus!",
+      "partnership": "Official exclusive partnership",
+      "title": "Optimized 1xBet Account + VIP FOR LIFE",
+      "bonus": "Up to {{amount}} FCFA in Bonuses!",
       "benefits": {
         "vip": {
-          "title": "Free AlgoPronos AI VIP for life",
-          "value": "{{amount}} FCFA/year"
+          "title": "🤖 AlgoPronos AI Sync",
+          "value": "Optimized analysis for life"
         },
         "bonus": {
-          "title": "1xBet 100% bonus on 1st deposit",
-          "value": "up to {{amount}} FCFA"
+          "title": "🎁 200% BONUS on 1st deposit",
+          "value": "up to 250,000 FCFA!"
         },
         "cashback": {
-          "title": "2% cashback on all deposits",
-          "value": "continuous savings"
+          "title": "💰 Permanent cashback",
+          "value": "on all deposits"
         },
         "referral": {
-          "title": "Exclusive referral bonus",
-          "value": "{{amount}} FCFA per referral"
+          "title": "👥 Referral bonus",
+          "value": "{{amount}} FCFA per friend"
         }
       },
       "total": {
         "label": "TOTAL BENEFITS",
         "vipAnnual": "VIP for life (annual value)",
-        "bonus1xbet": "1xBet 100% bonus",
-        "cashbackBonus": "Cashback + Bonus"
+        "bonus1xbet": "1xBet 200% bonus",
+        "cashbackBonus": "Up to 250,000 FCFA"
       },
       "cta": "Unlock Now (100% Free)",
       "trust": {
@@ -438,19 +439,19 @@
     "faq": {
       "verificationTime": {
         "question": "How long does verification take?",
-        "answer": "Usually within 24 hours. We manually verify each request to ensure security."
+        "answer": "Usually within 24 hours. We verify that your account was created with our promo code to activate all benefits."
       },
       "depositRequired": {
-        "question": "Do I need to deposit money on 1xBet?",
-        "answer": "No, just creating the account is enough. Deposit is optional (but recommended to enjoy the 100% bonus)."
+        "question": "Do I need to deposit money?",
+        "answer": "No, creating the optimized account is enough for AI access. But if you deposit, your account automatically gets the 200% BONUS up to 250,000 FCFA + permanent cashback!"
       },
       "reallyFree": {
-        "question": "Is VIP really free for life?",
-        "answer": "Yes! Once activated, you have unlimited access forever, without any recurring payment."
+        "question": "Why is it free?",
+        "answer": "Thanks to our official 1xBet partnership! By creating your optimized account with our code, you get all benefits at no cost."
       },
-      "premiumAndVip": {
-        "question": "Can I have Premium AND VIP?",
-        "answer": "No need! VIP gives you exactly the same unlimited access as Premium, for free."
+      "whyNewAccount": {
+        "question": "Why a NEW account?",
+        "answer": "Bonuses and AI sync can only be activated on a new account created with our promo code. Existing accounts cannot be converted."
       }
     }
   },

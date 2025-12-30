@@ -76,20 +76,45 @@ export async function createAdminClient() {
 }
 
 export async function getCurrentUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) return null;
+    if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
 
-  return profile;
+    // If profile doesn't exist, create it
+    if (error || !profile) {
+      const { data: newProfile } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+        })
+        .select()
+        .single();
+
+      return newProfile || {
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || 'User',
+        tier: null,
+      };
+    }
+
+    return profile;
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
 }
 
 export async function checkIsAdmin(userId: string): Promise<boolean> {
