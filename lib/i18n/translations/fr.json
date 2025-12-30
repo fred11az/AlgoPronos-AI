@@ -1,0 +1,638 @@
+{
+  "common": {
+    "appName": "AlgoPronos AI",
+    "tagline": "Data > Emotion",
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "success": "Succès",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "view": "Voir",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "all": "Tous",
+    "none": "Aucun",
+    "yes": "Oui",
+    "no": "Non",
+    "or": "ou",
+    "and": "et",
+    "copyToClipboard": "Copier",
+    "copied": "Copié !",
+    "currency": "FCFA"
+  },
+  "nav": {
+    "features": "Fonctionnalités",
+    "howItWorks": "Comment ça marche",
+    "pricing": "Tarifs",
+    "testimonials": "Témoignages",
+    "login": "Connexion",
+    "register": "Inscription",
+    "dashboard": "Tableau de bord",
+    "logout": "Déconnexion"
+  },
+  "hero": {
+    "badge": "{{count}} combinés générés aujourd'hui",
+    "title": "Générez des Combinés Gagnants",
+    "titleHighlight": "avec l'IA la Plus Avancée",
+    "titleEnd": "d'Afrique",
+    "subtitle": "Analyses professionnelles automatisées. VIP gratuit à vie avec votre code promo bookmaker.",
+    "stats": {
+      "successRate": "Taux de réussite",
+      "activeUsers": "Utilisateurs actifs",
+      "generationTime": "Génération IA"
+    },
+    "cta": {
+      "unlockVip": "Débloquer VIP Gratuit À Vie",
+      "premium": "Premium {{price}}/semaine"
+    },
+    "trust": {
+      "secure": "100% Sécurisé",
+      "instant": "Activation instantanée",
+      "rating": "{{rating}}/5 sur {{count}} avis"
+    }
+  },
+  "features": {
+    "title": "Pourquoi AlgoPronos AI ?",
+    "subtitle": "Une plateforme conçue pour maximiser vos chances de gains avec l'IA la plus avancée du marché.",
+    "ai": {
+      "title": "IA Ultra-Précise",
+      "description": "Propulsé par Claude Sonnet 4.5, le modèle le plus avancé pour l'analyse sportive"
+    },
+    "analysis": {
+      "title": "Analyses Approfondies",
+      "description": "Statistiques, forme, arbitres, tactiques - chaque détail compte"
+    },
+    "leagues": {
+      "title": "Multi-Championnats",
+      "description": "CAN, Premier League, La Liga, Ligue 1, Bundesliga, Serie A et plus"
+    },
+    "vip": {
+      "title": "VIP Gratuit À Vie",
+      "description": "Créez un compte 1xBet = Accès illimité gratuit pour toujours"
+    },
+    "history": {
+      "title": "Historique Transparent",
+      "description": "Consultez tous nos résultats passés - on cache rien !"
+    },
+    "community": {
+      "title": "Communauté Active",
+      "description": "Échangez avec {{count}}+ parieurs passionnés"
+    }
+  },
+  "howItWorks": {
+    "title": "Comment ça marche ?",
+    "subtitle": "Générez votre premier combiné en moins de 2 minutes",
+    "step1": {
+      "title": "Configurez vos paramètres",
+      "description": "Choisissez la date, les championnats, la fourchette de cotes et le niveau de risque"
+    },
+    "step2": {
+      "title": "IA génère et analyse",
+      "description": "Notre IA analyse des centaines de matchs en 15 secondes et sélectionne les meilleurs"
+    },
+    "step3": {
+      "title": "Recevez votre combiné pro",
+      "description": "Analyses détaillées, probabilités, conseils - tout pour maximiser vos chances"
+    }
+  },
+  "pricing": {
+    "title": "Choisissez votre accès",
+    "subtitle": "Deux options. Même accès illimité. Vous choisissez.",
+    "vip": {
+      "badge": "RECOMMANDÉ",
+      "title": "VIP Gratuit À Vie",
+      "price": "0 FCFA",
+      "period": "gratuit pour toujours",
+      "description": "Créez un compte 1xBet avec notre code promo",
+      "features": [
+        "Combinés illimités",
+        "Toutes les cotes (1.5 à 100+)",
+        "Analyses IA complètes",
+        "Support prioritaire",
+        "Historique complet",
+        "Communauté VIP",
+        "Bonus 1xBet 100% (jusqu'à 50k FCFA)"
+      ],
+      "cta": "Débloquer VIP Gratuit"
+    },
+    "premium": {
+      "title": "Premium",
+      "price": "1000 FCFA",
+      "period": "par semaine",
+      "description": "Paiement sécurisé FedaPay",
+      "features": [
+        "Combinés illimités",
+        "Toutes les cotes (1.5 à 100+)",
+        "Analyses IA complètes",
+        "Support prioritaire",
+        "Historique complet",
+        "Communauté Premium",
+        "Sans engagement",
+        "Activation instantanée"
+      ],
+      "cta": "Devenir Premium"
+    }
+  },
+  "testimonials": {
+    "title": "Ils nous font confiance",
+    "subtitle": "Rejoignez des milliers d'utilisateurs satisfaits"
+  },
+  "faq": {
+    "title": "Questions Fréquentes",
+    "items": [
+      {
+        "question": "Comment fonctionne AlgoPronos AI ?",
+        "answer": "Notre plateforme utilise Claude Sonnet 4.5, l'une des IA les plus avancées au monde, pour analyser des centaines de matchs en temps réel. L'IA prend en compte les statistiques, la forme des équipes, les historiques de confrontation, les arbitres et bien plus pour générer des combinés optimisés."
+      },
+      {
+        "question": "Le VIP gratuit à vie est-il vraiment gratuit ?",
+        "answer": "Oui, absolument ! En créant un compte 1xBet avec notre code promo exclusif, vous bénéficiez automatiquement de l'accès VIP gratuit à vie sur AlgoPronos AI. Aucun paiement n'est requis, ni maintenant ni plus tard."
+      },
+      {
+        "question": "Combien de temps prend la vérification VIP ?",
+        "answer": "La vérification est généralement effectuée sous 24 heures. Une fois approuvée, votre accès VIP est activé instantanément et pour toujours."
+      },
+      {
+        "question": "Puis-je utiliser AlgoPronos AI sur mobile ?",
+        "answer": "Oui, notre plateforme est entièrement responsive et fonctionne parfaitement sur tous les appareils : smartphone, tablette et ordinateur."
+      },
+      {
+        "question": "Quel est le taux de réussite des combinés ?",
+        "answer": "Notre taux de réussite moyen est de 78.5% sur les 6 derniers mois. Nous publions régulièrement nos statistiques en toute transparence."
+      },
+      {
+        "question": "Comment fonctionne l'abonnement Premium ?",
+        "answer": "L'abonnement Premium coûte 1000 FCFA par semaine et donne accès illimité à toutes les fonctionnalités. Le paiement se fait via FedaPay (Mobile Money, carte bancaire). Il n'y a pas d'engagement."
+      }
+    ]
+  },
+  "cta": {
+    "title": "Prêt à générer vos combinés gagnants ?",
+    "subtitle": "Rejoignez plus de {{count}} utilisateurs qui font confiance à AlgoPronos AI pour leurs paris sportifs.",
+    "primary": "Débloquer VIP Gratuit À Vie",
+    "secondary": "Créer un compte"
+  },
+  "auth": {
+    "login": {
+      "title": "Bon retour !",
+      "subtitle": "Connectez-vous pour accéder à vos combinés",
+      "email": "Email",
+      "password": "Mot de passe",
+      "forgotPassword": "Mot de passe oublié ?",
+      "rememberMe": "Se souvenir de moi",
+      "submit": "Se connecter",
+      "submitting": "Connexion...",
+      "noAccount": "Pas encore de compte ?",
+      "createAccount": "Créer un compte",
+      "getVip": "Obtenir VIP Gratuit à Vie",
+      "invalidCredentials": "Email ou mot de passe incorrect",
+      "success": "Connexion réussie !"
+    },
+    "register": {
+      "title": "Créer un compte",
+      "subtitle": "Rejoignez AlgoPronos AI et commencez à gagner",
+      "subtitleVip": "Inscrivez-vous pour débloquer votre accès VIP gratuit",
+      "fullName": "Nom complet",
+      "email": "Email",
+      "phone": "Téléphone",
+      "country": "Pays",
+      "password": "Mot de passe",
+      "confirmPassword": "Confirmer",
+      "acceptTerms": "J'accepte les",
+      "terms": "conditions d'utilisation",
+      "and": "et la",
+      "privacy": "politique de confidentialité",
+      "submit": "Créer mon compte",
+      "submitting": "Création du compte...",
+      "hasAccount": "Déjà un compte ?",
+      "login": "Se connecter",
+      "passwordMismatch": "Les mots de passe ne correspondent pas",
+      "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères",
+      "acceptTermsRequired": "Veuillez accepter les conditions d'utilisation",
+      "emailExists": "Cet email est déjà utilisé",
+      "success": "Compte créé avec succès !",
+      "vipBanner": {
+        "title": "VIP Gratuit à Vie",
+        "description": "Après inscription, vous pourrez soumettre votre ID 1xBet"
+      }
+    },
+    "forgotPassword": {
+      "title": "Mot de passe oublié",
+      "subtitle": "Entrez votre email pour recevoir un lien de réinitialisation",
+      "submit": "Envoyer le lien",
+      "success": "Email envoyé ! Vérifiez votre boîte de réception.",
+      "backToLogin": "Retour à la connexion"
+    }
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "subtitle": "Générez et suivez vos combinés IA",
+    "welcome": "Bienvenue, {{name}}",
+    "welcomeSubtitle": "Prêt à générer des combinés gagnants ?",
+    "unlockAccess": {
+      "title": "Débloquez l'accès illimité",
+      "description": "Créez un compte 1xBet avec notre code promo et obtenez l'accès VIP gratuit à vie. Ou choisissez Premium à 1000F/semaine.",
+      "vipCta": "VIP Gratuit à Vie",
+      "premiumCta": "Premium 1000F/sem"
+    },
+    "stats": {
+      "combinesGenerated": "Combinés générés",
+      "successRate": "Taux de réussite",
+      "estimatedWinnings": "Gains estimés",
+      "currentStreak": "Série en cours"
+    },
+    "quickActions": {
+      "newCombine": {
+        "title": "Nouveau Combiné",
+        "description": "Générez un combiné personnalisé avec notre IA",
+        "cta": "Générer maintenant"
+      },
+      "myCombines": {
+        "title": "Mes Combinés",
+        "description": "Consultez vos combinés générés récemment",
+        "cta": "Voir mes combinés"
+      },
+      "history": {
+        "title": "Historique",
+        "description": "Analysez vos performances passées",
+        "cta": "Voir l'historique"
+      }
+    },
+    "recentActivity": {
+      "title": "Activité Récente",
+      "subtitle": "Vos dernières générations de combinés",
+      "combine": "Combiné #{{id}} matchs",
+      "ago": "Il y a {{time}}",
+      "odds": "Cote",
+      "won": "Gagné",
+      "lost": "Perdu",
+      "pending": "En cours",
+      "empty": {
+        "title": "Débloquez l'accès pour générer vos premiers combinés",
+        "cta": "Débloquer VIP Gratuit"
+      }
+    },
+    "performance": {
+      "title": "Performance",
+      "subtitle": "Évolution de vos résultats sur les 30 derniers jours",
+      "monthlyGoal": "Objectif mensuel",
+      "combinesGenerated": "{{count}} combinés générés",
+      "successRate": "{{rate}}% de réussite"
+    }
+  },
+  "generate": {
+    "title": "Générer un Combiné",
+    "subtitle": "Configurez vos paramètres et laissez l'IA créer votre combiné optimal",
+    "leagues": {
+      "title": "Championnats",
+      "subtitle": "Sélectionnez les ligues à inclure dans votre combiné",
+      "empty": "Sélectionnez au moins un championnat"
+    },
+    "oddsRange": {
+      "title": "Fourchette de Cotes",
+      "subtitle": "Définissez la cote totale souhaitée pour votre combiné",
+      "min": "Minimum",
+      "max": "Maximum"
+    },
+    "matchCount": {
+      "title": "Nombre de Matchs",
+      "subtitle": "Combien de matchs voulez-vous dans votre combiné ?"
+    },
+    "riskLevel": {
+      "title": "Niveau de Risque",
+      "subtitle": "Choisissez votre stratégie de paris",
+      "safe": {
+        "name": "Prudent",
+        "description": "Cotes faibles, haute probabilité"
+      },
+      "balanced": {
+        "name": "Équilibré",
+        "description": "Bon ratio risque/gain"
+      },
+      "risky": {
+        "name": "Risqué",
+        "description": "Cotes élevées, gains potentiels importants"
+      }
+    },
+    "summary": {
+      "title": "Récapitulatif",
+      "leagues": "{{count}} championnat(s)",
+      "odds": "Cotes {{min}} - {{max}}",
+      "matches": "{{count}} matchs"
+    },
+    "submit": "Générer mon Combiné",
+    "generating": {
+      "title": "Génération en cours",
+      "analyzing": "Claude Sonnet 4.5 analyse les matchs...",
+      "steps": {
+        "fetchingMatches": "Analyse des matchs disponibles...",
+        "collectingStats": "Collecte des statistiques...",
+        "consultingAi": "Consultation de l'IA Claude...",
+        "generatingAnalysis": "Génération des analyses...",
+        "finalizing": "Finalisation du combiné...",
+        "success": "Combiné généré avec succès !"
+      }
+    }
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "generate": "Générer un Combiné",
+    "myCombines": "Mes Combinés",
+    "history": "Historique",
+    "settings": "Paramètres",
+    "help": "Aide",
+    "logout": "Déconnexion",
+    "unlockVip": "Débloquer VIP",
+    "freeForever": "Gratuit à vie",
+    "vipLifetime": "VIP À VIE",
+    "unlimitedAccess": "Accès illimité gratuit",
+    "premium": "Premium",
+    "activeSubscription": "Abonnement actif"
+  },
+  "vip": {
+    "unlock": {
+      "title": "Débloquez VIP Gratuit À Vie",
+      "subtitle": "3 étapes simples pour un accès illimité gratuit pour toujours",
+      "step1": {
+        "title": "Créez votre compte 1xBet",
+        "description": "Utilisez notre lien et code promo pour bénéficier de tous les bonus"
+      },
+      "step2": {
+        "title": "Soumettez votre ID",
+        "description": "Donnez-nous votre identifiant 1xBet pour vérification"
+      },
+      "step3": {
+        "title": "Profitez du VIP à vie",
+        "description": "Accès validé sous 24h, gratuit pour toujours !"
+      },
+      "promoCode": {
+        "label": "Votre code promo exclusif :",
+        "warning": "Important : Utilisez CE code lors de votre inscription sur 1xBet"
+      },
+      "createAccount": "Créer mon compte 1xBet maintenant",
+      "afterCreation": "Après avoir créé votre compte",
+      "form": {
+        "identifier": {
+          "label": "Votre ID 1xBet OU Email utilisé",
+          "placeholder": "Ex: 123456789 ou email@example.com",
+          "help": "Trouvez votre ID dans votre profil 1xBet (coin supérieur droit)"
+        },
+        "screenshot": {
+          "label": "Screenshot de votre compte (optionnel mais recommandé)",
+          "help": "Le screenshot doit montrer : votre ID + code promo utilisé + date d'inscription"
+        },
+        "attestation": "J'atteste avoir créé mon compte 1xBet avec le code promo {{code}} et fournis des informations exactes.",
+        "submit": "Soumettre pour Vérification",
+        "submitting": "Envoi en cours...",
+        "success": "Demande envoyée ! Vérification sous 24h.",
+        "warning": "Important : Assurez-vous d'avoir créé votre compte 1xBet avec le code {{code}}. Sans ce code, nous ne pourrons pas valider votre demande."
+      }
+    },
+    "widget": {
+      "badge": "OFFRE EXCLUSIVE",
+      "limitedPlaces": "Places limitées !",
+      "partnership": "Partenariat officiel",
+      "title": "Débloquez VIP Gratuit À VIE",
+      "bonus": "+ {{amount}} FCFA de Bonus !",
+      "benefits": {
+        "vip": {
+          "title": "VIP AlgoPronos AI gratuit à vie",
+          "value": "{{amount}} FCFA/an"
+        },
+        "bonus": {
+          "title": "Bonus 1xBet 100% sur 1er dépôt",
+          "value": "jusqu'à {{amount}} FCFA"
+        },
+        "cashback": {
+          "title": "Cashback 2% sur tous vos dépôts",
+          "value": "économie continue"
+        },
+        "referral": {
+          "title": "Bonus parrainage exclusif",
+          "value": "{{amount}} FCFA par filleul"
+        }
+      },
+      "total": {
+        "label": "TOTAL AVANTAGES",
+        "vipAnnual": "VIP à vie (valeur annuelle)",
+        "bonus1xbet": "Bonus 1xBet 100%",
+        "cashbackBonus": "Cashback + Bonus"
+      },
+      "cta": "Débloquer Maintenant (100% Gratuit)",
+      "trust": {
+        "activeVip": "{{count}} VIP actifs",
+        "secure": "100% Sécurisé",
+        "activation": "Activation {{time}}",
+        "rating": "{{rating}}/5"
+      },
+      "noCreditCard": "Sans carte bancaire",
+      "noCommitment": "Sans engagement",
+      "instantActivation": "Activation immédiate"
+    },
+    "faq": {
+      "verificationTime": {
+        "question": "Combien de temps prend la vérification ?",
+        "answer": "Généralement sous 24h. Nous vérifions manuellement chaque demande pour garantir la sécurité."
+      },
+      "depositRequired": {
+        "question": "Dois-je déposer de l'argent sur 1xBet ?",
+        "answer": "Non, juste créer le compte suffit. Le dépôt est optionnel (mais recommandé pour profiter du bonus 100%)."
+      },
+      "reallyFree": {
+        "question": "Le VIP est vraiment gratuit à vie ?",
+        "answer": "Oui ! Une fois activé, vous avez accès illimité pour toujours, sans aucun paiement récurrent."
+      },
+      "premiumAndVip": {
+        "question": "Puis-je avoir Premium ET VIP ?",
+        "answer": "Non besoin ! VIP vous donne exactement le même accès illimité que Premium, gratuitement."
+      }
+    }
+  },
+  "admin": {
+    "title": "Dashboard Admin",
+    "stats": {
+      "totalUsers": "Users Totaux",
+      "premiumVip": "{{premium}} Premium, {{vip}} VIP",
+      "pendingVerifications": "Vérifications Pending",
+      "toProcess": "À traiter",
+      "monthlyRevenue": "Revenus ce mois",
+      "premiumAffiliation": "Premium + Affiliation",
+      "combinesGenerated": "Combinés générés",
+      "today": "Aujourd'hui"
+    },
+    "charts": {
+      "signups": "Inscriptions (7 derniers jours)",
+      "conversion": "Conversion VIP vs Premium"
+    },
+    "verifications": {
+      "title": "Vérifications VIP",
+      "user": "User",
+      "identifier": "Identifier",
+      "screenshot": "Screenshot",
+      "date": "Date",
+      "actions": "Actions",
+      "viewScreenshot": "Voir screenshot",
+      "noScreenshot": "Aucun",
+      "approve": "Approuver",
+      "reject": "Rejeter"
+    },
+    "promoCode": {
+      "title": "Gestion Code Promo 1xBet",
+      "current": "Code promo actuel",
+      "new": "Nouveau code promo",
+      "placeholder": "Ex: ALGOPRONO2026",
+      "pattern": "8-20 caractères, lettres majuscules et chiffres uniquement",
+      "update": "Mettre à jour le code promo",
+      "updating": "Mise à jour...",
+      "warning": "Attention : Après avoir changé le code, mettez-le à jour aussi dans votre dashboard affilié 1xBet pour que les nouvelles inscriptions soient trackées.",
+      "history": "Historique des Codes"
+    }
+  },
+  "footer": {
+    "description": "Plateforme premium de génération automatique de combinés de paris sportifs propulsée par l'IA la plus avancée d'Afrique.",
+    "product": "Produit",
+    "legal": "Légal",
+    "support": "Support",
+    "contact": "Contact",
+    "links": {
+      "features": "Fonctionnalités",
+      "pricing": "Tarifs",
+      "howItWorks": "Comment ça marche",
+      "testimonials": "Témoignages",
+      "terms": "Conditions d'utilisation",
+      "privacy": "Politique de confidentialité",
+      "legalNotice": "Mentions légales",
+      "responsibleGaming": "Jeu responsable",
+      "helpCenter": "Centre d'aide",
+      "faq": "FAQ",
+      "contactUs": "Contact",
+      "community": "Communauté"
+    },
+    "copyright": "© {{year}} AlgoPronos AI. Tous droits réservés.",
+    "disclaimer": "Les paris sportifs comportent des risques. Jouez de manière responsable. Ce site est réservé aux personnes majeures. Les gains passés ne garantissent pas les gains futurs."
+  },
+  "countries": {
+    "BJ": "Bénin",
+    "TG": "Togo",
+    "CI": "Côte d'Ivoire",
+    "SN": "Sénégal",
+    "ML": "Mali",
+    "BF": "Burkina Faso",
+    "NE": "Niger",
+    "GN": "Guinée",
+    "CM": "Cameroun",
+    "GA": "Gabon"
+  },
+  "leagues": {
+    "PL": "Premier League",
+    "LA": "La Liga",
+    "SA": "Serie A",
+    "BL": "Bundesliga",
+    "FL": "Ligue 1",
+    "CL": "Champions League",
+    "EL": "Europa League",
+    "CAN": "CAN"
+  },
+  "leagueCountries": {
+    "PL": "Angleterre",
+    "LA": "Espagne",
+    "SA": "Italie",
+    "BL": "Allemagne",
+    "FL": "France",
+    "CL": "Europe",
+    "EL": "Europe",
+    "CAN": "Afrique"
+  },
+  "errors": {
+    "generic": "Une erreur est survenue",
+    "network": "Erreur de connexion",
+    "unauthorized": "Non autorisé",
+    "notFound": "Non trouvé",
+    "validation": "Données invalides",
+    "serverError": "Erreur serveur"
+  },
+  "time": {
+    "justNow": "À l'instant",
+    "minutesAgo": "Il y a {{count}} min",
+    "hoursAgo": "Il y a {{count}}h",
+    "daysAgo": "Il y a {{count}}j",
+    "day": "jour",
+    "days": "jours"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Gérez votre profil et vos préférences",
+    "profile": {
+      "title": "Profil",
+      "description": "Vos informations personnelles",
+      "defaultName": "Utilisateur",
+      "emailNote": "L'email ne peut pas être modifié"
+    },
+    "language": {
+      "title": "Langue",
+      "description": "Choisissez la langue de l'interface",
+      "current": "Langue actuelle"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Gérez vos préférences de notification",
+      "email": {
+        "title": "Notifications par email",
+        "description": "Recevoir les notifications par email"
+      },
+      "newCombines": {
+        "title": "Nouveaux combinés",
+        "description": "Quand un combiné recommandé est disponible"
+      },
+      "results": {
+        "title": "Résultats",
+        "description": "Notification des résultats de vos combinés"
+      }
+    },
+    "security": {
+      "title": "Sécurité"
+    }
+  },
+  "combines": {
+    "title": "Mes Combinés",
+    "count": "{{count}} combiné(s) généré(s)",
+    "empty": {
+      "title": "Aucun combiné généré",
+      "description": "Générez votre premier combiné avec notre IA"
+    },
+    "card": {
+      "title": "Combiné {{count}} matchs",
+      "others": "+{{count}} autres",
+      "totalOdds": "Cote totale",
+      "probability": "Probabilité",
+      "details": "Détails"
+    }
+  },
+  "checkout": {
+    "back": "Retour",
+    "paymentCancelled": {
+      "title": "Paiement annulé",
+      "description": "Le paiement a été annulé. Vous pouvez réessayer ou choisir l'option VIP gratuit."
+    },
+    "header": {
+      "badge": "PREMIUM",
+      "title": "Devenir Premium",
+      "subtitle": "Accès illimité à toutes les fonctionnalités"
+    },
+    "redirecting": "Redirection vers FedaPay...",
+    "payButton": "Payer {{amount}} FCFA",
+    "securePayment": "Paiement 100% sécurisé via FedaPay",
+    "vipAlternative": {
+      "title": "Alternative : VIP Gratuit à Vie",
+      "description": "Créez un compte 1xBet avec notre code promo et obtenez l'accès VIP gratuit pour toujours. Même accès que Premium, sans paiement.",
+      "cta": "Obtenir VIP Gratuit"
+    },
+    "trust": "Sans engagement • Annulation à tout moment • Activation instantanée"
+  }
+}
