@@ -116,7 +116,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  // If approved, update user tier to 'verified'
+  // If approved, try to update user tier to 'verified' (non-blocking)
+  let profileUpdated = true;
   if (status === 'approved') {
     const { error: profileError } = await supabase
       .from('profiles')
@@ -124,18 +125,19 @@ export async function PATCH(request: NextRequest) {
       .eq('id', verification.user_id);
 
     if (profileError) {
-      console.error('Error updating profile:', profileError);
-      return NextResponse.json({
-        error: 'Vérification approuvée mais erreur lors de la mise à jour du profil',
-        details: profileError.message
-      }, { status: 500 });
+      console.error('Error updating profile tier:', profileError);
+      profileUpdated = false;
+      // Don't fail - verification was already updated
     }
   }
 
   return NextResponse.json({
     success: true,
+    profileUpdated,
     message: status === 'approved'
-      ? 'Compte activé avec succès !'
+      ? profileUpdated
+        ? 'Compte activé avec succès !'
+        : 'Vérification approuvée (profil à mettre à jour manuellement)'
       : 'Vérification rejetée'
   });
 }
