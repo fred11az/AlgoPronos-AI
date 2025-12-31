@@ -130,7 +130,7 @@ export function Sidebar({ user, collapsed, onToggle, onLinkClick, isAdmin = fals
                 <p className="text-xs text-text-muted mt-1">Vérification sous 24h</p>
               </div>
             ) : (
-              <Link href="/unlock-vip">
+              <Link href="/unlock-vip" onClick={handleLinkClick}>
                 <div className="bg-surface-light rounded-xl p-3 border border-surface-light hover:border-primary/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />

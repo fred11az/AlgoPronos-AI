@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch user profiles separately to avoid relationship ambiguity
-  const userIds = [...new Set((verifications || []).map(v => v.user_id))];
+  const userIds = Array.from(new Set((verifications || []).map(v => v.user_id)));
 
   let profiles: Record<string, { id: string; email: string; full_name: string }> = {};
 
