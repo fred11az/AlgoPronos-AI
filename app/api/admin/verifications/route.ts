@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
+import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
 
 // GET - Fetch all verifications (admin only)
 export async function GET(request: NextRequest) {
@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const status = searchParams.get('status') || 'pending';
 
-  const supabase = await createClient();
+  // Use admin client to bypass RLS
+  const supabase = await createAdminClient();
 
   // Fetch verifications first
   let query = supabase
@@ -84,7 +85,20 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'ID et status requis' }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  // Use admin client to bypass RLS
+  const supabase = await createAdminClient();
+
+  // First get the verification to know the user_id
+  const { data: verification, error: fetchError } = await supabase
+    .from('vip_verifications')
+    .select('user_id')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !verification) {
+    console.error('Error fetching verification:', fetchError);
+    return NextResponse.json({ error: 'Vérification non trouvée' }, { status: 404 });
+  }
 
   // Update verification status
   const { error: updateError } = await supabase
@@ -104,24 +118,24 @@ export async function PATCH(request: NextRequest) {
 
   // If approved, update user tier to 'verified'
   if (status === 'approved') {
-    // Get the user_id from the verification
-    const { data: verification } = await supabase
-      .from('vip_verifications')
-      .select('user_id')
-      .eq('id', id)
-      .single();
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ tier: 'verified' })
+      .eq('id', verification.user_id);
 
-    if (verification) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ tier: 'verified' })
-        .eq('id', verification.user_id);
-
-      if (profileError) {
-        console.error('Error updating profile:', profileError);
-      }
+    if (profileError) {
+      console.error('Error updating profile:', profileError);
+      return NextResponse.json({
+        error: 'Vérification approuvée mais erreur lors de la mise à jour du profil',
+        details: profileError.message
+      }, { status: 500 });
     }
   }
 
-  return NextResponse.json({ success: true, message: `Vérification ${status === 'approved' ? 'approuvée' : 'rejetée'}` });
+  return NextResponse.json({
+    success: true,
+    message: status === 'approved'
+      ? 'Compte activé avec succès !'
+      : 'Vérification rejetée'
+  });
 }
