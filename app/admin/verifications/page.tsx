@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { supabase } from '@/lib/supabase/client';
 import {
   CheckCircle,
   XCircle,
@@ -16,6 +15,7 @@ import {
   Loader2,
   Clock,
   Image as ImageIcon,
+  RefreshCw,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -32,7 +32,7 @@ interface Verification {
     id: string;
     email: string;
     full_name: string;
-  };
+  } | null;
 }
 
 export default function VerificationsPage() {
@@ -49,45 +49,40 @@ export default function VerificationsPage() {
   async function fetchVerifications() {
     setLoading(true);
 
-    let query = supabase
-      .from('vip_verifications')
-      .select(`
-        *,
-        user:profiles(id, email, full_name)
-      `)
-      .order('created_at', { ascending: false });
+    try {
+      const response = await fetch(`/api/admin/verifications?status=${filter}`);
+      const data = await response.json();
 
-    if (filter !== 'all') {
-      query = query.eq('status', filter);
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur de chargement');
+      }
+
+      setVerifications(data.verifications || []);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Erreur de chargement des vérifications');
+    } finally {
+      setLoading(false);
     }
-
-    const { data, error } = await query;
-
-    if (error) {
-      toast.error('Error loading verifications');
-      console.error(error);
-    } else {
-      setVerifications(data || []);
-    }
-
-    setLoading(false);
   }
 
   async function handleApprove(id: string) {
     setProcessing(id);
 
     try {
-      const { error } = await supabase
-        .from('vip_verifications')
-        .update({
-          status: 'approved',
-          verified_at: new Date().toISOString(),
-        })
-        .eq('id', id);
+      const response = await fetch('/api/admin/verifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'approved' }),
+      });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      toast.success('Vérification approuvée !');
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur');
+      }
+
+      toast.success('Vérification approuvée ! Compte activé.');
       fetchVerifications();
     } catch (error) {
       toast.error('Erreur lors de l\'approbation');
@@ -103,16 +98,17 @@ export default function VerificationsPage() {
     setProcessing(id);
 
     try {
-      const { error } = await supabase
-        .from('vip_verifications')
-        .update({
-          status: 'rejected',
-          admin_notes: notes,
-          verified_at: new Date().toISOString(),
-        })
-        .eq('id', id);
+      const response = await fetch('/api/admin/verifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'rejected', admin_notes: notes }),
+      });
 
-      if (error) throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur');
+      }
 
       toast.success('Vérification rejetée');
       fetchVerifications();
