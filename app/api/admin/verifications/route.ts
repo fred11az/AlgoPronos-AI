@@ -19,26 +19,49 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
+  // Fetch verifications first
   let query = supabase
     .from('vip_verifications')
-    .select(`
-      *,
-      user:profiles(id, email, full_name)
-    `)
+    .select('*')
     .order('created_at', { ascending: false });
 
   if (status !== 'all') {
     query = query.eq('status', status);
   }
 
-  const { data, error } = await query;
+  const { data: verifications, error } = await query;
 
   if (error) {
     console.error('Error fetching verifications:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ verifications: data || [] });
+  // Fetch user profiles separately to avoid relationship ambiguity
+  const userIds = Array.from(new Set((verifications || []).map(v => v.user_id)));
+
+  let profiles: Record<string, { id: string; email: string; full_name: string }> = {};
+
+  if (userIds.length > 0) {
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', userIds);
+
+    if (profilesData) {
+      profiles = profilesData.reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+      }, {} as Record<string, { id: string; email: string; full_name: string }>);
+    }
+  }
+
+  // Combine data
+  const result = (verifications || []).map(v => ({
+    ...v,
+    user: profiles[v.user_id] || null,
+  }));
+
+  return NextResponse.json({ verifications: result });
 }
 
 // PATCH - Update verification status (approve/reject)

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,12 @@ interface DashboardShellProps {
 export function DashboardShell({ user, children, isAdmin = false }: DashboardShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Ferme le menu mobile quand la route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   // Close mobile menu on resize
   useEffect(() => {
