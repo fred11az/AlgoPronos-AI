@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { claudeMatchService } from '@/lib/services/claude-match-service';
+import { matchService } from '@/lib/services/match-service';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
   const leagueCodes = leagues.split(',');
 
   try {
-    // Get matches from Claude (with 24h cache)
-    const matches = await claudeMatchService.getMatchesForDate(date, leagueCodes);
+    // Get matches from TheSportsDB + fallbacks (with cache)
+    const matches = await matchService.getMatchesForDate(date, leagueCodes);
 
     // Sort by time
     matches.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       count: matches.length,
       date,
       leagues: leagueCodes,
+      source: 'thesportsdb',
     });
   } catch (error) {
     console.error('Error fetching matches:', error);
