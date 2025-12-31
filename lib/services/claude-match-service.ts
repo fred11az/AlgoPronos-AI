@@ -196,7 +196,8 @@ Si aucun match n'existe pour cette date: {"matches": []}`;
       console.log(`Calling Claude to search matches for ${date}...`);
 
       const message = await this.anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        // Haiku is perfect for simple search tasks - very cheap
+        model: 'claude-3-5-haiku-20241022',
         max_tokens: 8000,
         messages: [{ role: 'user', content: prompt }],
       });

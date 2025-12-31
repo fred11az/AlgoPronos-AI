@@ -47,8 +47,8 @@ export function Footer() {
           <div className="col-span-2 lg:col-span-1">
             <Logo size="lg" />
             <p className="mt-4 text-text-secondary text-sm leading-relaxed">
-              Plateforme premium de génération automatique de combinés de paris
-              sportifs propulsée par l'IA la plus avancée d'Afrique.
+              Plateforme 100% gratuite de génération automatique de combinés de paris
+              sportifs propulsée par l&apos;IA. 2 coupons par jour.
             </p>
             <div className="flex items-center gap-3 mt-6">
               {socialLinks.map((social) => (

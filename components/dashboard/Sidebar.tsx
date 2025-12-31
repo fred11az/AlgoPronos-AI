@@ -11,13 +11,14 @@ import {
   Sparkles,
   History,
   Settings,
-  Crown,
+  CheckCircle,
   HelpCircle,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Zap,
   ShieldCheck,
+  Clock,
 } from 'lucide-react';
 import type { Profile } from '@/types';
 
@@ -26,6 +27,7 @@ interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   isAdmin?: boolean;
+  pendingVerification?: boolean;
 }
 
 const navItems = [
@@ -57,12 +59,10 @@ const navItems = [
   },
 ];
 
-export function Sidebar({ user, collapsed, onToggle, isAdmin = false }: SidebarProps) {
+export function Sidebar({ user, collapsed, onToggle, isAdmin = false, pendingVerification = false }: SidebarProps) {
   const pathname = usePathname();
 
-  const isVIP = user?.tier === 'vip_lifetime';
-  const isPremium = user?.tier === 'premium';
-  const hasAccess = isVIP || isPremium;
+  const isVerified = user?.tier === 'verified';
 
   // Add admin nav items if user is admin
   const allNavItems = isAdmin
@@ -104,33 +104,33 @@ export function Sidebar({ user, collapsed, onToggle, isAdmin = false }: SidebarP
           </button>
         </div>
 
-        {/* Tier Badge */}
+        {/* Status Badge */}
         {!collapsed && (
           <div className="p-4">
-            {isVIP ? (
+            {isVerified ? (
+              <div className="bg-gradient-to-r from-success/20 to-primary/20 rounded-xl p-3 border border-success/30">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-success" />
+                  <span className="font-semibold text-success">Compte Activé</span>
+                </div>
+                <p className="text-xs text-text-muted mt-1">2 coupons/jour - 100% gratuit</p>
+              </div>
+            ) : pendingVerification ? (
               <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl p-3 border border-yellow-500/30">
                 <div className="flex items-center gap-2">
-                  <Crown className="h-5 w-5 text-yellow-500" />
-                  <span className="font-semibold text-yellow-500">VIP À VIE</span>
+                  <Clock className="h-5 w-5 text-yellow-500" />
+                  <span className="font-semibold text-yellow-500">En attente</span>
                 </div>
-                <p className="text-xs text-text-muted mt-1">Accès illimité gratuit</p>
-              </div>
-            ) : isPremium ? (
-              <div className="bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl p-3 border border-primary/30">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <span className="font-semibold text-primary">Premium</span>
-                </div>
-                <p className="text-xs text-text-muted mt-1">Abonnement actif</p>
+                <p className="text-xs text-text-muted mt-1">Vérification sous 24h</p>
               </div>
             ) : (
               <Link href="/unlock-vip">
                 <div className="bg-surface-light rounded-xl p-3 border border-surface-light hover:border-primary/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-2">
-                    <Crown className="h-5 w-5 text-text-muted" />
-                    <span className="font-semibold text-white">Débloquer VIP</span>
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    <span className="font-semibold text-white">Activer mon compte</span>
                   </div>
-                  <p className="text-xs text-text-muted mt-1">Gratuit à vie</p>
+                  <p className="text-xs text-text-muted mt-1">100% gratuit</p>
                 </div>
               </Link>
             )}
@@ -172,11 +172,11 @@ export function Sidebar({ user, collapsed, onToggle, isAdmin = false }: SidebarP
 
         {/* Bottom Actions */}
         <div className="p-4 border-t border-surface-light space-y-2">
-          {!hasAccess && !collapsed && (
+          {!isVerified && !pendingVerification && !collapsed && (
             <Button variant="gradient" className="w-full mb-2" asChild>
               <Link href="/unlock-vip">
-                <Crown className="mr-2 h-4 w-4" />
-                Débloquer VIP
+                <Sparkles className="mr-2 h-4 w-4" />
+                Activer Gratuitement
               </Link>
             </Button>
           )}

@@ -22,15 +22,12 @@ import {
   Send,
   AlertCircle,
   Upload,
-  Crown,
   Gift,
-  Percent,
-  Users,
-  Shield,
+  Zap,
   Clock,
-  Star,
   ArrowLeft,
   HelpCircle,
+  Sparkles,
 } from 'lucide-react';
 import {
   Accordion,
@@ -42,13 +39,14 @@ import toast from 'react-hot-toast';
 
 const PROMO_CODE = process.env.NEXT_PUBLIC_1XBET_PROMO_CODE || 'ALGOPRONO2025';
 
-export default function UnlockVIPPage() {
+export default function ActivatePage() {
   const router = useRouter();
   const { t } = useI18n();
 
   const [user, setUser] = useState<{ id: string; tier: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState(false);
 
   // Form state
   const [identifier, setIdentifier] = useState('');
@@ -61,7 +59,7 @@ export default function UnlockVIPPage() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
 
       if (!authUser) {
-        router.push('/register?intent=vip');
+        router.push('/register?intent=activate');
         return;
       }
 
@@ -71,9 +69,21 @@ export default function UnlockVIPPage() {
         .eq('id', authUser.id)
         .single();
 
-      if (profile?.tier === 'vip_lifetime') {
+      if (profile?.tier === 'verified') {
         router.push('/dashboard');
         return;
+      }
+
+      // Check if there's a pending verification
+      const { data: verification } = await supabase
+        .from('vip_verifications')
+        .select('status')
+        .eq('user_id', authUser.id)
+        .eq('status', 'pending')
+        .single();
+
+      if (verification) {
+        setPendingVerification(true);
       }
 
       setUser(profile);
@@ -86,7 +96,7 @@ export default function UnlockVIPPage() {
   const copyToClipboard = () => {
     navigator.clipboard.writeText(PROMO_CODE);
     setCopied(true);
-    toast.success(t('common.copied'));
+    toast.success('Code copié !');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -94,7 +104,7 @@ export default function UnlockVIPPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('File too large (max 5MB)');
+        toast.error('Fichier trop volumineux (max 5MB)');
         return;
       }
       setScreenshot(file);
@@ -105,12 +115,12 @@ export default function UnlockVIPPage() {
     e.preventDefault();
 
     if (!identifier.trim()) {
-      toast.error(t('vip.unlock.form.identifier.label'));
+      toast.error('Veuillez entrer votre ID ou email 1xBet');
       return;
     }
 
     if (!attested) {
-      toast.error(t('auth.register.acceptTermsRequired'));
+      toast.error('Veuillez confirmer que vous avez utilisé le code promo');
       return;
     }
 
@@ -145,11 +155,11 @@ export default function UnlockVIPPage() {
 
       if (error) throw error;
 
-      toast.success(t('vip.unlock.form.success'));
-      router.push('/dashboard?verification=pending');
+      toast.success('Demande envoyée ! Vérification sous 24h maximum.');
+      setPendingVerification(true);
     } catch (error) {
       console.error('Submission error:', error);
-      toast.error(t('errors.generic'));
+      toast.error('Erreur lors de l\'envoi');
     } finally {
       setSubmitting(false);
     }
@@ -163,6 +173,57 @@ export default function UnlockVIPPage() {
     );
   }
 
+  // Show pending verification state
+  if (pendingVerification) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-surface-light">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour
+                </Link>
+              </Button>
+              <Logo size="sm" />
+            </div>
+            <LanguageSwitcher />
+          </div>
+        </header>
+
+        <div className="max-w-2xl mx-auto px-4 py-16">
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-secondary/5">
+            <CardContent className="p-8 text-center">
+              <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Clock className="h-10 w-10 text-primary" />
+              </div>
+              <h1 className="text-3xl font-bold text-white mb-4">
+                Vérification en cours
+              </h1>
+              <p className="text-text-secondary text-lg mb-6">
+                Votre demande a été reçue ! Notre équipe vérifie votre compte 1xBet.
+                <br />
+                <strong className="text-primary">Délai maximum : 24 heures</strong>
+              </p>
+              <div className="bg-surface-light rounded-xl p-4 mb-6">
+                <p className="text-sm text-text-muted">
+                  Vous recevrez une notification dès que votre compte sera activé.
+                  En attendant, vous pouvez explorer l&apos;application.
+                </p>
+              </div>
+              <Button asChild>
+                <Link href="/dashboard">
+                  Aller au tableau de bord
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -172,7 +233,7 @@ export default function UnlockVIPPage() {
             <Button variant="ghost" size="sm" asChild>
               <Link href="/">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                {t('common.back')}
+                Retour
               </Link>
             </Button>
             <Logo size="sm" />
@@ -184,48 +245,56 @@ export default function UnlockVIPPage() {
       <div className="max-w-5xl mx-auto px-4 py-12">
         {/* Title */}
         <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 bg-primary/20 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
+            <Sparkles className="h-4 w-4" />
+            100% GRATUIT
+          </div>
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            {t('vip.unlock.title')}
+            Activez AlgoPronos AI
           </h1>
           <p className="text-xl text-text-secondary">
-            {t('vip.unlock.subtitle')}
+            Une seule étape pour accéder à toutes les fonctionnalités
           </p>
         </div>
 
-        {/* Important Warning */}
-        <div className="bg-warning/10 border-2 border-warning/50 rounded-2xl p-6 mb-12">
-          <div className="flex items-start gap-4">
-            <AlertCircle className="h-8 w-8 text-warning flex-shrink-0" />
-            <div>
-              <p className="text-lg font-bold text-warning mb-2">
-                {t('vip.unlock.important')}
-              </p>
-              <p className="text-text-secondary">
-                {t('vip.unlock.step1.description')}
-              </p>
-            </div>
+        {/* What you get */}
+        <div className="grid md:grid-cols-3 gap-4 mb-12">
+          <div className="bg-surface rounded-xl p-6 border border-surface-light text-center">
+            <Zap className="h-8 w-8 text-primary mx-auto mb-3" />
+            <h3 className="font-bold text-white mb-2">2 Coupons/Jour</h3>
+            <p className="text-sm text-text-muted">Analyses IA illimitées chaque jour</p>
+          </div>
+          <div className="bg-surface rounded-xl p-6 border border-surface-light text-center">
+            <Gift className="h-8 w-8 text-secondary mx-auto mb-3" />
+            <h3 className="font-bold text-white mb-2">Bonus 1xBet</h3>
+            <p className="text-sm text-text-muted">Jusqu&apos;à 208,000 FCFA de bonus</p>
+          </div>
+          <div className="bg-surface rounded-xl p-6 border border-surface-light text-center">
+            <CheckCircle className="h-8 w-8 text-success mx-auto mb-3" />
+            <h3 className="font-bold text-white mb-2">Accès Complet</h3>
+            <p className="text-sm text-text-muted">Toutes les ligues, tous les marchés</p>
           </div>
         </div>
 
         {/* Process Steps */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
+        <div className="grid md:grid-cols-3 gap-8 mb-12">
           <ProcessStep
             number="1"
             icon={<ExternalLink className="h-6 w-6" />}
-            title={t('vip.unlock.step1.title')}
-            description={t('vip.unlock.step1.description')}
+            title="Créez un compte 1xBet"
+            description="Cliquez sur le bouton ci-dessous et inscrivez-vous avec notre code promo"
           />
           <ProcessStep
             number="2"
             icon={<FileCheck className="h-6 w-6" />}
-            title={t('vip.unlock.step2.title')}
-            description={t('vip.unlock.step2.description')}
+            title="Soumettez votre ID"
+            description="Entrez l'ID ou l'email utilisé pour créer votre compte 1xBet"
           />
           <ProcessStep
             number="3"
             icon={<CheckCircle className="h-6 w-6" />}
-            title={t('vip.unlock.step3.title')}
-            description={t('vip.unlock.step3.description')}
+            title="Attendez 24h max"
+            description="Notre équipe vérifie et active votre compte gratuitement"
           />
         </div>
 
@@ -237,7 +306,7 @@ export default function UnlockVIPPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="text-sm text-text-secondary mb-1">
-                    {t('vip.unlock.promoCode.label')}
+                    Code promo obligatoire
                   </div>
                   <div className="text-3xl font-bold text-white tracking-wider">
                     {PROMO_CODE}
@@ -247,18 +316,18 @@ export default function UnlockVIPPage() {
                   {copied ? (
                     <>
                       <Check className="h-4 w-4 mr-2" />
-                      {t('common.copied')}
+                      Copié !
                     </>
                   ) : (
                     <>
                       <Copy className="h-4 w-4 mr-2" />
-                      {t('common.copyToClipboard')}
+                      Copier
                     </>
                   )}
                 </Button>
               </div>
               <p className="text-sm text-text-secondary">
-                {t('vip.unlock.promoCode.warning')}
+                Utilisez ce code lors de votre inscription pour bénéficier des bonus ET activer AlgoPronos AI
               </p>
             </div>
 
@@ -269,7 +338,7 @@ export default function UnlockVIPPage() {
               rel="noopener noreferrer"
               className="block w-full bg-gradient-to-r from-primary to-primary-dark text-white font-bold py-6 rounded-2xl hover:opacity-90 transition-opacity mb-8 text-center text-xl"
             >
-              {t('vip.unlock.createAccount')}
+              Créer mon compte 1xBet
               <ExternalLink className="inline-block ml-2 h-5 w-5" />
             </a>
 
@@ -280,7 +349,7 @@ export default function UnlockVIPPage() {
               </div>
               <div className="relative flex justify-center">
                 <span className="bg-surface px-4 text-text-secondary">
-                  {t('vip.unlock.afterCreation')}
+                  Après création du compte
                 </span>
               </div>
             </div>
@@ -289,8 +358,7 @@ export default function UnlockVIPPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="identifier">
-                  {t('vip.unlock.form.identifier.label')}{' '}
-                  <span className="text-error">*</span>
+                  ID ou Email 1xBet <span className="text-error">*</span>
                 </Label>
                 <Input
                   id="identifier"
@@ -298,16 +366,16 @@ export default function UnlockVIPPage() {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={t('vip.unlock.form.identifier.placeholder')}
+                  placeholder="Ex: 123456789 ou votre@email.com"
                 />
                 <p className="text-sm text-text-muted">
-                  {t('vip.unlock.form.identifier.help')}
+                  Entrez l&apos;identifiant ou l&apos;email utilisé pour créer votre compte 1xBet
                 </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="screenshot">
-                  {t('vip.unlock.form.screenshot.label')}
+                  Capture d&apos;écran (optionnel)
                 </Label>
                 <div className="border-2 border-dashed border-surface-light rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
                   <input
@@ -327,14 +395,14 @@ export default function UnlockVIPPage() {
                       <div className="space-y-2">
                         <Upload className="h-8 w-8 mx-auto text-text-muted" />
                         <p className="text-text-secondary">
-                          Click to upload screenshot
+                          Cliquez pour uploader une capture
                         </p>
                       </div>
                     )}
                   </label>
                 </div>
                 <p className="text-sm text-text-muted">
-                  {t('vip.unlock.form.screenshot.help')}
+                  Une capture d&apos;écran de votre compte accélère la vérification
                 </p>
               </div>
 
@@ -343,7 +411,8 @@ export default function UnlockVIPPage() {
                   <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-text-secondary">
                     <strong className="text-warning">Important :</strong>{' '}
-                    {t('vip.unlock.form.warning', { code: PROMO_CODE })}
+                    Le compte 1xBet doit être NOUVEAU et créé avec le code <strong>{PROMO_CODE}</strong>.
+                    Les comptes existants ne sont pas acceptés.
                   </p>
                 </div>
               </div>
@@ -359,7 +428,7 @@ export default function UnlockVIPPage() {
                   htmlFor="attest"
                   className="text-sm text-text-secondary cursor-pointer"
                 >
-                  {t('vip.unlock.form.attestation', { code: PROMO_CODE })}
+                  Je confirme avoir créé un nouveau compte 1xBet avec le code promo <strong>{PROMO_CODE}</strong>
                 </label>
               </div>
 
@@ -372,12 +441,12 @@ export default function UnlockVIPPage() {
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    {t('vip.unlock.form.submitting')}
+                    Envoi en cours...
                   </>
                 ) : (
                   <>
                     <Send className="mr-2 h-5 w-5" />
-                    {t('vip.unlock.form.submit')}
+                    Soumettre pour vérification
                   </>
                 )}
               </Button>
@@ -385,35 +454,11 @@ export default function UnlockVIPPage() {
           </CardContent>
         </Card>
 
-        {/* Benefits Reminder */}
-        <div className="mt-12 grid md:grid-cols-4 gap-4">
-          <BenefitCard
-            icon={<Crown className="h-6 w-6" />}
-            title={t('vip.widget.benefits.vip.title')}
-            value={t('vip.widget.benefits.vip.value', { amount: '208,000' })}
-          />
-          <BenefitCard
-            icon={<Gift className="h-6 w-6" />}
-            title={t('vip.widget.benefits.bonus.title')}
-            value={t('vip.widget.benefits.bonus.value', { amount: '50,000' })}
-          />
-          <BenefitCard
-            icon={<Percent className="h-6 w-6" />}
-            title={t('vip.widget.benefits.cashback.title')}
-            value={t('vip.widget.benefits.cashback.value')}
-          />
-          <BenefitCard
-            icon={<Users className="h-6 w-6" />}
-            title={t('vip.widget.benefits.referral.title')}
-            value={t('vip.widget.benefits.referral.value', { amount: '500' })}
-          />
-        </div>
-
         {/* FAQ */}
         <div className="mt-16">
           <h2 className="text-2xl font-bold text-white mb-8 text-center flex items-center justify-center gap-2">
             <HelpCircle className="h-6 w-6 text-primary" />
-            {t('faq.title')}
+            Questions fréquentes
           </h2>
           <Accordion type="single" collapsible className="space-y-4">
             <AccordionItem
@@ -421,10 +466,11 @@ export default function UnlockVIPPage() {
               className="bg-surface rounded-xl px-6 border border-surface-light"
             >
               <AccordionTrigger>
-                {t('vip.faq.verificationTime.question')}
+                Combien de temps dure la vérification ?
               </AccordionTrigger>
               <AccordionContent>
-                {t('vip.faq.verificationTime.answer')}
+                La vérification prend généralement quelques heures, mais peut aller jusqu&apos;à 24 heures maximum.
+                Vous recevrez une notification dès que votre compte sera activé.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem
@@ -432,10 +478,11 @@ export default function UnlockVIPPage() {
               className="bg-surface rounded-xl px-6 border border-surface-light"
             >
               <AccordionTrigger>
-                {t('vip.faq.depositRequired.question')}
+                Dois-je faire un dépôt sur 1xBet ?
               </AccordionTrigger>
               <AccordionContent>
-                {t('vip.faq.depositRequired.answer')}
+                Non, aucun dépôt n&apos;est requis pour activer AlgoPronos AI.
+                Créez simplement le compte avec notre code promo et soumettez votre ID.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem
@@ -443,10 +490,11 @@ export default function UnlockVIPPage() {
               className="bg-surface rounded-xl px-6 border border-surface-light"
             >
               <AccordionTrigger>
-                {t('vip.faq.reallyFree.question')}
+                C&apos;est vraiment 100% gratuit ?
               </AccordionTrigger>
               <AccordionContent>
-                {t('vip.faq.reallyFree.answer')}
+                Oui ! AlgoPronos AI est entièrement gratuit. Vous bénéficiez de 2 coupons par jour
+                sans jamais payer. La seule condition est de créer un compte 1xBet avec notre code promo.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem
@@ -454,33 +502,14 @@ export default function UnlockVIPPage() {
               className="bg-surface rounded-xl px-6 border border-surface-light"
             >
               <AccordionTrigger>
-                {t('vip.faq.premiumAndVip.question')}
+                Pourquoi demander un compte 1xBet ?
               </AccordionTrigger>
               <AccordionContent>
-                {t('vip.faq.premiumAndVip.answer')}
+                1xBet est notre partenaire. Grâce à ce partenariat, nous pouvons offrir AlgoPronos AI
+                gratuitement tout en vous faisant bénéficier de bonus exclusifs jusqu&apos;à 208,000 FCFA.
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-        </div>
-
-        {/* Trust Indicators */}
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-sm text-text-muted">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            <span>{t('vip.widget.trust.activeVip', { count: '2,847' })}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <span>{t('vip.widget.trust.secure')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            <span>{t('vip.widget.trust.activation', { time: '5 min' })}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-            <span>{t('vip.widget.trust.rating', { rating: '4.9' })}</span>
-          </div>
         </div>
       </div>
     </div>
@@ -508,26 +537,6 @@ function ProcessStep({
       </div>
       <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
       <p className="text-text-secondary text-sm">{description}</p>
-    </div>
-  );
-}
-
-function BenefitCard({
-  icon,
-  title,
-  value,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  value: string;
-}) {
-  return (
-    <div className="bg-surface rounded-xl p-4 border border-surface-light">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="text-primary">{icon}</div>
-        <div className="text-xs text-text-secondary">{title}</div>
-      </div>
-      <div className="text-sm font-semibold text-primary">{value}</div>
     </div>
   );
 }

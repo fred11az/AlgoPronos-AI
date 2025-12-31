@@ -1,5 +1,5 @@
 // User Types
-export type UserTier = 'premium' | 'vip_lifetime';
+export type UserTier = 'verified';
 
 export interface Profile {
   id: string;
@@ -8,6 +8,8 @@ export interface Profile {
   phone: string | null;
   country: string;
   tier: UserTier | null;
+  daily_coupon_count: number;
+  last_coupon_date: string | null;
   created_at: string;
   updated_at: string;
   metadata: Record<string, unknown>;
@@ -165,10 +167,8 @@ export interface CombineUsageLog {
 // Admin Stats
 export interface AdminStats {
   totalUsers: number;
-  premiumUsers: number;
-  vipUsers: number;
+  verifiedUsers: number;
   pendingVerifications: number;
-  monthlyRevenue: number;
   combinesGenerated: number;
   signupsChart: ChartData[];
   conversionChart: PieData[];

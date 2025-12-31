@@ -1,7 +1,7 @@
 {
   "name": "algopronos-ai",
   "version": "1.0.0",
-  "description": "Plateforme premium de génération automatique de combinés de paris sportifs pour l'Afrique de l'Ouest",
+  "description": "Plateforme gratuite de génération automatique de combinés de paris sportifs pour l'Afrique de l'Ouest - 2 coupons IA par jour",
   "private": true,
   "scripts": {
     "dev": "next dev",

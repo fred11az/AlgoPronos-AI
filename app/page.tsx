@@ -26,7 +26,7 @@ import {
   BarChart3,
   MessageCircle,
   CheckCircle2,
-  Crown,
+  Gift,
 } from 'lucide-react';
 
 // Stats Component
@@ -92,75 +92,6 @@ function StepCard({
   );
 }
 
-// Pricing Card Component
-function PricingCard({
-  featured,
-  badge,
-  title,
-  price,
-  period,
-  description,
-  features,
-  ctaText,
-  ctaLink,
-}: {
-  featured?: boolean;
-  badge?: string;
-  title: string;
-  price: string;
-  period: string;
-  description: string;
-  features: string[];
-  ctaText: string;
-  ctaLink: string;
-}) {
-  return (
-    <div
-      className={`relative rounded-3xl p-8 ${
-        featured
-          ? 'bg-gradient-to-b from-primary/20 to-surface border-2 border-primary shadow-2xl shadow-primary/20'
-          : 'bg-surface border border-surface-light'
-      }`}
-    >
-      {badge && (
-        <Badge
-          variant="premium"
-          className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1"
-        >
-          {badge}
-        </Badge>
-      )}
-      <div className="text-center mb-8">
-        <h3 className="text-2xl font-bold text-white mb-2">{title}</h3>
-        <div className="flex items-baseline justify-center gap-1">
-          <span className="text-5xl font-bold text-white">{price}</span>
-        </div>
-        <p className="text-text-muted mt-1">{period}</p>
-        <p className="text-text-secondary mt-4">{description}</p>
-      </div>
-      <ul className="space-y-4 mb-8">
-        {features.map((feature, index) => (
-          <li key={index} className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
-            <span className="text-text-secondary">{feature}</span>
-          </li>
-        ))}
-      </ul>
-      <Button
-        size="lg"
-        variant={featured ? 'gradient' : 'outline'}
-        className="w-full"
-        asChild
-      >
-        <Link href={ctaLink}>
-          {featured && <Crown className="mr-2 h-5 w-5" />}
-          {ctaText}
-        </Link>
-      </Button>
-    </div>
-  );
-}
-
 // Testimonial Card Component
 function TestimonialCard({
   name,
@@ -200,17 +131,22 @@ const faqItems = [
   {
     question: 'Comment fonctionne AlgoPronos AI ?',
     answer:
-      "Notre plateforme utilise Claude Sonnet 4.5, l'une des IA les plus avancées au monde, pour analyser des centaines de matchs en temps réel. L'IA prend en compte les statistiques, la forme des équipes, les historiques de confrontation, les arbitres et bien plus pour générer des combinés optimisés.",
+      "Notre plateforme utilise Claude, l'une des IA les plus avancées au monde, pour analyser des centaines de matchs en temps réel. L'IA prend en compte les statistiques, la forme des équipes, les historiques de confrontation et bien plus pour générer des combinés optimisés.",
   },
   {
-    question: 'Le VIP gratuit à vie est-il vraiment gratuit ?',
+    question: 'AlgoPronos AI est vraiment 100% gratuit ?',
     answer:
-      'Oui, absolument ! En créant un compte 1xBet avec notre code promo exclusif, vous bénéficiez automatiquement de l\'accès VIP gratuit à vie sur AlgoPronos AI. Aucun paiement n\'est requis, ni maintenant ni plus tard.',
+      'Oui, absolument ! AlgoPronos AI est entièrement gratuit. La seule condition est de créer un compte 1xBet avec notre code promo. Vous bénéficiez alors de 2 coupons IA par jour, sans jamais payer.',
   },
   {
-    question: 'Combien de temps prend la vérification VIP ?',
+    question: 'Combien de coupons puis-je générer par jour ?',
     answer:
-      'La vérification est généralement effectuée sous 24 heures. Une fois approuvée, votre accès VIP est activé instantanément et pour toujours.',
+      'Chaque utilisateur vérifié peut générer 2 coupons par jour. Le compteur se réinitialise automatiquement à minuit. Cela vous permet d\'analyser les matchs du jour et du lendemain.',
+  },
+  {
+    question: 'Combien de temps prend la vérification ?',
+    answer:
+      'La vérification est généralement effectuée sous 24 heures maximum. Une fois approuvée, votre compte est activé et vous pouvez commencer à générer des coupons immédiatement.',
   },
   {
     question: 'Puis-je utiliser AlgoPronos AI sur mobile ?',
@@ -221,11 +157,6 @@ const faqItems = [
     question: 'Quel est le taux de réussite des combinés ?',
     answer:
       'Notre taux de réussite moyen est de 78.5% sur les 6 derniers mois. Nous publions régulièrement nos statistiques en toute transparence. Notez que les paris sportifs comportent toujours des risques.',
-  },
-  {
-    question: 'Comment fonctionne l\'abonnement Premium ?',
-    answer:
-      "L'abonnement Premium coûte 1000 FCFA par semaine et donne accès illimité à toutes les fonctionnalités. Le paiement se fait via FedaPay (Mobile Money, carte bancaire). Il n'y a pas d'engagement, vous pouvez arrêter à tout moment.",
   },
 ];
 
@@ -245,10 +176,10 @@ export default function LandingPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-8">
-            <span className="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
-            <span className="text-primary text-sm font-medium">
-              2,847 combinés générés aujourd&apos;hui
+          <div className="inline-flex items-center gap-2 bg-success/10 border border-success/20 rounded-full px-4 py-2 mb-8">
+            <Gift className="h-4 w-4 text-success" />
+            <span className="text-success text-sm font-medium">
+              100% Gratuit - 2 coupons IA par jour
             </span>
           </div>
 
@@ -265,8 +196,8 @@ export default function LandingPage() {
 
           {/* Subheadline */}
           <p className="text-lg sm:text-xl md:text-2xl text-text-secondary mb-12 max-w-3xl mx-auto">
-            Analyses professionnelles automatisées. VIP gratuit à vie avec votre code
-            promo bookmaker.
+            Analyses professionnelles automatisées. 100% gratuit avec votre compte 1xBet.
+            2 coupons IA par jour.
           </p>
 
           {/* Stats */}
@@ -284,17 +215,17 @@ export default function LandingPage() {
             <Stat icon={<Zap className="h-6 w-6" />} value="<15s" label="Génération IA" />
           </div>
 
-          {/* CTAs */}
+          {/* CTA */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="xl" variant="gradient" asChild>
               <Link href="/unlock-vip">
                 <Rocket className="mr-2 h-5 w-5" />
-                Débloquer VIP Gratuit À Vie
+                Activer Mon Compte Gratuit
               </Link>
             </Button>
             <Button size="xl" variant="outline" asChild>
-              <Link href="/register?plan=premium">
-                Premium 1000F/semaine
+              <Link href="/register">
+                Créer un compte
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -308,7 +239,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
-              <span>Activation instantanée</span>
+              <span>Vérification sous 24h</span>
             </div>
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 text-primary" />
@@ -344,12 +275,12 @@ export default function LandingPage() {
             <FeatureCard
               icon={<Brain className="h-8 w-8" />}
               title="IA Ultra-Précise"
-              description="Propulsé par Claude Sonnet 4.5, le modèle le plus avancé pour l'analyse sportive"
+              description="Propulsé par Claude, le modèle le plus avancé pour l'analyse sportive"
             />
             <FeatureCard
               icon={<FileText className="h-8 w-8" />}
               title="Analyses Approfondies"
-              description="Statistiques, forme, arbitres, tactiques - chaque détail compte"
+              description="Statistiques, forme, historiques, tactiques - chaque détail compte"
             />
             <FeatureCard
               icon={<Globe className="h-8 w-8" />}
@@ -358,8 +289,8 @@ export default function LandingPage() {
             />
             <FeatureCard
               icon={<Sparkles className="h-8 w-8" />}
-              title="VIP Gratuit À Vie"
-              description="Créez un compte 1xBet = Accès illimité gratuit pour toujours"
+              title="100% Gratuit"
+              description="2 coupons IA par jour, sans jamais payer"
             />
             <FeatureCard
               icon={<BarChart3 className="h-8 w-8" />}
@@ -386,24 +317,24 @@ export default function LandingPage() {
               Comment ça marche ?
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Générez votre premier combiné en moins de 2 minutes
+              Activez votre compte en 3 étapes simples
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-12">
             <StepCard
               number="1"
-              title="Configurez vos paramètres"
-              description="Choisissez la date, les championnats, la fourchette de cotes et le niveau de risque"
+              title="Créez un compte 1xBet"
+              description="Utilisez notre code promo pour bénéficier des bonus et activer AlgoPronos AI"
             />
             <StepCard
               number="2"
-              title="IA génère et analyse"
-              description="Notre IA analyse des centaines de matchs en 15 secondes et sélectionne les meilleurs"
+              title="Soumettez votre ID"
+              description="Entrez l'ID ou email de votre compte 1xBet pour vérification"
             />
             <StepCard
               number="3"
-              title="Recevez votre combiné pro"
-              description="Analyses détaillées, probabilités, conseils - tout pour maximiser vos chances"
+              title="Générez vos coupons"
+              description="Une fois vérifié, profitez de 2 coupons IA gratuits par jour"
             />
           </div>
         </div>
@@ -413,55 +344,64 @@ export default function LandingPage() {
       <section id="pricing" className="py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">
-              Tarifs
+            <Badge variant="success" className="mb-4">
+              100% GRATUIT
             </Badge>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              Choisissez votre accès
+              Accès Complet Sans Payer
             </h2>
             <p className="text-text-secondary text-lg">
-              Deux options. Même accès illimité. Vous choisissez.
+              Créez simplement un compte 1xBet avec notre code promo
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <PricingCard
-              featured
-              badge="RECOMMANDÉ"
-              title="VIP Gratuit À Vie"
-              price="0 FCFA"
-              period="gratuit pour toujours"
-              description="Créez un compte 1xBet avec notre code promo"
-              features={[
-                'Combinés illimités',
-                'Toutes les cotes (1.5 à 100+)',
-                'Analyses IA complètes',
-                'Support prioritaire',
-                'Historique complet',
-                'Communauté VIP',
-                "Bonus 1xBet 100% (jusqu'à 50k FCFA)",
-              ]}
-              ctaText="Débloquer VIP Gratuit"
-              ctaLink="/unlock-vip"
-            />
-            <PricingCard
-              title="Premium"
-              price="1000 FCFA"
-              period="par semaine"
-              description="Paiement sécurisé FedaPay"
-              features={[
-                'Combinés illimités',
-                'Toutes les cotes (1.5 à 100+)',
-                'Analyses IA complètes',
-                'Support prioritaire',
-                'Historique complet',
-                'Communauté Premium',
-                'Sans engagement',
-                'Activation instantanée',
-              ]}
-              ctaText="Devenir Premium"
-              ctaLink="/register?plan=premium"
-            />
+          <div className="max-w-2xl mx-auto">
+            <div className="relative rounded-3xl p-8 bg-gradient-to-b from-primary/20 to-surface border-2 border-primary shadow-2xl shadow-primary/20">
+              <Badge
+                variant="success"
+                className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1"
+              >
+                GRATUIT À VIE
+              </Badge>
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-bold text-white mb-2">AlgoPronos AI</h3>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-5xl font-bold text-white">0 FCFA</span>
+                </div>
+                <p className="text-text-muted mt-1">2 coupons par jour</p>
+                <p className="text-text-secondary mt-4">
+                  Activez avec un compte 1xBet et notre code promo
+                </p>
+              </div>
+              <ul className="space-y-4 mb-8">
+                {[
+                  '2 coupons IA par jour',
+                  'Analyses complètes par match',
+                  'Tous les championnats',
+                  'Toutes les cotes (1.5 à 100+)',
+                  'Historique de vos coupons',
+                  'Bonus 1xBet jusqu\'à 208,000 FCFA',
+                  'Support par email',
+                  'Accès à vie',
+                ].map((feature, index) => (
+                  <li key={index} className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
+                    <span className="text-text-secondary">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                size="lg"
+                variant="gradient"
+                className="w-full"
+                asChild
+              >
+                <Link href="/unlock-vip">
+                  <Gift className="mr-2 h-5 w-5" />
+                  Activer Mon Compte Gratuit
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -491,7 +431,7 @@ export default function LandingPage() {
               name="Aminata D."
               location="Abidjan, Côte d'Ivoire"
               rating={5}
-              text="VIP gratuit à vie = meilleure décision ! Les combinés sont vraiment bien étudiés."
+              text="Gratuit et efficace ! Les 2 coupons par jour me suffisent largement. Les combinés sont vraiment bien étudiés."
             />
             <TestimonialCard
               name="Moussa S."
@@ -539,13 +479,13 @@ export default function LandingPage() {
           </h2>
           <p className="text-text-secondary text-lg mb-8 max-w-2xl mx-auto">
             Rejoignez plus de 15,000 utilisateurs qui font confiance à AlgoPronos AI
-            pour leurs paris sportifs.
+            pour leurs paris sportifs. 100% gratuit, 2 coupons par jour.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="xl" variant="gradient" asChild>
               <Link href="/unlock-vip">
                 <Rocket className="mr-2 h-5 w-5" />
-                Débloquer VIP Gratuit À Vie
+                Activer Mon Compte Gratuit
               </Link>
             </Button>
             <Button size="xl" variant="outline" asChild>
