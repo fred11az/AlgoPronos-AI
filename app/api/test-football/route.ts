@@ -32,7 +32,7 @@ export async function GET() {
         keyPresent: true,
         status: response.status,
         matchesCount: data.matches?.length || 0,
-        competitions: [...new Set(data.matches?.map((m: any) => m.competition.name) || [])],
+        competitions: Array.from(new Set(data.matches?.map((m: any) => m.competition.name) || [])),
         sample: data.matches?.slice(0, 3).map((m: any) => ({
           home: m.homeTeam.name,
           away: m.awayTeam.name,
