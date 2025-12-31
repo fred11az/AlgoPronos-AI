@@ -26,6 +26,7 @@ interface SidebarProps {
   user: Profile | null;
   collapsed: boolean;
   onToggle: () => void;
+  onLinkClick?: () => void; // Pour fermer le menu mobile
   isAdmin?: boolean;
   pendingVerification?: boolean;
 }
@@ -59,10 +60,15 @@ const navItems = [
   },
 ];
 
-export function Sidebar({ user, collapsed, onToggle, isAdmin = false, pendingVerification = false }: SidebarProps) {
+export function Sidebar({ user, collapsed, onToggle, onLinkClick, isAdmin = false, pendingVerification = false }: SidebarProps) {
   const pathname = usePathname();
 
   const isVerified = user?.tier === 'verified';
+
+  // Ferme le menu mobile quand on clique sur un lien
+  const handleLinkClick = () => {
+    if (onLinkClick) onLinkClick();
+  };
 
   // Add admin nav items if user is admin
   const allNavItems = isAdmin
@@ -147,6 +153,7 @@ export function Sidebar({ user, collapsed, onToggle, isAdmin = false, pendingVer
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={handleLinkClick}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all',
                   isActive
@@ -174,7 +181,7 @@ export function Sidebar({ user, collapsed, onToggle, isAdmin = false, pendingVer
         <div className="p-4 border-t border-surface-light space-y-2">
           {!isVerified && !pendingVerification && !collapsed && (
             <Button variant="gradient" className="w-full mb-2" asChild>
-              <Link href="/unlock-vip">
+              <Link href="/unlock-vip" onClick={handleLinkClick}>
                 <Sparkles className="mr-2 h-4 w-4" />
                 Activer Gratuitement
               </Link>
@@ -183,6 +190,7 @@ export function Sidebar({ user, collapsed, onToggle, isAdmin = false, pendingVer
 
           <Link
             href="/help"
+            onClick={handleLinkClick}
             className={cn(
               'flex items-center gap-3 px-3 py-2.5 rounded-xl text-text-secondary hover:text-white hover:bg-surface-light transition-all',
               collapsed && 'justify-center'
