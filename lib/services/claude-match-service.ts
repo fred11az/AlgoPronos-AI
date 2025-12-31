@@ -1,5 +1,5 @@
 // Claude-powered match search service
-// Uses Claude with web search to find real matches and caches them in Supabase
+// Claude searches the web for ALL matches of the day and caches them in Supabase for 24h
 
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
@@ -21,32 +21,52 @@ export interface RealMatch {
   };
 }
 
-const leagueSearchTerms: Record<string, { name: string; searchTerm: string; country: string }> = {
+// All supported leagues with their info
+const allLeagues: Record<string, { name: string; country: string }> = {
   // Europe Top 5
-  PL: { name: 'Premier League', searchTerm: 'Premier League England fixtures', country: 'Angleterre' },
-  LA: { name: 'La Liga', searchTerm: 'La Liga Spain fixtures', country: 'Espagne' },
-  SA: { name: 'Serie A', searchTerm: 'Serie A Italy fixtures', country: 'Italie' },
-  BL: { name: 'Bundesliga', searchTerm: 'Bundesliga Germany fixtures', country: 'Allemagne' },
-  FL: { name: 'Ligue 1', searchTerm: 'Ligue 1 France fixtures', country: 'France' },
+  PL: { name: 'Premier League', country: 'Angleterre' },
+  LA: { name: 'La Liga', country: 'Espagne' },
+  SA: { name: 'Serie A', country: 'Italie' },
+  BL: { name: 'Bundesliga', country: 'Allemagne' },
+  FL: { name: 'Ligue 1', country: 'France' },
   // European competitions
-  CL: { name: 'Champions League', searchTerm: 'UEFA Champions League fixtures', country: 'Europe' },
-  EL: { name: 'Europa League', searchTerm: 'UEFA Europa League fixtures', country: 'Europe' },
+  CL: { name: 'Champions League', country: 'Europe' },
+  EL: { name: 'Europa League', country: 'Europe' },
+  ECL: { name: 'Conference League', country: 'Europe' },
   // Africa
-  CAN: { name: 'CAN', searchTerm: 'Coupe Afrique Nations CAN fixtures matches', country: 'Afrique' },
-  CAF_CL: { name: 'Ligue des Champions CAF', searchTerm: 'CAF Champions League fixtures', country: 'Afrique' },
-  CAF_CC: { name: 'Coupe de la Confédération', searchTerm: 'CAF Confederation Cup fixtures', country: 'Afrique' },
-  BJ1: { name: 'Ligue Pro Bénin', searchTerm: 'Benin Ligue Pro football fixtures', country: 'Bénin' },
-  CI1: { name: 'Ligue 1 Ivoirienne', searchTerm: 'Ivory Coast Ligue 1 fixtures', country: 'Côte d\'Ivoire' },
-  SN1: { name: 'Ligue 1 Sénégalaise', searchTerm: 'Senegal Ligue 1 football fixtures', country: 'Sénégal' },
-  CM1: { name: 'Elite One', searchTerm: 'Cameroon Elite One football fixtures', country: 'Cameroun' },
-  NG1: { name: 'NPFL', searchTerm: 'Nigeria NPFL football fixtures', country: 'Nigeria' },
-  GH1: { name: 'Ghana Premier League', searchTerm: 'Ghana Premier League fixtures', country: 'Ghana' },
-  EG1: { name: 'Egyptian Premier League', searchTerm: 'Egypt Premier League fixtures', country: 'Égypte' },
-  MA1: { name: 'Botola Pro', searchTerm: 'Morocco Botola Pro fixtures', country: 'Maroc' },
-  // Other
-  PT1: { name: 'Primeira Liga', searchTerm: 'Portugal Primeira Liga fixtures', country: 'Portugal' },
-  NL1: { name: 'Eredivisie', searchTerm: 'Netherlands Eredivisie fixtures', country: 'Pays-Bas' },
-  BR1: { name: 'Brasileirão', searchTerm: 'Brazil Serie A fixtures', country: 'Brésil' },
+  CAN: { name: 'Coupe d\'Afrique des Nations', country: 'Afrique' },
+  CAF_CL: { name: 'Ligue des Champions CAF', country: 'Afrique' },
+  CAF_CC: { name: 'Coupe de la Confédération CAF', country: 'Afrique' },
+  BJ1: { name: 'Ligue Pro Bénin', country: 'Bénin' },
+  CI1: { name: 'Ligue 1 Ivoirienne', country: 'Côte d\'Ivoire' },
+  SN1: { name: 'Ligue 1 Sénégalaise', country: 'Sénégal' },
+  CM1: { name: 'Elite One', country: 'Cameroun' },
+  NG1: { name: 'NPFL Nigeria', country: 'Nigeria' },
+  GH1: { name: 'Ghana Premier League', country: 'Ghana' },
+  EG1: { name: 'Egyptian Premier League', country: 'Égypte' },
+  MA1: { name: 'Botola Pro', country: 'Maroc' },
+  TN1: { name: 'Ligue 1 Tunisie', country: 'Tunisie' },
+  DZ1: { name: 'Ligue 1 Algérie', country: 'Algérie' },
+  // Other Europe
+  PT1: { name: 'Primeira Liga', country: 'Portugal' },
+  NL1: { name: 'Eredivisie', country: 'Pays-Bas' },
+  BE1: { name: 'Pro League', country: 'Belgique' },
+  TR1: { name: 'Süper Lig', country: 'Turquie' },
+  GR1: { name: 'Super League', country: 'Grèce' },
+  CH1: { name: 'Super League', country: 'Suisse' },
+  AT1: { name: 'Bundesliga', country: 'Autriche' },
+  SC1: { name: 'Premiership', country: 'Écosse' },
+  // Americas
+  BR1: { name: 'Brasileirão', country: 'Brésil' },
+  AR1: { name: 'Liga Profesional', country: 'Argentine' },
+  MX1: { name: 'Liga MX', country: 'Mexique' },
+  US1: { name: 'MLS', country: 'USA' },
+  COPA: { name: 'Copa Libertadores', country: 'Amérique du Sud' },
+  // Asia
+  JP1: { name: 'J-League', country: 'Japon' },
+  KR1: { name: 'K-League', country: 'Corée du Sud' },
+  SA1: { name: 'Saudi Pro League', country: 'Arabie Saoudite' },
+  AU1: { name: 'A-League', country: 'Australie' },
 };
 
 class ClaudeMatchService {
@@ -59,25 +79,29 @@ class ClaudeMatchService {
   }
 
   async getMatchesForDate(date: string, leagueCodes: string[]): Promise<RealMatch[]> {
-    // First check cache
-    const cachedMatches = await this.getCachedMatches(date, leagueCodes);
+    // First check cache for the full day
+    const cachedMatches = await this.getCachedMatches(date);
+
     if (cachedMatches && cachedMatches.length > 0) {
       console.log(`Returning ${cachedMatches.length} cached matches for ${date}`);
-      return cachedMatches;
+      // Filter by requested leagues
+      return cachedMatches.filter(m => leagueCodes.includes(m.leagueCode));
     }
 
-    // Search for matches using Claude
-    const matches = await this.searchMatchesWithClaude(date, leagueCodes);
+    // Search for ALL matches of the day using Claude
+    console.log(`Searching all matches for ${date} with Claude...`);
+    const allMatches = await this.searchAllMatchesWithClaude(date);
 
-    // Cache the results
-    if (matches.length > 0) {
-      await this.cacheMatches(date, leagueCodes, matches);
+    // Cache ALL matches for 24 hours
+    if (allMatches.length > 0) {
+      await this.cacheMatches(date, allMatches);
     }
 
-    return matches;
+    // Return only the requested leagues
+    return allMatches.filter(m => leagueCodes.includes(m.leagueCode));
   }
 
-  private async getCachedMatches(date: string, leagueCodes: string[]): Promise<RealMatch[] | null> {
+  private async getCachedMatches(date: string): Promise<RealMatch[] | null> {
     try {
       const supabase = await createClient();
 
@@ -85,8 +109,9 @@ class ClaudeMatchService {
         .from('matches_cache')
         .select('matches')
         .eq('date', date)
-        .contains('leagues', leagueCodes)
         .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
       if (error || !data) {
@@ -99,34 +124,36 @@ class ClaudeMatchService {
     }
   }
 
-  private async cacheMatches(date: string, leagueCodes: string[], matches: RealMatch[]): Promise<void> {
+  private async cacheMatches(date: string, matches: RealMatch[]): Promise<void> {
     try {
       const supabase = await createClient();
 
-      // Cache for 6 hours
-      const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();
+      // Cache for 24 hours
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
+      // Delete old cache for this date
       await supabase
         .from('matches_cache')
-        .upsert({
+        .delete()
+        .eq('date', date);
+
+      // Insert new cache
+      await supabase
+        .from('matches_cache')
+        .insert({
           date,
-          leagues: leagueCodes,
+          leagues: Object.keys(allLeagues),
           matches,
           expires_at: expiresAt,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'date,leagues',
         });
+
+      console.log(`Cached ${matches.length} matches for ${date}`);
     } catch (error) {
       console.error('Error caching matches:', error);
     }
   }
 
-  private async searchMatchesWithClaude(date: string, leagueCodes: string[]): Promise<RealMatch[]> {
-    const leagueNames = leagueCodes
-      .map(code => leagueSearchTerms[code]?.name || code)
-      .join(', ');
-
+  private async searchAllMatchesWithClaude(date: string): Promise<RealMatch[]> {
     const formattedDate = new Date(date).toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
@@ -134,38 +161,43 @@ class ClaudeMatchService {
       year: 'numeric'
     });
 
-    const prompt = `Recherche les matchs de football programmés pour le ${formattedDate} dans ces compétitions: ${leagueNames}.
+    // Build list of all leagues to search
+    const leaguesList = Object.entries(allLeagues)
+      .map(([code, info]) => `- ${info.name} (${info.country}) [code: ${code}]`)
+      .join('\n');
 
-Pour chaque match trouvé, donne:
-- L'équipe à domicile
-- L'équipe à l'extérieur
-- L'heure du match (en heure locale GMT+1 Afrique de l'Ouest)
-- La compétition
+    const prompt = `Tu es un expert en football. Recherche TOUS les matchs de football programmés pour le ${formattedDate}.
 
-IMPORTANT:
-- Ne donne QUE les matchs qui ont VRAIMENT lieu le ${formattedDate}
-- Si tu ne trouves pas de matchs pour une compétition, ne l'invente pas
-- Les heures doivent être au format HH:MM (ex: 15:00, 20:30)
+CHAMPIONNATS À RECHERCHER:
+${leaguesList}
 
-Réponds UNIQUEMENT avec un JSON valide dans ce format exact:
+INSTRUCTIONS:
+1. Recherche les matchs programmés pour EXACTEMENT le ${formattedDate}
+2. Inclus l'heure en format HH:MM (heure de Paris/GMT+1)
+3. Si un championnat n'a pas de match ce jour, ne l'inclus pas
+4. Sois PRÉCIS - ne donne que les vrais matchs confirmés
+
+RÉPONDS UNIQUEMENT avec ce JSON:
 {
   "matches": [
     {
       "homeTeam": "Équipe domicile",
       "awayTeam": "Équipe extérieur",
       "time": "20:00",
-      "league": "Nom de la compétition",
+      "league": "Nom du championnat",
       "leagueCode": "CODE"
     }
   ]
 }
 
-Si aucun match n'est trouvé, réponds: {"matches": []}`;
+Si aucun match n'existe pour cette date: {"matches": []}`;
 
     try {
+      console.log(`Calling Claude to search matches for ${date}...`);
+
       const message = await this.anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
+        max_tokens: 8000,
         messages: [{ role: 'user', content: prompt }],
       });
 
@@ -176,7 +208,7 @@ Si aucun match n'est trouvé, réponds: {"matches": []}`;
       // Parse JSON response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error('Claude response not in JSON format:', responseText);
+        console.error('Claude response not in JSON format');
         return [];
       }
 
@@ -188,27 +220,19 @@ Si aucun match n'est trouvé, réponds: {"matches": []}`;
 
       // Transform to RealMatch format
       const matches: RealMatch[] = parsed.matches.map((m: any, index: number) => {
-        const leagueInfo = Object.entries(leagueSearchTerms).find(
-          ([code]) => code === m.leagueCode || leagueCodes.includes(code)
-        );
-        const leagueCode = m.leagueCode || leagueCodes[0];
-        const country = leagueInfo?.[1]?.country || 'Inconnu';
+        const leagueInfo = allLeagues[m.leagueCode];
 
         return {
-          id: `${date}-${leagueCode}-${index}`,
+          id: `${date}-${m.leagueCode}-${index}-${Date.now()}`,
           homeTeam: m.homeTeam,
           awayTeam: m.awayTeam,
-          league: m.league,
-          leagueCode: leagueCode,
-          country: country,
+          league: m.league || leagueInfo?.name || 'Unknown',
+          leagueCode: m.leagueCode,
+          country: leagueInfo?.country || 'Unknown',
           date: date,
           time: m.time || '15:00',
           status: 'scheduled' as const,
-          odds: {
-            home: +(1.5 + Math.random() * 2).toFixed(2),
-            draw: +(2.8 + Math.random() * 1.5).toFixed(2),
-            away: +(2 + Math.random() * 3).toFixed(2),
-          },
+          odds: this.generateRealisticOdds(),
         };
       });
 
@@ -219,6 +243,19 @@ Si aucun match n'est trouvé, réponds: {"matches": []}`;
       console.error('Error searching matches with Claude:', error);
       return [];
     }
+  }
+
+  private generateRealisticOdds(): { home: number; draw: number; away: number } {
+    // Generate realistic odds
+    const homeBase = 1.3 + Math.random() * 2.5;
+    const drawBase = 2.8 + Math.random() * 1.5;
+    const awayBase = 1.8 + Math.random() * 3.5;
+
+    return {
+      home: Math.round(homeBase * 100) / 100,
+      draw: Math.round(drawBase * 100) / 100,
+      away: Math.round(awayBase * 100) / 100,
+    };
   }
 }
 
