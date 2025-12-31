@@ -185,80 +185,54 @@ class MatchService {
     return matches;
   }
 
-  // Main function to get matches
+  // Main function to get matches - REAL DATA ONLY from APIs
   async getMatchesForDate(date: string, leagueCodes: string[]): Promise<RealMatch[]> {
     // Check cache first
     const cachedMatches = await this.getCachedMatches(date);
     if (cachedMatches && cachedMatches.length > 0) {
-      console.log(`Returning ${cachedMatches.length} cached matches for ${date}`);
+      console.log(`[CACHE] Returning ${cachedMatches.length} real matches for ${date}`);
       return cachedMatches.filter((m) => leagueCodes.includes(m.leagueCode));
     }
 
-    console.log(`Fetching fresh matches for ${date}...`);
+    console.log(`[API] Fetching real matches for ${date}...`);
 
     let allMatches: RealMatch[] = [];
-    let apiSuccess = false;
 
-    // Try to fetch from TheSportsDB (free)
-    try {
-      allMatches = await this.fetchFromTSDB(date);
-      if (allMatches.length > 0) apiSuccess = true;
-    } catch (error) {
-      console.log('TheSportsDB unavailable, using local fallback');
-    }
-
-    // If API-Football key is available, try to get more matches
+    // Try API-Football FIRST (more reliable, has real-time data)
     const apiKey = process.env.FOOTBALL_API_KEY;
     if (apiKey) {
       try {
+        console.log('[API-Football] Fetching matches...');
         const apiFootballMatches = await this.fetchFromAPIFootball(date, apiKey);
         if (apiFootballMatches.length > 0) {
-          apiSuccess = true;
-          // Merge, avoiding duplicates
-          const existingIds = new Set(allMatches.map((m) => `${m.homeTeam}-${m.awayTeam}`));
-          for (const match of apiFootballMatches) {
-            const key = `${match.homeTeam}-${match.awayTeam}`;
-            if (!existingIds.has(key)) {
-              allMatches.push(match);
-              existingIds.add(key);
-            }
-          }
+          console.log(`[API-Football] Found ${apiFootballMatches.length} real matches`);
+          allMatches = apiFootballMatches;
         }
       } catch (error) {
-        console.log('API-Football unavailable');
+        console.error('[API-Football] Error:', error);
       }
     }
 
-    // Always generate matches for requested leagues if API failed or league not covered
-    const coveredLeagues = new Set(allMatches.map((m) => m.leagueCode));
-
-    for (const code of leagueCodes) {
-      if (!coveredLeagues.has(code)) {
-        // Get league info from either mapping
-        const leagueInfo = leagueMapping[code] || fallbackLeagues[code];
-        if (leagueInfo) {
-          const generatedMatches = this.generateSampleMatches(date, code, leagueInfo);
-          allMatches.push(...generatedMatches);
-          coveredLeagues.add(code);
+    // Then try TheSportsDB (free backup)
+    if (allMatches.length === 0) {
+      try {
+        console.log('[TheSportsDB] Fetching matches...');
+        const tsdbMatches = await this.fetchFromTSDB(date);
+        if (tsdbMatches.length > 0) {
+          console.log(`[TheSportsDB] Found ${tsdbMatches.length} real matches`);
+          allMatches = tsdbMatches;
         }
+      } catch (error) {
+        console.error('[TheSportsDB] Error:', error);
       }
     }
 
-    // If no matches from API, generate for ALL requested leagues
-    if (!apiSuccess) {
-      console.log('No API data available, generating local matches for all leagues');
-      for (const code of leagueCodes) {
-        const leagueInfo = leagueMapping[code] || fallbackLeagues[code];
-        if (leagueInfo && !coveredLeagues.has(code)) {
-          const generatedMatches = this.generateSampleMatches(date, code, leagueInfo);
-          allMatches.push(...generatedMatches);
-        }
-      }
-    }
-
-    // Cache the results (skip if just local fallback to allow API retry next time)
-    if (allMatches.length > 0 && apiSuccess) {
+    // Cache real matches for 6 hours
+    if (allMatches.length > 0) {
       await this.cacheMatches(date, allMatches);
+      console.log(`[SUCCESS] Cached ${allMatches.length} real matches`);
+    } else {
+      console.log('[WARNING] No matches found from APIs - check date or API keys');
     }
 
     // Return filtered by requested leagues
