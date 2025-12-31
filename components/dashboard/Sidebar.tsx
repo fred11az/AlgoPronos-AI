@@ -19,6 +19,7 @@ import {
   Zap,
   ShieldCheck,
   Clock,
+  X,
 } from 'lucide-react';
 import type { Profile } from '@/types';
 
@@ -29,6 +30,7 @@ interface SidebarProps {
   onLinkClick?: () => void; // Pour fermer le menu mobile
   isAdmin?: boolean;
   pendingVerification?: boolean;
+  isMobile?: boolean; // Indique si c'est la version mobile
 }
 
 const navItems = [
@@ -60,14 +62,23 @@ const navItems = [
   },
 ];
 
-export function Sidebar({ user, collapsed, onToggle, onLinkClick, isAdmin = false, pendingVerification = false }: SidebarProps) {
+export function Sidebar({ user, collapsed, onToggle, onLinkClick, isAdmin = false, pendingVerification = false, isMobile = false }: SidebarProps) {
   const pathname = usePathname();
 
   const isVerified = user?.tier === 'verified';
 
   // Ferme le menu mobile quand on clique sur un lien
-  const handleLinkClick = () => {
-    if (onLinkClick) onLinkClick();
+  const handleLinkClick = (e?: React.MouseEvent) => {
+    if (onLinkClick) {
+      onLinkClick();
+    }
+  };
+
+  // Ferme le menu mobile
+  const handleCloseMenu = () => {
+    if (onLinkClick) {
+      onLinkClick();
+    }
   };
 
   // Add admin nav items if user is admin
@@ -98,16 +109,26 @@ export function Sidebar({ user, collapsed, onToggle, onLinkClick, isAdmin = fals
           ) : (
             <Logo size="sm" />
           )}
-          <button
-            onClick={onToggle}
-            className="p-1.5 rounded-lg hover:bg-surface-light text-text-muted hover:text-white transition-colors"
-          >
-            {collapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <ChevronLeft className="h-5 w-5" />
-            )}
-          </button>
+          {isMobile ? (
+            <button
+              onClick={handleCloseMenu}
+              className="p-2 rounded-lg hover:bg-surface-light text-text-muted hover:text-white transition-colors"
+              aria-label="Fermer le menu"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          ) : (
+            <button
+              onClick={onToggle}
+              className="p-1.5 rounded-lg hover:bg-surface-light text-text-muted hover:text-white transition-colors"
+            >
+              {collapsed ? (
+                <ChevronRight className="h-5 w-5" />
+              ) : (
+                <ChevronLeft className="h-5 w-5" />
+              )}
+            </button>
+          )}
         </div>
 
         {/* Status Badge */}
@@ -201,6 +222,10 @@ export function Sidebar({ user, collapsed, onToggle, onLinkClick, isAdmin = fals
           </Link>
 
           <button
+            onClick={() => {
+              handleCloseMenu();
+              // TODO: Implémenter la déconnexion
+            }}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-text-secondary hover:text-error hover:bg-error/10 transition-all',
               collapsed && 'justify-center'
