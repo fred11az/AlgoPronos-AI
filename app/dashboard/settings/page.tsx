@@ -149,15 +149,13 @@ export default function SettingsPage() {
               </h3>
               <p className="text-sm text-text-muted">{profile?.email}</p>
               <div className="mt-2">
-                {profile?.tier === 'vip_lifetime' ? (
-                  <Badge variant="vip">
+                {profile?.tier === 'verified' ? (
+                  <Badge variant="success">
                     <Crown className="h-3 w-3 mr-1" />
-                    VIP Lifetime
+                    Compte Activé
                   </Badge>
-                ) : profile?.tier === 'premium' ? (
-                  <Badge variant="premium">Premium</Badge>
                 ) : (
-                  <Badge variant="outline">Gratuit</Badge>
+                  <Badge variant="outline">Non activé</Badge>
                 )}
               </div>
             </div>
