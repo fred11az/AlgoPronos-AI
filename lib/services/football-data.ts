@@ -121,8 +121,8 @@ class FootballDataService {
     }
 
     try {
-      // Fetch all matches for the date
-      const data = await this.fetch(`/matches?date=${date}`);
+      // Fetch all matches for the date (use dateFrom and dateTo for better results)
+      const data = await this.fetch(`/matches?dateFrom=${date}&dateTo=${date}`);
 
       if (!data?.matches) {
         console.log('No matches returned from API');
