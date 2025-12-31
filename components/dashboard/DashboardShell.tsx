@@ -59,6 +59,7 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
           user={user}
           collapsed={false}
           onToggle={() => setMobileMenuOpen(false)}
+          onLinkClick={() => setMobileMenuOpen(false)}
           isAdmin={isAdmin}
         />
       </div>
