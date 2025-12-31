@@ -139,11 +139,6 @@ class FootballDataService {
       const results = await Promise.all(matchPromises);
       const allApiMatches = results.flat();
 
-      if (!allApiMatches || allApiMatches.length === 0) {
-        console.log('No matches returned from API for selected leagues');
-        return this.getMockMatches(date, leagueCodes);
-      }
-
       const matches: FootballMatch[] = [];
 
       for (const match of allApiMatches) {
@@ -194,7 +189,8 @@ class FootballDataService {
 
     } catch (error) {
       console.error('Error fetching from Football-Data.org:', error);
-      return this.getMockMatches(date, leagueCodes);
+      // Return empty array instead of mock data - only use mock for unsupported leagues
+      return [];
     }
   }
 
