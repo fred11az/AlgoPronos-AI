@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const status = searchParams.get('status') || 'pending';
 
-  // Use admin client to bypass RLS
-  const supabase = await createAdminClient();
+  // Use admin client to bypass RLS (service role key)
+  const supabase = createAdminClient();
 
   // Fetch verifications first
   let query = supabase
@@ -85,8 +85,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'ID et status requis' }, { status: 400 });
   }
 
-  // Use admin client to bypass RLS
-  const supabase = await createAdminClient();
+  // Use admin client to bypass RLS (service role key)
+  const supabase = createAdminClient();
 
   // First get the verification to know the user_id
   const { data: verification, error: fetchError } = await supabase
