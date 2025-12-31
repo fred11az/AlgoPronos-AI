@@ -185,7 +185,7 @@ class MatchService {
     return matches;
   }
 
-  // Main function to get matches - REAL DATA ONLY from APIs
+  // Main function to get matches - REAL DATA from BOTH APIs combined
   async getMatchesForDate(date: string, leagueCodes: string[]): Promise<RealMatch[]> {
     // Check cache first
     const cachedMatches = await this.getCachedMatches(date);
@@ -194,45 +194,59 @@ class MatchService {
       return cachedMatches.filter((m) => leagueCodes.includes(m.leagueCode));
     }
 
-    console.log(`[API] Fetching real matches for ${date}...`);
+    console.log(`[API] Fetching real matches for ${date} from BOTH APIs...`);
 
-    let allMatches: RealMatch[] = [];
-
-    // Try API-Football FIRST (more reliable, has real-time data)
+    // Call BOTH APIs in PARALLEL for maximum coverage
     const apiKey = process.env.FOOTBALL_API_KEY;
-    if (apiKey) {
-      try {
-        console.log('[API-Football] Fetching matches...');
-        const apiFootballMatches = await this.fetchFromAPIFootball(date, apiKey);
-        if (apiFootballMatches.length > 0) {
-          console.log(`[API-Football] Found ${apiFootballMatches.length} real matches`);
-          allMatches = apiFootballMatches;
-        }
-      } catch (error) {
-        console.error('[API-Football] Error:', error);
+
+    const [apiFootballMatches, tsdbMatches] = await Promise.all([
+      // API-Football (if key available)
+      apiKey
+        ? this.fetchFromAPIFootball(date, apiKey)
+            .then(matches => {
+              console.log(`[API-Football] Found ${matches.length} matches`);
+              return matches;
+            })
+            .catch(err => {
+              console.error('[API-Football] Error:', err.message);
+              return [] as RealMatch[];
+            })
+        : Promise.resolve([] as RealMatch[]),
+
+      // TheSportsDB (always free)
+      this.fetchFromTSDB(date)
+        .then(matches => {
+          console.log(`[TheSportsDB] Found ${matches.length} matches`);
+          return matches;
+        })
+        .catch(err => {
+          console.error('[TheSportsDB] Error:', err.message);
+          return [] as RealMatch[];
+        }),
+    ]);
+
+    // Merge results, avoiding duplicates (by team names)
+    const allMatches: RealMatch[] = [...apiFootballMatches];
+    const existingMatchKeys = new Set(
+      apiFootballMatches.map(m => `${m.homeTeam.toLowerCase()}-${m.awayTeam.toLowerCase()}`)
+    );
+
+    for (const match of tsdbMatches) {
+      const key = `${match.homeTeam.toLowerCase()}-${match.awayTeam.toLowerCase()}`;
+      if (!existingMatchKeys.has(key)) {
+        allMatches.push(match);
+        existingMatchKeys.add(key);
       }
     }
 
-    // Then try TheSportsDB (free backup)
-    if (allMatches.length === 0) {
-      try {
-        console.log('[TheSportsDB] Fetching matches...');
-        const tsdbMatches = await this.fetchFromTSDB(date);
-        if (tsdbMatches.length > 0) {
-          console.log(`[TheSportsDB] Found ${tsdbMatches.length} real matches`);
-          allMatches = tsdbMatches;
-        }
-      } catch (error) {
-        console.error('[TheSportsDB] Error:', error);
-      }
-    }
+    console.log(`[TOTAL] Combined ${allMatches.length} unique matches from both APIs`);
 
     // Cache real matches for 6 hours
     if (allMatches.length > 0) {
       await this.cacheMatches(date, allMatches);
       console.log(`[SUCCESS] Cached ${allMatches.length} real matches`);
     } else {
-      console.log('[WARNING] No matches found from APIs - check date or API keys');
+      console.log('[WARNING] No matches found from APIs - check date or network');
     }
 
     // Return filtered by requested leagues
