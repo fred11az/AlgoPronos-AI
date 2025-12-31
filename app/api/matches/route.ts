@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { footballApi } from '@/lib/services/football-api';
+import { footballDataService } from '@/lib/services/football-data';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -17,8 +17,13 @@ export async function GET(request: NextRequest) {
   const leagueCodes = leagues.split(',');
 
   try {
-    const matches = await footballApi.getMatchesByDate(date, leagueCodes);
-    return NextResponse.json({ matches });
+    const matches = await footballDataService.getMatchesByDate(date, leagueCodes);
+    return NextResponse.json({
+      matches,
+      count: matches.length,
+      date,
+      leagues: leagueCodes,
+    });
   } catch (error) {
     console.error('Error fetching matches:', error);
     return NextResponse.json(
