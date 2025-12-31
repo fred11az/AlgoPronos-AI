@@ -121,17 +121,32 @@ class FootballDataService {
     }
 
     try {
-      // Fetch all matches for the date (use dateFrom and dateTo for better results)
-      const data = await this.fetch(`/matches?dateFrom=${date}&dateTo=${date}`);
+      // Fetch matches for each supported competition
+      const competitionCodes = supportedLeagues.map(code => competitionMap[code]).filter(Boolean);
 
-      if (!data?.matches) {
-        console.log('No matches returned from API');
+      console.log(`Fetching matches for competitions: ${competitionCodes.join(', ')}`);
+
+      const matchPromises = competitionCodes.map(async (compCode) => {
+        try {
+          const data = await this.fetch(`/competitions/${compCode}/matches?dateFrom=${date}&dateTo=${date}`);
+          return data?.matches || [];
+        } catch (err) {
+          console.error(`Error fetching competition ${compCode}:`, err);
+          return [];
+        }
+      });
+
+      const results = await Promise.all(matchPromises);
+      const allApiMatches = results.flat();
+
+      if (!allApiMatches || allApiMatches.length === 0) {
+        console.log('No matches returned from API for selected leagues');
         return this.getMockMatches(date, leagueCodes);
       }
 
       const matches: FootballMatch[] = [];
 
-      for (const match of data.matches) {
+      for (const match of allApiMatches) {
         // Find our league code from competition code
         const leagueCode = Object.entries(competitionMap).find(
           ([, apiCode]) => apiCode === match.competition.code
