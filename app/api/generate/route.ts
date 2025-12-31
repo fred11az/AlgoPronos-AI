@@ -52,6 +52,8 @@ function generateCacheKey(params: CombineParameters): string {
   return hash.substring(0, 16);
 }
 
+const DAILY_COUPON_LIMIT = 2;
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
@@ -62,11 +64,43 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check tier
-    if (!user.tier) {
+    // Check if user is verified (created 1xbet account)
+    if (user.tier !== 'verified') {
       return NextResponse.json(
-        { error: 'Subscription required', code: 'NO_TIER' },
+        { error: 'Verification required', code: 'NOT_VERIFIED' },
         { status: 403 }
+      );
+    }
+
+    // Check daily coupon limit (2 per day)
+    const supabase = await createClient();
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get user's daily coupon usage
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('daily_coupon_count, last_coupon_date')
+      .eq('id', user.id)
+      .single();
+
+    let currentCount = profile?.daily_coupon_count || 0;
+    const lastDate = profile?.last_coupon_date;
+
+    // Reset count if it's a new day
+    if (lastDate !== today) {
+      currentCount = 0;
+    }
+
+    // Check limit
+    if (currentCount >= DAILY_COUPON_LIMIT) {
+      return NextResponse.json(
+        {
+          error: 'Daily limit reached',
+          code: 'DAILY_LIMIT',
+          limit: DAILY_COUPON_LIMIT,
+          remaining: 0
+        },
+        { status: 429 }
       );
     }
 
@@ -110,7 +144,6 @@ export async function POST(request: Request) {
     const cacheKey = generateCacheKey(params);
 
     // Check cache first
-    const supabase = await createClient();
     const { data: cachedCombine } = await supabase
       .from('generated_combines')
       .select('*')
@@ -133,9 +166,23 @@ export async function POST(request: Request) {
         .update({ usage_count: cachedCombine.usage_count + 1 })
         .eq('id', cachedCombine.id);
 
+      // Update daily coupon count (cache hits also count)
+      await supabase
+        .from('profiles')
+        .update({
+          daily_coupon_count: currentCount + 1,
+          last_coupon_date: today,
+        })
+        .eq('id', user.id);
+
       return NextResponse.json({
         combine: cachedCombine,
         fromCache: true,
+        dailyUsage: {
+          used: currentCount + 1,
+          limit: DAILY_COUPON_LIMIT,
+          remaining: DAILY_COUPON_LIMIT - (currentCount + 1),
+        },
       });
     }
 
@@ -283,9 +330,23 @@ RÉPONDS UNIQUEMENT AVEC LE JSON, RIEN D'AUTRE.`;
       user_tier: user.tier,
     });
 
+    // Update daily coupon count
+    await supabase
+      .from('profiles')
+      .update({
+        daily_coupon_count: currentCount + 1,
+        last_coupon_date: today,
+      })
+      .eq('id', user.id);
+
     return NextResponse.json({
       combine: generatedCombine,
       fromCache: false,
+      dailyUsage: {
+        used: currentCount + 1,
+        limit: DAILY_COUPON_LIMIT,
+        remaining: DAILY_COUPON_LIMIT - (currentCount + 1),
+      },
     });
   } catch (error) {
     console.error('Error generating combine:', error);

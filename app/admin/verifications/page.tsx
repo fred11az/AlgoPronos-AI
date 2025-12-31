@@ -135,9 +135,9 @@ export default function VerificationsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white">Vérifications VIP</h1>
+          <h1 className="text-3xl font-bold text-white">Activations de Compte</h1>
           <p className="text-text-secondary">
-            Gérez les demandes de vérification VIP
+            Vérifiez les comptes 1xBet et activez les utilisateurs
           </p>
         </div>
         <Badge variant={filter === 'pending' ? 'warning' : 'outline'}>

@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Zap,
   History,
-  Crown,
   ArrowRight,
   Trophy,
   Target,
@@ -17,6 +16,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  Gift,
 } from 'lucide-react';
 
 function formatTimeAgo(dateString: string): string {
@@ -41,7 +41,7 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-center min-h-[50vh]">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
-            <Crown className="h-12 w-12 text-primary mx-auto mb-4" />
+            <Sparkles className="h-12 w-12 text-primary mx-auto mb-4" />
             <h2 className="text-xl font-bold text-white mb-2">Connexion requise</h2>
             <p className="text-text-secondary mb-6">
               Connectez-vous pour accéder à votre tableau de bord
@@ -55,9 +55,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const isVIP = user?.tier === 'vip_lifetime';
-  const isPremium = user?.tier === 'premium';
-  const hasAccess = isVIP || isPremium;
+  const isVerified = user?.tier === 'verified';
 
   // Fetch real data from Supabase
   const [stats, recentCombines, vipStatus] = await Promise.all([
@@ -65,6 +63,8 @@ export default async function DashboardPage() {
     getUserRecentCombines(user.id, 5),
     getVipVerificationStatus(user.id),
   ]);
+
+  const isPending = vipStatus.status === 'pending';
 
   return (
     <div className="space-y-8">
@@ -75,13 +75,15 @@ export default async function DashboardPage() {
             Bienvenue, {user.full_name || 'Utilisateur'}
           </h1>
           <p className="text-text-secondary mt-1">
-            {hasAccess
+            {isVerified
               ? 'Prêt à générer des combinés gagnants ?'
-              : 'Débloquez votre accès pour commencer'}
+              : isPending
+              ? 'Votre activation est en cours de vérification'
+              : 'Activez votre compte pour commencer'}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {hasAccess ? (
+          {isVerified ? (
             <Button size="lg" variant="gradient" asChild>
               <Link href="/dashboard/generate">
                 <Sparkles className="mr-2 h-5 w-5" />
@@ -91,16 +93,16 @@ export default async function DashboardPage() {
           ) : (
             <Button size="lg" variant="gradient" asChild>
               <Link href="/unlock-vip">
-                <Crown className="mr-2 h-5 w-5" />
-                Créer Mon Compte Optimisé
+                <Sparkles className="mr-2 h-5 w-5" />
+                Activer Mon Compte
               </Link>
             </Button>
           )}
         </div>
       </div>
 
-      {/* VIP Verification Status */}
-      {!hasAccess && vipStatus.status === 'pending' && (
+      {/* Verification Status */}
+      {!isVerified && isPending && (
         <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/30">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -110,7 +112,7 @@ export default async function DashboardPage() {
               <div>
                 <h3 className="text-lg font-bold text-white">Vérification en cours</h3>
                 <p className="text-text-secondary">
-                  Votre demande VIP est en cours de vérification. Réponse sous 24h.
+                  Votre compte 1xBet est en cours de vérification. Réponse sous 24h maximum.
                 </p>
               </div>
             </div>
@@ -118,36 +120,61 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* Access Card (if no tier) */}
-      {!hasAccess && vipStatus.status !== 'pending' && (
+      {/* Activation Card (if not verified and not pending) */}
+      {!isVerified && !isPending && (
         <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="flex items-start gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center">
-                  <Crown className="h-7 w-7 text-primary" />
+                  <Gift className="h-7 w-7 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-1">
-                    Créez votre compte 1xBet optimisé
-                  </h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-xl font-bold text-white">
+                      Activez AlgoPronos AI - 100% Gratuit
+                    </h3>
+                    <Badge variant="success">Gratuit</Badge>
+                  </div>
                   <p className="text-text-secondary max-w-xl">
-                    Obtenez un compte synchronisé avec l&apos;IA + Bonus 200% jusqu&apos;à 250 000 FCFA + Cashback permanent. Ou choisissez Premium à 1000F/semaine.
+                    Créez un compte 1xBet avec notre code promo pour débloquer 2 coupons IA par jour + bonus jusqu&apos;à 208,000 FCFA
                   </p>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="gradient" asChild>
-                  <Link href="/unlock-vip">
-                    Compte Optimisé Gratuit
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link href="/dashboard/premium/checkout">
-                    Premium 1000F/sem
-                  </Link>
-                </Button>
+              <Button variant="gradient" size="lg" asChild>
+                <Link href="/unlock-vip">
+                  Activer Gratuitement
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Daily Usage (for verified users) */}
+      {isVerified && (
+        <Card className="bg-gradient-to-br from-success/10 to-primary/10 border-success/30">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
+                  <Zap className="h-6 w-6 text-success" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Coupons du jour</h3>
+                  <p className="text-text-secondary">
+                    {2 - (user.daily_coupon_count || 0)} coupon(s) restant(s) aujourd&apos;hui
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-white">
+                    {user.daily_coupon_count || 0}/2
+                  </div>
+                  <div className="text-xs text-text-muted">utilisés</div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -234,7 +261,7 @@ export default async function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" asChild disabled={!hasAccess}>
+            <Button className="w-full" asChild disabled={!isVerified}>
               <Link href="/dashboard/generate">
                 Générer maintenant
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -293,7 +320,7 @@ export default async function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {hasAccess && recentCombines.length > 0 ? (
+          {isVerified && recentCombines.length > 0 ? (
             <div className="space-y-4">
               {recentCombines.map((combine, index) => (
                 <div
@@ -349,7 +376,7 @@ export default async function DashboardPage() {
                 </div>
               ))}
             </div>
-          ) : hasAccess ? (
+          ) : isVerified ? (
             <div className="text-center py-8">
               <div className="w-16 h-16 rounded-full bg-surface-light flex items-center justify-center mx-auto mb-4">
                 <Sparkles className="h-8 w-8 text-text-muted" />
@@ -367,14 +394,14 @@ export default async function DashboardPage() {
           ) : (
             <div className="text-center py-8">
               <div className="w-16 h-16 rounded-full bg-surface-light flex items-center justify-center mx-auto mb-4">
-                <Crown className="h-8 w-8 text-text-muted" />
+                <Gift className="h-8 w-8 text-text-muted" />
               </div>
               <p className="text-text-secondary mb-4">
-                Créez votre compte optimisé pour générer vos premiers combinés
+                Activez votre compte pour générer vos premiers combinés
               </p>
               <Button variant="gradient" asChild>
                 <Link href="/unlock-vip">
-                  Créer Mon Compte Optimisé
+                  Activer Gratuitement
                 </Link>
               </Button>
             </div>
@@ -383,7 +410,7 @@ export default async function DashboardPage() {
       </Card>
 
       {/* Performance Chart */}
-      {hasAccess && stats.combinesGenerated > 0 && (
+      {isVerified && stats.combinesGenerated > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Performance</CardTitle>
