@@ -7,9 +7,9 @@ import { I18nProvider } from '@/lib/i18n/context';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'AlgoPronos AI - Combinés Gagnants avec l\'IA',
+  title: 'AlgoPronos AI - Combinés Gagnants avec l\'IA | 100% Gratuit',
   description:
-    'Plateforme premium de génération automatique de combinés de paris sportifs pour l\'Afrique de l\'Ouest. Analyses professionnelles propulsées par l\'IA.',
+    'Plateforme gratuite de génération automatique de combinés de paris sportifs pour l\'Afrique de l\'Ouest. Analyses professionnelles propulsées par l\'IA. 2 coupons gratuits par jour.',
   keywords: [
     'paris sportifs',
     'combinés',
@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     'Togo',
     'Côte d\'Ivoire',
     'Sénégal',
+    'gratuit',
   ],
   authors: [{ name: 'AlgoPronos AI' }],
   creator: 'AlgoPronos AI',
@@ -32,9 +33,9 @@ export const metadata: Metadata = {
     locale: 'fr_FR',
     url: 'https://algopronos.ai',
     siteName: 'AlgoPronos AI',
-    title: 'AlgoPronos AI - Combinés Gagnants avec l\'IA',
+    title: 'AlgoPronos AI - Combinés Gagnants avec l\'IA | 100% Gratuit',
     description:
-      'Plateforme premium de génération automatique de combinés de paris sportifs pour l\'Afrique de l\'Ouest.',
+      'Plateforme gratuite de génération automatique de combinés de paris sportifs. 2 coupons IA par jour.',
     images: [
       {
         url: '/og-image.png',
@@ -46,9 +47,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AlgoPronos AI - Combinés Gagnants avec l\'IA',
+    title: 'AlgoPronos AI - Combinés Gagnants avec l\'IA | 100% Gratuit',
     description:
-      'Plateforme premium de génération automatique de combinés de paris sportifs.',
+      'Plateforme gratuite de génération automatique de combinés de paris sportifs. 2 coupons IA par jour.',
     images: ['/og-image.png'],
   },
   icons: {

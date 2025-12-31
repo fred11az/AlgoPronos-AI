@@ -93,10 +93,8 @@ export default function RegisterPage() {
       toast.success('Compte créé avec succès !');
 
       // Redirect based on intent
-      if (intent === 'vip') {
+      if (intent === 'vip' || intent === 'activate') {
         router.push('/unlock-vip');
-      } else if (plan === 'premium') {
-        router.push('/dashboard/premium/checkout');
       } else {
         router.push('/dashboard');
       }
@@ -121,15 +119,15 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      {/* VIP Banner */}
-      {intent === 'vip' && (
-        <div className="bg-gradient-to-r from-primary/20 to-[#00D4FF]/20 rounded-xl p-4 border border-primary/30">
+      {/* Activation Banner */}
+      {(intent === 'vip' || intent === 'activate') && (
+        <div className="bg-gradient-to-r from-success/20 to-primary/20 rounded-xl p-4 border border-success/30">
           <div className="flex items-start gap-3">
-            <Sparkles className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+            <Sparkles className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-white">VIP Gratuit à Vie</p>
+              <p className="font-medium text-white">100% Gratuit - 2 coupons/jour</p>
               <p className="text-sm text-text-secondary">
-                Après inscription, vous pourrez soumettre votre ID 1xBet
+                Après inscription, activez avec votre compte 1xBet
               </p>
             </div>
           </div>
