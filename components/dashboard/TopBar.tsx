@@ -16,15 +16,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase/client';
 import {
-  Bell,
   Menu,
   Settings,
   User,
   LogOut,
-  Crown,
   Sparkles,
-  CreditCard,
   ShieldCheck,
+  CheckCircle,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -67,8 +65,7 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
     }
   }
 
-  const isVIP = user?.tier === 'vip_lifetime';
-  const isPremium = user?.tier === 'premium';
+  const isVerified = user?.tier === 'verified';
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-background/80 backdrop-blur-xl border-b border-surface-light">
@@ -87,19 +84,19 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
               Bienvenue, {user?.full_name?.split(' ')[0] || 'Utilisateur'}
             </h1>
             <p className="text-sm text-text-muted">
-              Prêt à générer des combinés gagnants ?
+              {isVerified ? 'Prêt à générer des combinés gagnants ?' : 'Activez votre compte pour commencer'}
             </p>
           </div>
         </div>
 
         {/* Right Side */}
         <div className="flex items-center gap-3">
-          {/* Upgrade Button (if no tier) */}
-          {!isVIP && !isPremium && (
+          {/* Activate Button (if not verified) */}
+          {!isVerified && (
             <Button variant="gradient" size="sm" className="hidden sm:flex" asChild>
               <Link href="/unlock-vip">
-                <Crown className="mr-2 h-4 w-4" />
-                Débloquer VIP
+                <Sparkles className="mr-2 h-4 w-4" />
+                Activer Gratuitement
               </Link>
             </Button>
           )}
@@ -133,16 +130,13 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
                     {user?.full_name || 'Utilisateur'}
                   </p>
                   <div className="flex items-center gap-1">
-                    {isVIP ? (
-                      <Badge variant="vip" className="text-[10px] px-1.5 py-0">
-                        VIP
-                      </Badge>
-                    ) : isPremium ? (
-                      <Badge variant="premium" className="text-[10px] px-1.5 py-0">
-                        Premium
+                    {isVerified ? (
+                      <Badge variant="success" className="text-[10px] px-1.5 py-0">
+                        <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
+                        Activé
                       </Badge>
                     ) : (
-                      <span className="text-xs text-text-muted">Compte gratuit</span>
+                      <span className="text-xs text-text-muted">Non activé</span>
                     )}
                   </div>
                 </div>
@@ -163,14 +157,6 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
                   Paramètres
                 </Link>
               </DropdownMenuItem>
-              {isPremium && (
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/premium">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Abonnement
-                  </Link>
-                </DropdownMenuItem>
-              )}
               {isAdmin && (
                 <>
                   <DropdownMenuSeparator />
@@ -182,19 +168,13 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
                   </DropdownMenuItem>
                 </>
               )}
-              {!isVIP && !isPremium && (
+              {!isVerified && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/unlock-vip" className="text-primary">
-                      <Crown className="mr-2 h-4 w-4" />
-                      Débloquer VIP Gratuit
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/premium/checkout">
                       <Sparkles className="mr-2 h-4 w-4" />
-                      Devenir Premium
+                      Activer Mon Compte
                     </Link>
                   </DropdownMenuItem>
                 </>

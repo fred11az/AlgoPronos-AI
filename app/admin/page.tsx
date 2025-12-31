@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Crown, CreditCard, Zap, TrendingUp, AlertCircle } from 'lucide-react';
+import { Users, CheckCircle, Zap, TrendingUp, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -13,17 +13,11 @@ async function getAdminStats() {
     .from('profiles')
     .select('*', { count: 'exact', head: true });
 
-  // Get premium users
-  const { count: premiumUsers } = await supabase
+  // Get verified users
+  const { count: verifiedUsers } = await supabase
     .from('profiles')
     .select('*', { count: 'exact', head: true })
-    .eq('tier', 'premium');
-
-  // Get VIP users
-  const { count: vipUsers } = await supabase
-    .from('profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('tier', 'vip_lifetime');
+    .eq('tier', 'verified');
 
   // Get pending verifications
   const { count: pendingVerifications } = await supabase
@@ -53,11 +47,9 @@ async function getAdminStats() {
 
   return {
     totalUsers: totalUsers || 0,
-    premiumUsers: premiumUsers || 0,
-    vipUsers: vipUsers || 0,
+    verifiedUsers: verifiedUsers || 0,
     pendingVerifications: pendingVerifications || 0,
     combinesGenerated: combinesGenerated || 0,
-    monthlyRevenue: (premiumUsers || 0) * 1000 * 4, // Rough estimate
     recentVerifications: recentVerifications || [],
   };
 }
@@ -79,23 +71,22 @@ export default async function AdminDashboardPage() {
         <StatCard
           title="Utilisateurs Totaux"
           value={stats.totalUsers}
-          subtitle={`${stats.premiumUsers} Premium, ${stats.vipUsers} VIP`}
+          subtitle={`${stats.verifiedUsers} activés`}
           icon={<Users className="h-6 w-6" />}
           trend="+12%"
         />
         <StatCard
-          title="Vérifications en attente"
+          title="Comptes Activés"
+          value={stats.verifiedUsers}
+          subtitle="Utilisateurs vérifiés"
+          icon={<CheckCircle className="h-6 w-6" />}
+        />
+        <StatCard
+          title="Activations en attente"
           value={stats.pendingVerifications}
           subtitle="À traiter"
           icon={<AlertCircle className="h-6 w-6" />}
           alert={stats.pendingVerifications > 0}
-        />
-        <StatCard
-          title="Revenus ce mois"
-          value={`${stats.monthlyRevenue.toLocaleString()} F`}
-          subtitle="Premium + Affiliation"
-          icon={<CreditCard className="h-6 w-6" />}
-          trend="+28%"
         />
         <StatCard
           title="Combinés générés"
@@ -112,8 +103,8 @@ export default async function AdminDashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Crown className="h-5 w-5 text-primary" />
-                Vérifications VIP en attente
+                <CheckCircle className="h-5 w-5 text-primary" />
+                Activations en attente
               </CardTitle>
               <CardDescription>
                 {stats.pendingVerifications} demande(s) à traiter
@@ -157,7 +148,7 @@ export default async function AdminDashboardPage() {
               </div>
             ) : (
               <p className="text-center text-text-muted py-8">
-                Aucune vérification en attente
+                Aucune activation en attente
               </p>
             )}
           </CardContent>
@@ -171,21 +162,21 @@ export default async function AdminDashboardPage() {
               Distribution des utilisateurs
             </CardTitle>
             <CardDescription>
-              Répartition par type d&apos;abonnement
+              Répartition par statut d&apos;activation
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span className="text-text-secondary">VIP Lifetime</span>
+                  <div className="w-3 h-3 rounded-full bg-success"></div>
+                  <span className="text-text-secondary">Comptes Activés</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-white">{stats.vipUsers}</span>
-                  <Badge variant="vip">
+                  <span className="font-bold text-white">{stats.verifiedUsers}</span>
+                  <Badge variant="success">
                     {stats.totalUsers > 0
-                      ? Math.round((stats.vipUsers / stats.totalUsers) * 100)
+                      ? Math.round((stats.verifiedUsers / stats.totalUsers) * 100)
                       : 0}
                     %
                   </Badge>
@@ -193,14 +184,14 @@ export default async function AdminDashboardPage() {
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-primary"></div>
-                  <span className="text-text-secondary">Premium</span>
+                  <div className="w-3 h-3 rounded-full bg-warning"></div>
+                  <span className="text-text-secondary">En attente</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-white">{stats.premiumUsers}</span>
-                  <Badge variant="premium">
+                  <span className="font-bold text-white">{stats.pendingVerifications}</span>
+                  <Badge variant="warning">
                     {stats.totalUsers > 0
-                      ? Math.round((stats.premiumUsers / stats.totalUsers) * 100)
+                      ? Math.round((stats.pendingVerifications / stats.totalUsers) * 100)
                       : 0}
                     %
                   </Badge>
@@ -209,16 +200,16 @@ export default async function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-surface-light"></div>
-                  <span className="text-text-secondary">Sans abonnement</span>
+                  <span className="text-text-secondary">Non activés</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-white">
-                    {stats.totalUsers - stats.vipUsers - stats.premiumUsers}
+                    {stats.totalUsers - stats.verifiedUsers - stats.pendingVerifications}
                   </span>
                   <Badge variant="outline">
                     {stats.totalUsers > 0
                       ? Math.round(
-                          ((stats.totalUsers - stats.vipUsers - stats.premiumUsers) /
+                          ((stats.totalUsers - stats.verifiedUsers - stats.pendingVerifications) /
                             stats.totalUsers) *
                             100
                         )
