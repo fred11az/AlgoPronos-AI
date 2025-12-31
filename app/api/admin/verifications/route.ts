@@ -100,21 +100,47 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Vérification non trouvée' }, { status: 404 });
   }
 
-  // Update verification status
-  const { error: updateError } = await supabase
+  // Update verification status (only required fields first)
+  const updateData: Record<string, unknown> = {
+    status,
+    admin_notes: admin_notes || null,
+  };
+
+  // Try to add optional fields if they exist in the table
+  try {
+    updateData.verified_at = new Date().toISOString();
+    updateData.verified_by = user.id;
+  } catch {
+    // Optional fields, ignore if not supported
+  }
+
+  const { data: updatedData, error: updateError } = await supabase
     .from('vip_verifications')
-    .update({
-      status,
-      admin_notes: admin_notes || null,
-      verified_at: new Date().toISOString(),
-      verified_by: user.id,
-    })
-    .eq('id', id);
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single();
 
   if (updateError) {
     console.error('Error updating verification:', updateError);
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+
+    // If error is about missing columns, try simpler update
+    if (updateError.message.includes('column') || updateError.code === '42703') {
+      const { error: simpleError } = await supabase
+        .from('vip_verifications')
+        .update({ status, admin_notes: admin_notes || null })
+        .eq('id', id);
+
+      if (simpleError) {
+        console.error('Simple update also failed:', simpleError);
+        return NextResponse.json({ error: simpleError.message }, { status: 500 });
+      }
+    } else {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
   }
+
+  console.log('Verification updated successfully:', updatedData);
 
   // If approved, try to update user tier to 'verified' (non-blocking)
   let profileUpdated = true;

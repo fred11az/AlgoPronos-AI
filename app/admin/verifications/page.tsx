@@ -79,14 +79,15 @@ export default function VerificationsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erreur');
+        throw new Error(data.error || 'Erreur inconnue');
       }
 
-      toast.success('Vérification approuvée ! Compte activé.');
+      toast.success(data.message || 'Vérification approuvée ! Compte activé.');
       fetchVerifications();
     } catch (error) {
-      toast.error('Erreur lors de l\'approbation');
-      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      toast.error(`Erreur: ${errorMessage}`);
+      console.error('Approval error:', error);
     } finally {
       setProcessing(null);
     }
