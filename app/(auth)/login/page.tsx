@@ -31,6 +31,11 @@ export default function LoginPage() {
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
           toast.error('Email ou mot de passe incorrect');
+        } else if (error.message.includes('Email not confirmed')) {
+          toast.error('Veuillez confirmer votre email avant de vous connecter');
+          // Store email and redirect to verify-email page
+          localStorage.setItem('pendingVerificationEmail', email);
+          router.push(`/verify-email?email=${encodeURIComponent(email)}`);
         } else {
           toast.error(error.message);
         }
