@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,8 @@ import {
   RefreshCw,
   ArrowLeft,
   Mail,
-  HelpCircle
+  HelpCircle,
+  Loader2
 } from 'lucide-react';
 
 // Error type configurations
@@ -80,7 +82,7 @@ const errorTypes: Record<string, {
   },
 };
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error') || 'default';
   const errorCode = searchParams.get('error_code') || error;
@@ -89,6 +91,83 @@ export default function AuthErrorPage() {
   // Get error config based on error code
   const errorConfig = errorTypes[errorCode] || errorTypes[error] || errorTypes.default;
 
+  return (
+    <div className="max-w-md w-full space-y-8 text-center">
+      {/* Error Icon */}
+      <div className="flex justify-center">
+        <div className="w-24 h-24 bg-surface rounded-full flex items-center justify-center">
+          {errorConfig.icon}
+        </div>
+      </div>
+
+      {/* Error Message */}
+      <div className="space-y-3">
+        <h1 className="text-3xl font-bold text-white">{errorConfig.title}</h1>
+        <p className="text-text-secondary">
+          {errorConfig.description}
+        </p>
+      </div>
+
+      {/* Technical Details (collapsed) */}
+      {errorDescription && (
+        <details className="bg-surface/50 border border-border rounded-lg p-4 text-left">
+          <summary className="text-sm text-text-muted cursor-pointer flex items-center gap-2">
+            <HelpCircle className="w-4 h-4" />
+            Détails techniques
+          </summary>
+          <p className="mt-3 text-xs text-text-muted font-mono break-all">
+            {decodeURIComponent(errorDescription.replace(/\+/g, ' '))}
+          </p>
+        </details>
+      )}
+
+      {/* Actions */}
+      <div className="space-y-4">
+        <Button asChild size="lg" className="w-full">
+          <Link href={errorConfig.action.href}>
+            {errorConfig.action.label}
+          </Link>
+        </Button>
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link
+            href="/login"
+            className="text-text-secondary hover:text-white transition-colors flex items-center justify-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Connexion
+          </Link>
+          <span className="hidden sm:inline text-text-muted">•</span>
+          <Link
+            href="/register"
+            className="text-text-secondary hover:text-white transition-colors flex items-center justify-center gap-2"
+          >
+            <Mail className="w-4 h-4" />
+            Créer un compte
+          </Link>
+        </div>
+      </div>
+
+      {/* Support */}
+      <p className="text-sm text-text-muted">
+        Besoin d&apos;aide ?{' '}
+        <Link href="/support" className="text-primary hover:underline">
+          Contactez notre support
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="max-w-md w-full flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+    </div>
+  );
+}
+
+export default function AuthErrorPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -100,70 +179,9 @@ export default function AuthErrorPage() {
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-md w-full space-y-8 text-center">
-          {/* Error Icon */}
-          <div className="flex justify-center">
-            <div className="w-24 h-24 bg-surface rounded-full flex items-center justify-center">
-              {errorConfig.icon}
-            </div>
-          </div>
-
-          {/* Error Message */}
-          <div className="space-y-3">
-            <h1 className="text-3xl font-bold text-white">{errorConfig.title}</h1>
-            <p className="text-text-secondary">
-              {errorConfig.description}
-            </p>
-          </div>
-
-          {/* Technical Details (collapsed) */}
-          {errorDescription && (
-            <details className="bg-surface/50 border border-border rounded-lg p-4 text-left">
-              <summary className="text-sm text-text-muted cursor-pointer flex items-center gap-2">
-                <HelpCircle className="w-4 h-4" />
-                Détails techniques
-              </summary>
-              <p className="mt-3 text-xs text-text-muted font-mono break-all">
-                {decodeURIComponent(errorDescription.replace(/\+/g, ' '))}
-              </p>
-            </details>
-          )}
-
-          {/* Actions */}
-          <div className="space-y-4">
-            <Button asChild size="lg" className="w-full">
-              <Link href={errorConfig.action.href}>
-                {errorConfig.action.label}
-              </Link>
-            </Button>
-
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link
-                href="/login"
-                className="text-text-secondary hover:text-white transition-colors flex items-center justify-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Connexion
-              </Link>
-              <span className="hidden sm:inline text-text-muted">•</span>
-              <Link
-                href="/register"
-                className="text-text-secondary hover:text-white transition-colors flex items-center justify-center gap-2"
-              >
-                <Mail className="w-4 h-4" />
-                Créer un compte
-              </Link>
-            </div>
-          </div>
-
-          {/* Support */}
-          <p className="text-sm text-text-muted">
-            Besoin d&apos;aide ?{' '}
-            <Link href="/support" className="text-primary hover:underline">
-              Contactez notre support
-            </Link>
-          </p>
-        </div>
+        <Suspense fallback={<LoadingFallback />}>
+          <AuthErrorContent />
+        </Suspense>
       </main>
 
       {/* Footer */}
