@@ -28,6 +28,7 @@ interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   onLinkClick?: () => void; // Pour fermer le menu mobile
+  onSignOut?: () => void; // Callback pour la déconnexion
   isAdmin?: boolean;
   pendingVerification?: boolean;
   isMobile?: boolean; // Indique si c'est la version mobile
@@ -62,7 +63,7 @@ const navItems = [
   },
 ];
 
-export function Sidebar({ user, collapsed, onToggle, onLinkClick, isAdmin = false, pendingVerification = false, isMobile = false }: SidebarProps) {
+export function Sidebar({ user, collapsed, onToggle, onLinkClick, onSignOut, isAdmin = false, pendingVerification = false, isMobile = false }: SidebarProps) {
   const pathname = usePathname();
 
   const isVerified = user?.tier === 'verified';
@@ -97,8 +98,11 @@ export function Sidebar({ user, collapsed, onToggle, onLinkClick, isAdmin = fals
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-40 h-screen bg-surface border-r border-surface-light transition-all duration-300',
-        collapsed ? 'w-20' : 'w-64'
+        'h-screen bg-surface border-r border-surface-light transition-all duration-300',
+        // En mobile, le parent gère le positionnement fixed + transform
+        // En desktop, on utilise fixed pour que le sidebar reste en place
+        isMobile ? 'relative w-64' : 'fixed left-0 top-0 z-40',
+        !isMobile && (collapsed ? 'w-20' : 'w-64')
       )}
     >
       <div className="flex flex-col h-full">
@@ -224,7 +228,9 @@ export function Sidebar({ user, collapsed, onToggle, onLinkClick, isAdmin = fals
           <button
             onClick={() => {
               handleCloseMenu();
-              // TODO: Implémenter la déconnexion
+              if (onSignOut) {
+                onSignOut();
+              }
             }}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-text-secondary hover:text-error hover:bg-error/10 transition-all',

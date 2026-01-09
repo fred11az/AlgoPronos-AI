@@ -79,14 +79,23 @@ export default function VerificationsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erreur');
+        const errorMsg = data.error || 'Erreur inconnue';
+        const details = data.details ? ` (${data.details})` : '';
+        throw new Error(`${errorMsg}${details}`);
       }
 
-      toast.success('Vérification approuvée ! Compte activé.');
+      // Check if profile was updated successfully
+      if (data.profileUpdated) {
+        toast.success('Vérification approuvée ! Compte activé.');
+      } else {
+        toast.success(`Vérification approuvée. Note: ${data.profileError || 'Profil à vérifier manuellement'}`);
+      }
+
       fetchVerifications();
     } catch (error) {
-      toast.error('Erreur lors de l\'approbation');
-      console.error(error);
+      const message = error instanceof Error ? error.message : 'Erreur lors de l\'approbation';
+      toast.error(message);
+      console.error('Approve error:', error);
     } finally {
       setProcessing(null);
     }
@@ -107,14 +116,17 @@ export default function VerificationsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erreur');
+        const errorMsg = data.error || 'Erreur inconnue';
+        const details = data.details ? ` (${data.details})` : '';
+        throw new Error(`${errorMsg}${details}`);
       }
 
       toast.success('Vérification rejetée');
       fetchVerifications();
     } catch (error) {
-      toast.error('Erreur lors du rejet');
-      console.error(error);
+      const message = error instanceof Error ? error.message : 'Erreur lors du rejet';
+      toast.error(message);
+      console.error('Reject error:', error);
     } finally {
       setProcessing(null);
     }
