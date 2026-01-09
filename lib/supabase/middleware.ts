@@ -95,11 +95,24 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Redirect authenticated users from auth pages
-  if (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')) {
-    if (user) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
+  // Redirect authenticated users from auth pages (except verify-email and auth callbacks)
+  const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
+                     request.nextUrl.pathname.startsWith('/register') ||
+                     request.nextUrl.pathname.startsWith('/forgot-password');
+  const isAuthFlow = request.nextUrl.pathname.startsWith('/verify-email') ||
+                     request.nextUrl.pathname.startsWith('/reset-password') ||
+                     request.nextUrl.pathname.startsWith('/auth/callback') ||
+                     request.nextUrl.pathname.startsWith('/auth/error') ||
+                     request.nextUrl.pathname.startsWith('/auth/success');
+
+  // Allow auth flow pages for everyone (they handle their own redirects)
+  if (isAuthFlow) {
+    return response;
+  }
+
+  // Redirect authenticated users from login/register to dashboard
+  if (isAuthPage && user) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   return response;

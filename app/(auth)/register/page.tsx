@@ -69,10 +69,15 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // Determine the redirect URL after email verification
+      const baseUrl = window.location.origin;
+      const nextPath = intent === 'vip' || intent === 'activate' ? '/unlock-vip' : '/dashboard';
+
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: `${baseUrl}/auth/callback?next=${nextPath}`,
           data: {
             full_name: formData.fullName,
             phone: formData.phone,
@@ -90,16 +95,22 @@ export default function RegisterPage() {
         return;
       }
 
-      toast.success('Compte créé avec succès !');
-
-      // Redirect based on intent
-      if (intent === 'vip' || intent === 'activate') {
-        router.push('/unlock-vip');
-      } else {
-        router.push('/dashboard');
+      // Check if email confirmation is required
+      // If user.identities is empty, the email is already registered
+      if (data?.user?.identities?.length === 0) {
+        toast.error('Cet email est déjà utilisé. Veuillez vous connecter.');
+        router.push('/login');
+        return;
       }
 
-      router.refresh();
+      // Store email for verify-email page to use
+      localStorage.setItem('pendingVerificationEmail', formData.email);
+
+      // Show success message
+      toast.success('Compte créé ! Vérifiez votre email pour activer votre compte.');
+
+      // Redirect to verify-email page
+      router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
     } catch {
       toast.error('Une erreur est survenue');
     } finally {
