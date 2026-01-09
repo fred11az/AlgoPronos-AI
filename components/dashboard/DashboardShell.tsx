@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase/client';
+import toast from 'react-hot-toast';
 import type { Profile } from '@/types';
 
 interface DashboardShellProps {
@@ -16,7 +18,9 @@ interface DashboardShellProps {
 export function DashboardShell({ user, children, isAdmin = false }: DashboardShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   // Ferme le menu mobile quand la route change
   useEffect(() => {
@@ -35,6 +39,33 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Gestion de la déconnexion
+  const handleSignOut = useCallback(async () => {
+    if (isSigningOut) return; // Prevent double-click
+
+    setIsSigningOut(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      // Clear any local storage data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('supabase.auth.token');
+      }
+
+      toast.success('Déconnexion réussie');
+
+      // Force navigation to login page
+      router.replace('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('SignOut error:', error);
+      toast.error('Erreur lors de la déconnexion');
+    } finally {
+      setIsSigningOut(false);
+    }
+  }, [isSigningOut, router]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop Sidebar */}
@@ -43,6 +74,7 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
           user={user}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onSignOut={handleSignOut}
           isAdmin={isAdmin}
         />
       </div>
@@ -67,6 +99,7 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
           collapsed={false}
           onToggle={() => setMobileMenuOpen(false)}
           onLinkClick={() => setMobileMenuOpen(false)}
+          onSignOut={handleSignOut}
           isAdmin={isAdmin}
           isMobile={true}
         />
