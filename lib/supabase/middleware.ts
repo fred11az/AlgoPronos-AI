@@ -1,5 +1,16 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { ANONYMOUS_COOKIE_CONFIG } from '@/lib/anonymous/types';
+
+/**
+ * Check if request has a valid anonymous session cookie
+ * Note: This only checks for the cookie presence, not validity
+ * Full validation happens in the API routes/pages
+ */
+function hasAnonymousSessionCookie(request: NextRequest): boolean {
+  const anonymousCookie = request.cookies.get(ANONYMOUS_COOKIE_CONFIG.name);
+  return !!anonymousCookie?.value;
+}
 
 export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -68,10 +79,16 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protect dashboard routes
+  // Allow access if user is authenticated OR has an anonymous session
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url));
+    const hasAnonymousSession = hasAnonymousSessionCookie(request);
+
+    if (!user && !hasAnonymousSession) {
+      // No authenticated user AND no anonymous session
+      // Redirect to a special entry point that creates anonymous session
+      return NextResponse.redirect(new URL('/try-free', request.url));
     }
+    // If user is authenticated OR has anonymous session, allow access
   }
 
   // Protect admin routes
