@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
+import { getCurrentAnonymousSession, logAnonymousEvent } from '@/lib/anonymous';
 import Anthropic from '@anthropic-ai/sdk';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
@@ -56,15 +57,40 @@ const DAILY_COUPON_LIMIT = 2;
 
 export async function POST(request: Request) {
   try {
+    // First, check for authenticated user
     const user = await getCurrentUser();
+
+    // If no authenticated user, check for anonymous session
     if (!user) {
+      const anonymousSession = await getCurrentAnonymousSession();
+
+      if (anonymousSession) {
+        // Anonymous user is trying to generate - log the attempt and return NOT_VERIFIED
+        // This is the SAME blocking behavior as for unverified authenticated users
+        await logAnonymousEvent(anonymousSession.id, 'generation_attempted', {
+          timestamp: new Date().toISOString(),
+        });
+
+        return NextResponse.json(
+          {
+            error: 'Verification required',
+            code: 'NOT_VERIFIED',
+            isAnonymous: true,
+            message: 'Créez un compte et activez-le pour générer des coupons IA',
+          },
+          { status: 403 }
+        );
+      }
+
+      // No authenticated user AND no anonymous session
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Check if user is verified (created 1xbet account)
+    // Authenticated user - check if verified (created 1xbet account)
+    // This is the EXISTING behavior, unchanged
     if (user.tier !== 'verified') {
       return NextResponse.json(
         { error: 'Verification required', code: 'NOT_VERIFIED' },

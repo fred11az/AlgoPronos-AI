@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { getCurrentUser, getUserStats, getUserRecentCombines, getVipVerificationStatus } from '@/lib/supabase/server';
+import { getCurrentUser, getUserStats, getUserRecentCombines, getVipVerificationStatus, UserStats } from '@/lib/supabase/server';
+import { getUserContext } from '@/lib/anonymous';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ import {
   CheckCircle,
   XCircle,
   Gift,
+  UserPlus,
 } from 'lucide-react';
 
 function formatTimeAgo(dateString: string): string {
@@ -33,38 +35,74 @@ function formatTimeAgo(dateString: string): string {
   return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
 }
 
-export default async function DashboardPage() {
-  const user = await getCurrentUser();
+// Default stats for anonymous users
+const defaultStats: UserStats = {
+  combinesGenerated: 0,
+  successRate: 0,
+  totalWinnings: 0,
+  streak: 0,
+};
 
-  if (!user) {
+export default async function DashboardPage() {
+  // Get user context (authenticated or anonymous)
+  const userContext = await getUserContext();
+
+  // If no context at all (neither authenticated nor anonymous), show login prompt
+  if (!userContext) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
             <Sparkles className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-white mb-2">Connexion requise</h2>
+            <h2 className="text-xl font-bold text-white mb-2">Bienvenue sur AlgoPronos AI</h2>
             <p className="text-text-secondary mb-6">
-              Connectez-vous pour accéder à votre tableau de bord
+              Connectez-vous ou essayez gratuitement sans inscription
             </p>
-            <Button variant="gradient" asChild>
-              <Link href="/login">Se connecter</Link>
-            </Button>
+            <div className="flex flex-col gap-3">
+              <Button variant="gradient" asChild>
+                <Link href="/try-free">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Essayer Gratuitement
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/login">Se connecter</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const isVerified = user?.tier === 'verified';
+  // Determine if user is anonymous
+  const isAnonymous = userContext.type === 'anonymous';
 
-  // Fetch real data from Supabase
-  const [stats, recentCombines, vipStatus] = await Promise.all([
-    getUserStats(user.id),
-    getUserRecentCombines(user.id, 5),
-    getVipVerificationStatus(user.id),
-  ]);
+  // For authenticated users, get their profile data
+  const user = isAnonymous ? null : await getCurrentUser();
+
+  // Determine verification status
+  const isVerified = !isAnonymous && user?.tier === 'verified';
+
+  // Fetch data only for authenticated users
+  let stats = defaultStats;
+  let recentCombines: Awaited<ReturnType<typeof getUserRecentCombines>> = [];
+  let vipStatus: Awaited<ReturnType<typeof getVipVerificationStatus>> = { status: 'none' };
+
+  if (!isAnonymous && user) {
+    [stats, recentCombines, vipStatus] = await Promise.all([
+      getUserStats(user.id),
+      getUserRecentCombines(user.id, 5),
+      getVipVerificationStatus(user.id),
+    ]);
+  }
 
   const isPending = vipStatus.status === 'pending';
+
+  // Display name for the welcome message
+  const displayName = isAnonymous
+    ? 'Visiteur'
+    : user?.full_name || 'Utilisateur';
 
   return (
     <div className="space-y-8">
@@ -72,13 +110,20 @@ export default async function DashboardPage() {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-white">
-            Bienvenue, {user.full_name || 'Utilisateur'}
+            Bienvenue, {displayName}
+            {isAnonymous && (
+              <Badge variant="outline" className="ml-3 text-xs">
+                Mode Essai
+              </Badge>
+            )}
           </h1>
           <p className="text-text-secondary mt-1">
             {isVerified
               ? 'Prêt à générer des combinés gagnants ?'
               : isPending
               ? 'Votre activation est en cours de vérification'
+              : isAnonymous
+              ? 'Explorez le dashboard et préparez vos coupons'
               : 'Activez votre compte pour commencer'}
           </p>
         </div>
@@ -90,6 +135,20 @@ export default async function DashboardPage() {
                 Générer un Combiné
               </Link>
             </Button>
+          ) : isAnonymous ? (
+            <div className="flex gap-3">
+              <Button size="lg" variant="gradient" asChild>
+                <Link href="/register">
+                  <UserPlus className="mr-2 h-5 w-5" />
+                  Créer un Compte
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/dashboard/generate">
+                  Préparer un Coupon
+                </Link>
+              </Button>
+            </div>
           ) : (
             <Button size="lg" variant="gradient" asChild>
               <Link href="/unlock-vip">
@@ -100,6 +159,43 @@ export default async function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Anonymous User Welcome Card */}
+      {isAnonymous && (
+        <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/30">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center">
+                  <Sparkles className="h-7 w-7 text-blue-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-xl font-bold text-white">
+                      Mode Essai Gratuit
+                    </h3>
+                    <Badge variant="outline" className="border-blue-500/50 text-blue-400">
+                      Actif
+                    </Badge>
+                  </div>
+                  <p className="text-text-secondary max-w-xl">
+                    Vous pouvez explorer le dashboard, sélectionner des matchs et préparer vos coupons.
+                    Pour générer des pronostics IA, créez un compte et activez-le gratuitement.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button variant="gradient" size="lg" asChild>
+                  <Link href="/register">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Créer un Compte
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Verification Status */}
       {!isVerified && isPending && (
@@ -120,8 +216,8 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* Activation Card (if not verified and not pending) */}
-      {!isVerified && !isPending && (
+      {/* Activation Card (if not verified, not pending, and not anonymous) */}
+      {!isVerified && !isPending && !isAnonymous && (
         <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -153,7 +249,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Daily Usage (for verified users) */}
-      {isVerified && (
+      {isVerified && user && (
         <Card className="bg-gradient-to-br from-success/10 to-primary/10 border-success/30">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -390,6 +486,31 @@ export default async function DashboardPage() {
                   Générer mon premier combiné
                 </Link>
               </Button>
+            </div>
+          ) : isAnonymous ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="h-8 w-8 text-blue-400" />
+              </div>
+              <p className="text-text-secondary mb-2">
+                Mode Essai Gratuit
+              </p>
+              <p className="text-text-muted text-sm mb-4 max-w-md mx-auto">
+                Préparez vos coupons et sélectionnez vos matchs. Créez un compte pour générer des pronostics IA.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button variant="gradient" asChild>
+                  <Link href="/register">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Créer un Compte
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/dashboard/generate">
+                    Préparer un Coupon
+                  </Link>
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="text-center py-8">

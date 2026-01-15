@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { ANONYMOUS_COOKIE_CONFIG } from '@/lib/anonymous/types';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Exchange code for session
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
     if (exchangeError) {
       console.error('Code exchange error:', exchangeError);
@@ -70,6 +72,48 @@ export async function GET(request: NextRequest) {
       errorUrl.searchParams.set('error_description', exchangeError.message);
 
       return NextResponse.redirect(errorUrl);
+    }
+
+    // Check for anonymous session and convert if exists
+    const anonymousSessionId = cookieStore.get(ANONYMOUS_COOKIE_CONFIG.name)?.value;
+
+    if (anonymousSessionId && sessionData?.user?.id) {
+      try {
+        // Use admin client to bypass RLS
+        const adminSupabase = createAdminClient();
+
+        // Update anonymous session to link it to the new user
+        await adminSupabase
+          .from('anonymous_sessions')
+          .update({
+            converted_to_user_id: sessionData.user.id,
+            converted_at: new Date().toISOString(),
+          })
+          .eq('anonymous_id', anonymousSessionId);
+
+        // Log the conversion event
+        const { data: session } = await adminSupabase
+          .from('anonymous_sessions')
+          .select('id')
+          .eq('anonymous_id', anonymousSessionId)
+          .single();
+
+        if (session) {
+          await adminSupabase.from('anonymous_session_events').insert({
+            anonymous_session_id: session.id,
+            event_type: 'session_converted',
+            event_data: { userId: sessionData.user.id },
+          });
+        }
+
+        // Clear the anonymous session cookie
+        cookieStore.delete(ANONYMOUS_COOKIE_CONFIG.name);
+
+        console.log('Anonymous session converted for user:', sessionData.user.id);
+      } catch (conversionError) {
+        // Log but don't fail the auth flow if conversion fails
+        console.error('Error converting anonymous session:', conversionError);
+      }
     }
 
     // Success! Redirect to intended destination
