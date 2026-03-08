@@ -253,6 +253,8 @@ function buildVisitorCoupon(picks: AlgoPick[]): {
         value: p.selection.value,
         odds: p.selection.odds,
         reasoning: null,
+        impliedPct: p.selection.impliedPct,
+        valueEdge: p.selection.valueEdge,
       },
     })),
     totalOdds,
@@ -538,6 +540,10 @@ export async function POST(request: Request) {
           value: p.selection.value,
           odds: p.selection.odds,
           reasoning: analysesMap.get(p.matchId) || null,
+          // Données crédibilité (probability & value edge)
+          impliedPct: p.selection.impliedPct,
+          modelPct: p.selection.modelPct,
+          valueEdge: p.selection.valueEdge,
         },
       }));
       analysis = {

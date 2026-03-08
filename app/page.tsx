@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { Header } from '@/components/marketing/Header';
 import { Footer } from '@/components/marketing/Footer';
-import { BookmakerMarquee } from '@/components/marketing/BookmakerMarquee';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -14,140 +13,161 @@ import {
   Rocket,
   ArrowRight,
   Shield,
-  Star,
   Brain,
-  FileText,
-  Globe,
-  Sparkles,
   BarChart3,
-  MessageCircle,
+  Target,
+  TrendingUp,
   CheckCircle2,
-  Gift,
-  Share2,
-  Trophy,
   Zap,
+  Activity,
+  Database,
+  LineChart,
+  Users,
 } from 'lucide-react';
 import { HeroTicketPreview } from '@/components/landing/HeroTicketPreview';
 import { StatsBar } from '@/components/landing/StatsBar';
 import { LiveTicketSection } from '@/components/landing/LiveTicketSection';
-import { ShareShowcase } from '@/components/landing/ShareShowcase';
 import { ClassementPreview } from '@/components/landing/ClassementPreview';
+import { BookmakersSection } from '@/components/landing/BookmakersSection';
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
 
-// FAQ
+// ─── FAQ ──────────────────────────────────────────────────────────────────────
+
 const faqItems = [
   {
-    question: 'Comment fonctionne AlgoPronos AI ?',
+    question: 'Comment l\'algorithme sélectionne-t-il les picks ?',
     answer:
-      "Notre plateforme utilise une IA avancée pour analyser des centaines de matchs en temps réel. L'IA prend en compte les statistiques, la forme des équipes, les historiques de confrontation et bien plus pour générer des combinés optimisés.",
+      "L'algorithme calcule la probabilité implicite de chaque cote bookmaker, puis la compare à la probabilité estimée par le modèle statistique (données API-Football). Il sélectionne les marchés où l'écart (value edge) est le plus favorable selon votre niveau de risque choisi.",
   },
   {
-    question: 'AlgoPronos AI est vraiment 100% gratuit ?',
+    question: 'D\'où viennent les données utilisées ?',
     answer:
-      "Oui, absolument ! AlgoPronos AI est entièrement gratuit. La seule condition est de créer un compte 1xBet via notre lien partenaire. Vous bénéficiez alors d'analyses IA sans jamais payer.",
+      "Les matchs et cotes proviennent de deux sources : API-Football (cotes Bet365 en temps réel, probabilités, forme des équipes, xG) et TheSportsDB (couverture élargie). Les données sont mises en cache 12h pour garantir la rapidité.",
   },
   {
-    question: 'Combien de coupons puis-je générer par semaine ?',
+    question: 'Que signifie "value edge" ?',
     answer:
-      "Chaque utilisateur vérifié bénéficie d'analyses IA illimitées. Les visiteurs et utilisateurs inscrits disposent d'un quota hebdomadaire qui s'élargit à chaque palier.",
+      "Le value edge (avantage de valeur) est la différence entre la probabilité estimée par notre modèle et la probabilité implicite du bookmaker. Un edge positif de +8% signifie que notre modèle estime la probabilité à 8 points au-dessus de ce que le bookmaker pense. C'est un indicateur de paris sous-cotés.",
   },
   {
-    question: 'Combien de temps prend la vérification ?',
+    question: 'L\'accès est-il vraiment gratuit ?',
     answer:
-      'La vérification est généralement effectuée sous 24 heures maximum. Une fois approuvée, votre compte est activé et vous pouvez commencer à générer des pronostics immédiatement.',
+      "Oui. L'accès complet est gratuit via création d'un compte 1xBet via notre lien partenaire. Sans compte, vous disposez d'une analyse IA par semaine pour tester la plateforme.",
   },
   {
-    question: 'Puis-je utiliser AlgoPronos AI sur mobile ?',
+    question: 'Combien de temps prend la génération d\'un ticket ?',
     answer:
-      "Oui, notre plateforme est entièrement responsive et fonctionne parfaitement sur tous les appareils : smartphone, tablette et ordinateur.",
+      "La génération est généralement effectuée en moins de 15 secondes : récupération des matchs, calcul statistique, sélection algorithmique des picks, et rédaction de l'analyse par l'IA (Groq LLaMA). Les résultats sont ensuite mis en cache 48h.",
   },
   {
-    question: 'Quel est le taux de réussite des combinés ?',
+    question: 'Les résultats passés sont-ils visibles ?',
     answer:
-      'Notre taux de réussite moyen est de 78.5% sur les 6 derniers mois. Nous publions régulièrement nos statistiques en toute transparence. Notez que les paris sportifs comportent toujours des risques.',
+      "Oui. L'historique complet des tickets IA quotidiens est public et consultable. Chaque ticket affiche la date, les sélections, la cote totale et le statut (gagné/perdu/en cours). Aucun résultat n'est masqué.",
   },
 ];
 
-const features = [
-  { icon: Brain, title: 'IA Ultra-Précise', desc: 'Analyse en temps réel des statistiques, forme et historiques de chaque équipe' },
-  { icon: FileText, title: 'Analyses Approfondies', desc: 'Statistiques, forme, historiques, tactiques — chaque détail compte' },
-  { icon: Globe, title: 'Multi-Championnats', desc: 'CAN, Premier League, La Liga, Ligue 1, Bundesliga, Serie A et plus' },
-  { icon: Share2, title: 'Partage Viral', desc: "Partage ton ticket en image sur WhatsApp, Telegram, Facebook d'un seul clic" },
-  { icon: Trophy, title: 'Classement IA', desc: 'Consulte les meilleurs tickets du jour et rejoue-les en un clic' },
-  { icon: Sparkles, title: '100% Gratuit', desc: 'Analyses IA illimitées avec ton compte 1xBet partenaire' },
-  { icon: BarChart3, title: 'Historique Transparent', desc: 'Consultez tous nos résultats passés — on cache rien !' },
-  { icon: Zap, title: 'Ticket du Jour', desc: "Notre IA génère automatiquement le meilleur ticket chaque matin" },
-  { icon: MessageCircle, title: 'Communauté Active', desc: 'Échangez avec 15k+ parieurs passionnés' },
+// ─── Data signals ─────────────────────────────────────────────────────────────
+
+const DATA_SIGNALS = [
+  {
+    icon: Activity,
+    title: 'Forme des équipes',
+    description: 'Analyse des 5 derniers matchs : résultats, buts marqués/encaissés, séquences.',
+    source: 'API-Football',
+  },
+  {
+    icon: LineChart,
+    title: 'Statistiques xG',
+    description: 'Expected Goals (xG) pour mesurer la qualité réelle des occasions, indépendamment du score.',
+    source: 'API-Football',
+  },
+  {
+    icon: Database,
+    title: 'Cotes bookmakers',
+    description: 'Cotes Bet365 en temps réel converties en probabilité implicite pour chaque marché.',
+    source: 'Bet365 / API-Football',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Value betting',
+    description: 'Calcul de l\'écart entre probabilité modèle et probabilité implicite bookmaker (value edge).',
+    source: 'Algorithme AlgoPronos',
+  },
+  {
+    icon: BarChart3,
+    title: 'Probabilités du modèle',
+    description: 'Probabilités de victoire/nul/défaite issues du modèle prédictif API-Football.',
+    source: 'API-Football Predictions',
+  },
+  {
+    icon: Target,
+    title: 'Sélection par niveau de risque',
+    description: 'Prudent (Double Chance, cotes basses), Équilibré (value bet), Risqué (high edge + high odds).',
+    source: 'Algorithme AlgoPronos',
+  },
 ];
 
-const testimonials = [
-  { name: 'Koffi M.', location: 'Cotonou, Bénin', rating: 5, text: "Depuis que j'utilise AlgoPronos AI, mes gains ont triplé. Les analyses sont d'un niveau professionnel !" },
-  { name: 'Aminata D.', location: "Abidjan, Côte d'Ivoire", rating: 5, text: 'Gratuit et efficace ! Les combinés sont vraiment bien étudiés. Je partage mes tickets tous les jours.' },
-  { name: 'Moussa S.', location: 'Dakar, Sénégal', rating: 5, text: "L'IA est impressionnante. J'ai gagné 6 fois sur mes 8 derniers combinés. Incroyable !" },
-];
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-background">
       <Header />
 
-      {/* ─── HERO ─────────────────────────────────────────────────── */}
+      {/* ─── HERO ──────────────────────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
         {/* Animated blobs */}
-        <div className="absolute inset-0 opacity-25 pointer-events-none">
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
           <div className="absolute top-20 left-10 w-80 h-80 bg-primary rounded-full mix-blend-multiply filter blur-[120px] animate-blob" />
           <div className="absolute top-40 right-10 w-80 h-80 bg-secondary rounded-full mix-blend-multiply filter blur-[120px] animate-blob animation-delay-2000" />
-          <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-accent rounded-full mix-blend-multiply filter blur-[120px] animate-blob animation-delay-4000" />
+          <div className="absolute bottom-20 left-1/3 w-72 h-72 bg-accent rounded-full mix-blend-multiply filter blur-[120px] animate-blob animation-delay-4000" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            {/* Left — text */}
+
+            {/* Left */}
             <div>
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 bg-success/10 border border-success/20 rounded-full px-4 py-2 mb-8 animate-fade-in">
-                <Gift className="h-4 w-4 text-success" />
-                <span className="text-success text-sm font-medium">
-                  100% Gratuit — Analyses IA illimitées
+              <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-8">
+                <Brain className="h-4 w-4 text-primary" />
+                <span className="text-primary text-sm font-medium">
+                  Outil d&apos;analyse statistique — API-Football + Groq LLaMA
                 </span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight animate-slide-up">
-                Générez des{' '}
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+                Optimisez vos paris{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#00D4FF]">
-                  Combinés Gagnants
+                  sportifs avec l&apos;IA
                 </span>
-                <br />
-                avec l&apos;IA
               </h1>
 
-              <p className="text-lg sm:text-xl text-text-secondary mb-10 max-w-xl animate-slide-up">
-                Notre IA analyse des centaines de matchs en temps réel et génère ton ticket parfait
-                en moins de 15 secondes. Partage-le, rejoue-le, gagne.
+              <p className="text-lg sm:text-xl text-text-secondary mb-10 max-w-xl leading-relaxed">
+                L&apos;algorithme analyse les statistiques, les cotes et la forme des équipes
+                pour générer des combinés optimisés. Données réelles, raisonnement transparent.
               </p>
 
-              {/* Trust indicators */}
-              <div className="flex flex-wrap gap-4 mb-10 text-sm text-text-muted">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-primary" />
-                  <span>100% Sécurisé</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-accent fill-accent" />
-                  <span>4.9/5 sur 2,340 avis</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  <span>78.5% de réussite</span>
-                </div>
+              {/* Feature bullets */}
+              <div className="space-y-3 mb-10">
+                {[
+                  { icon: Database, text: 'Données API-Football + TheSportsDB en temps réel' },
+                  { icon: TrendingUp, text: 'Calcul de value edge (probabilité modèle vs bookmaker)' },
+                  { icon: Zap, text: 'Analyse et ticket générés en moins de 15 secondes' },
+                ].map(({ icon: Icon, text }, i) => (
+                  <div key={i} className="flex items-center gap-3 text-text-secondary">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <span className="text-sm">{text}</span>
+                  </div>
+                ))}
               </div>
 
-              {/* CTAs */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="xl" variant="gradient" asChild>
-                  <Link href="/onboarding">
+                  <Link href="/dashboard/generate">
                     <Rocket className="mr-2 h-5 w-5" />
-                    Activer Mon Compte Gratuit
+                    Générer mon ticket IA
                   </Link>
                 </Button>
                 <Button size="xl" variant="outline" asChild>
@@ -157,61 +177,94 @@ export default function LandingPage() {
                   </Link>
                 </Button>
               </div>
+
+              <div className="flex flex-wrap items-center gap-5 mt-8 text-sm text-text-muted">
+                <div className="flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-primary" />
+                  Accès gratuit via 1xBet
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                  Historique public vérifiable
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5 text-secondary" />
+                  +15 000 utilisateurs actifs
+                </div>
+              </div>
             </div>
 
-            {/* Right — live ticket preview */}
+            {/* Right — generator UI mockup */}
             <div className="hidden lg:flex justify-center">
               <HeroTicketPreview />
             </div>
           </div>
         </div>
 
-        {/* Scroll arrow */}
+        {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <div className="flex flex-col items-center gap-1 text-text-muted">
-            <div className="w-6 h-10 border-2 border-text-muted rounded-full flex items-start justify-center p-1">
-              <div className="w-1 h-3 bg-text-muted rounded-full animate-bounce" />
-            </div>
+          <div className="w-6 h-10 border-2 border-text-muted/40 rounded-full flex items-start justify-center p-1">
+            <div className="w-1 h-3 bg-text-muted/60 rounded-full animate-bounce" />
           </div>
         </div>
       </section>
 
-      {/* ─── STATS BAR ─────────────────────────────────────────────── */}
+      {/* ─── STATS BAR ────────────────────────────────────────────────────────── */}
       <StatsBar />
 
-      {/* ─── TICKET DU JOUR (live) ─────────────────────────────────── */}
-      <LiveTicketSection />
-
-      {/* ─── HOW IT WORKS ──────────────────────────────────────────── */}
+      {/* ─── COMMENT ÇA MARCHE ────────────────────────────────────────────────── */}
       <section id="how-it-works" className="py-24 bg-surface">
         <div className="max-w-7xl mx-auto px-4">
           <ScrollReveal>
             <div className="text-center mb-16">
-              <Badge variant="outline" className="mb-4">Simple et rapide</Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Comment ça marche ?</h2>
-              <p className="text-text-secondary text-lg max-w-2xl mx-auto">En 3 étapes, tu accèdes à des pronostics IA professionnels</p>
+              <Badge variant="outline" className="mb-4">Comment ça marche</Badge>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+                De la sélection à l&apos;analyse en 3 étapes
+              </h2>
+              <p className="text-text-secondary text-lg max-w-2xl mx-auto">
+                L&apos;algorithme s&apos;adapte à vos préférences et au contexte de chaque match.
+              </p>
             </div>
           </ScrollReveal>
 
-          <div className="grid md:grid-cols-3 gap-8 relative">
-            {/* Connector line */}
-            <div className="hidden md:block absolute top-8 left-1/6 right-1/6 h-0.5 bg-gradient-to-r from-primary via-secondary to-primary opacity-30" />
-
+          <div className="grid md:grid-cols-3 gap-10">
             {[
-              { num: '1', icon: Gift, title: 'Créez un compte 1xBet', desc: "Utilisez notre lien partenaire pour bénéficier des bonus et activer AlgoPronos AI gratuitement", color: 'from-primary to-primary/50' },
-              { num: '2', icon: Brain, title: "Soumettez votre ID", desc: "Entrez l'ID ou email de votre compte 1xBet pour vérification — sous 24h maximum", color: 'from-secondary to-secondary/50' },
-              { num: '3', icon: Rocket, title: 'Générez & Gagnez', desc: "Profitez d'analyses IA illimitées, partagez vos tickets et grimpez dans le classement", color: 'from-accent to-accent/50' },
+              {
+                num: '1',
+                icon: Target,
+                title: 'Sélectionnez vos matchs',
+                desc: "Parcourez les matchs du jour issus de API-Football et TheSportsDB. Choisissez vos championnats et les rencontres qui vous intéressent.",
+                detail: 'Premier League, La Liga, Ligue 1, CAN, Champions League...',
+                color: 'from-primary to-primary/50',
+              },
+              {
+                num: '2',
+                icon: Shield,
+                title: 'Choisissez votre niveau de risque',
+                desc: "Prudent (Double Chance, cotes 1.2–2.0), Équilibré (value bets, cotes 2.0–4.0), Risqué (edge élevé, cotes 4.0+).",
+                detail: "L'algorithme adapte la sélection des marchés en conséquence.",
+                color: 'from-secondary to-secondary/50',
+              },
+              {
+                num: '3',
+                icon: Brain,
+                title: 'L\'IA génère un combiné optimisé',
+                desc: "L'algorithme sélectionne le marché optimal (1X2, Double Chance, Over/Under) et Groq LLaMA rédige l'analyse pour chaque pick.",
+                detail: 'Probabilité implicite, value edge et raisonnement affichés.',
+                color: 'from-accent to-accent/50',
+              },
             ].map((step, i) => (
-              <ScrollReveal key={i} delay={i * 0.15} direction="up">
-                <div className="relative text-center group">
-                  <div className={`w-16 h-16 bg-gradient-to-br ${step.color} rounded-2xl flex items-center justify-center text-3xl font-bold text-white mx-auto mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+              <ScrollReveal key={i} delay={i * 0.15}>
+                <div className="group relative">
+                  <div className={`w-14 h-14 bg-gradient-to-br ${step.color} rounded-2xl flex items-center justify-center text-2xl font-bold text-white mb-5 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                     {step.num}
                   </div>
-                  <div className="w-12 h-12 bg-surface-light rounded-xl flex items-center justify-center mx-auto mb-4 text-primary">
-                    <step.icon className="h-6 w-6" />
+                  <div className="w-10 h-10 bg-surface-light rounded-xl flex items-center justify-center mb-4 text-primary">
+                    <step.icon className="h-5 w-5" />
                   </div>
                   <h3 className="text-xl font-bold text-white mb-3">{step.title}</h3>
-                  <p className="text-text-secondary">{step.desc}</p>
+                  <p className="text-text-secondary leading-relaxed mb-3">{step.desc}</p>
+                  <p className="text-xs text-text-muted bg-surface-light rounded-lg px-3 py-2">{step.detail}</p>
                 </div>
               </ScrollReveal>
             ))}
@@ -219,139 +272,80 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── FEATURES ──────────────────────────────────────────────── */}
-      <section id="features" className="py-24 bg-background">
+      {/* ─── DONNÉES ANALYSÉES ────────────────────────────────────────────────── */}
+      <section id="data" className="py-24 bg-background">
         <div className="max-w-7xl mx-auto px-4">
           <ScrollReveal>
             <div className="text-center mb-16">
-              <Badge variant="outline" className="mb-4">Fonctionnalités</Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Pourquoi AlgoPronos AI ?</h2>
+              <Badge variant="outline" className="mb-4">Données analysées</Badge>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+                6 signaux pour chaque ticket
+              </h2>
               <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-                Une plateforme complète : IA, partage viral, classement, ticket du jour — tout est là.
+                L&apos;algorithme combine données réelles et calcul statistique pour identifier
+                les meilleures opportunités de value betting.
               </p>
             </div>
           </ScrollReveal>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((f, i) => (
-              <ScrollReveal key={i} delay={(i % 3) * 0.1} direction="up">
-                <div className="group bg-surface rounded-2xl p-6 border border-surface-light hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10">
-                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                    <f.icon className="h-6 w-6" />
+            {DATA_SIGNALS.map((signal, i) => (
+              <ScrollReveal key={i} delay={(i % 3) * 0.1}>
+                <div className="group bg-surface border border-surface-light rounded-2xl p-6 hover:border-primary/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5">
+                  <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                    <signal.icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-2">{f.title}</h3>
-                  <p className="text-text-secondary text-sm leading-relaxed">{f.desc}</p>
+                  <h3 className="text-base font-bold text-white mb-2">{signal.title}</h3>
+                  <p className="text-text-secondary text-sm leading-relaxed mb-3">{signal.description}</p>
+                  <div className="inline-flex items-center gap-1 text-xs text-text-muted bg-surface-light px-2 py-1 rounded-md">
+                    <Database className="h-3 w-3" />
+                    {signal.source}
+                  </div>
                 </div>
               </ScrollReveal>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* ─── SHARE SHOWCASE ────────────────────────────────────────── */}
-      <ShareShowcase />
-
-      {/* ─── CLASSEMENT PREVIEW ────────────────────────────────────── */}
-      <ClassementPreview />
-
-      {/* ─── PRICING ───────────────────────────────────────────────── */}
-      <section id="pricing" className="py-24 bg-surface">
-        <div className="max-w-7xl mx-auto px-4">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <Badge variant="success" className="mb-4">100% GRATUIT</Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Accès Complet Sans Payer</h2>
-              <p className="text-text-secondary text-lg">Créez simplement un compte 1xBet via notre lien partenaire</p>
-            </div>
-          </ScrollReveal>
-
-          <ScrollReveal delay={0.2}>
-            <div className="max-w-2xl mx-auto">
-              <div className="relative rounded-3xl p-8 bg-gradient-to-b from-primary/20 to-surface border-2 border-primary shadow-2xl shadow-primary/20">
-                <Badge variant="success" className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1">
-                  GRATUIT À VIE
-                </Badge>
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold text-white mb-2">AlgoPronos AI</h3>
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-5xl font-bold text-white">0 FCFA</span>
+          {/* Architecture note */}
+          <ScrollReveal delay={0.3}>
+            <div className="mt-12 bg-surface border border-surface-light rounded-2xl p-6 max-w-3xl mx-auto">
+              <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" />
+                Architecture technique
+              </h3>
+              <div className="grid sm:grid-cols-3 gap-4 text-sm">
+                {[
+                  { label: 'Données matchs', value: 'API-Football + TheSportsDB', color: 'text-primary' },
+                  { label: 'Analyse IA', value: 'Groq LLaMA 3.3-70b', color: 'text-secondary' },
+                  { label: 'Cache données', value: '12h (matchs) / 48h (tickets)', color: 'text-accent' },
+                ].map((item, i) => (
+                  <div key={i} className="bg-background/60 rounded-xl p-3">
+                    <div className="text-text-muted text-xs mb-1">{item.label}</div>
+                    <div className={`font-semibold ${item.color}`}>{item.value}</div>
                   </div>
-                  <p className="text-text-muted mt-1">Analyses IA illimitées</p>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {[
-                    'Analyses IA illimitées',
-                    'Ticket du Jour automatique',
-                    'Partage viral (WhatsApp, Telegram, Facebook)',
-                    'Classement & historique transparent',
-                    'Tous les championnats (PL, Liga, CL, CAN...)',
-                    "Bonus 1xBet jusqu'à 250 000 FCFA",
-                    'Accès à vie',
-                  ].map((feature, index) => (
-                    <li key={index} className="flex items-center gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
-                      <span className="text-text-secondary">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button size="lg" variant="gradient" className="w-full" asChild>
-                  <Link href="/onboarding">
-                    <Gift className="mr-2 h-5 w-5" />
-                    Activer Mon Compte Gratuit
-                  </Link>
-                </Button>
+                ))}
               </div>
             </div>
           </ScrollReveal>
         </div>
       </section>
 
-      {/* ─── TESTIMONIALS ──────────────────────────────────────────── */}
-      <section id="testimonials" className="py-24 bg-background">
-        <div className="max-w-7xl mx-auto px-4">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <Badge variant="outline" className="mb-4">Témoignages</Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Ils nous font confiance</h2>
-              <p className="text-text-secondary text-lg">Rejoignez des milliers d&apos;utilisateurs satisfaits</p>
-            </div>
-          </ScrollReveal>
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((t, i) => (
-              <ScrollReveal key={i} delay={i * 0.12}>
-                <div className="bg-surface rounded-2xl p-6 border border-surface-light hover:border-primary/30 transition-colors duration-300 h-full">
-                  <div className="flex items-center gap-1 mb-4">
-                    {Array.from({ length: t.rating }).map((_, j) => (
-                      <Star key={j} className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                    ))}
-                  </div>
-                  <p className="text-text-secondary mb-6 leading-relaxed">&quot;{t.text}&quot;</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-sm">
-                      {t.name[0]}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white text-sm">{t.name}</div>
-                      <div className="text-xs text-text-muted">{t.location}</div>
-                    </div>
-                  </div>
-                </div>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ─── TICKET DU JOUR (LIVE) ────────────────────────────────────────────── */}
+      <LiveTicketSection />
 
-      {/* ─── BOOKMAKERS MARQUEE ────────────────────────────────────── */}
-      <BookmakerMarquee />
+      {/* ─── HISTORIQUE / CLASSEMENT ──────────────────────────────────────────── */}
+      <ClassementPreview />
 
-      {/* ─── FAQ ───────────────────────────────────────────────────── */}
-      <section id="faq" className="py-24 bg-surface">
+      {/* ─── BOOKMAKERS ───────────────────────────────────────────────────────── */}
+      <BookmakersSection />
+
+      {/* ─── FAQ ──────────────────────────────────────────────────────────────── */}
+      <section id="faq" className="py-24 bg-background">
         <div className="max-w-3xl mx-auto px-4">
           <ScrollReveal>
             <div className="text-center mb-16">
               <Badge variant="outline" className="mb-4">FAQ</Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Questions Fréquentes</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Questions fréquentes</h2>
             </div>
           </ScrollReveal>
           <Accordion type="single" collapsible className="space-y-3">
@@ -359,41 +353,44 @@ export default function LandingPage() {
               <AccordionItem
                 key={index}
                 value={`item-${index}`}
-                className="bg-background rounded-xl px-6 border border-surface-light hover:border-primary/30 transition-colors"
+                className="bg-surface rounded-xl px-6 border border-surface-light hover:border-primary/30 transition-colors"
               >
-                <AccordionTrigger className="text-left text-white">{item.question}</AccordionTrigger>
-                <AccordionContent className="text-text-secondary">{item.answer}</AccordionContent>
+                <AccordionTrigger className="text-left text-white hover:no-underline">
+                  {item.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-text-secondary leading-relaxed">
+                  {item.answer}
+                </AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
         </div>
       </section>
 
-      {/* ─── FINAL CTA ─────────────────────────────────────────────── */}
-      <section className="py-24 bg-background relative overflow-hidden">
+      {/* ─── FINAL CTA ────────────────────────────────────────────────────────── */}
+      <section className="py-24 bg-surface relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
           <ScrollReveal>
-            <div className="text-6xl mb-6">🚀</div>
             <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">
-              Prêt à générer tes combinés gagnants ?
+              Prêt à analyser vos prochains paris ?
             </h2>
             <p className="text-text-secondary text-lg mb-10 max-w-2xl mx-auto">
-              Rejoins plus de 15 000 parieurs qui font confiance à AlgoPronos AI.
-              100% gratuit, ticket du jour automatique, partage viral.
+              Générez votre premier ticket IA gratuitement. Données réelles,
+              algorithme transparent, analyse Groq LLaMA incluse.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="xl" variant="gradient" asChild>
-                <Link href="/onboarding">
+                <Link href="/dashboard/generate">
                   <Rocket className="mr-2 h-5 w-5" />
-                  Activer Mon Compte Gratuit
+                  Générer mon ticket IA
                 </Link>
               </Button>
               <Button size="xl" variant="outline" asChild>
-                <Link href="/api/try-free">
-                  Essayer sans compte
+                <Link href="/dashboard/history">
+                  Voir l&apos;historique
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
