@@ -76,7 +76,12 @@ function generateCacheKey(params: CombineParameters): string {
 
 // ─── Groq call ($0 cost) ──────────────────────────────────────────────────────
 
-async function callGroq(prompt: string, model: string, maxTokens: number): Promise<string> {
+async function callGroq(
+  systemPrompt: string,
+  userPrompt: string,
+  model: string,
+  maxTokens: number,
+): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY not configured');
 
@@ -88,8 +93,11 @@ async function callGroq(prompt: string, model: string, maxTokens: number): Promi
     },
     body: JSON.stringify({
       model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.4,   // plus déterministe = moins d'hallucinations
       max_tokens: maxTokens,
     }),
   });
@@ -103,123 +111,201 @@ async function callGroq(prompt: string, model: string, maxTokens: number): Promi
   return data.choices[0]?.message?.content || '';
 }
 
-// ─── Prompts ──────────────────────────────────────────────────────────────────
+// ─── Risk strategy helpers ────────────────────────────────────────────────────
 
-function buildFreePrompt(params: CombineParameters, matches: object[]): string {
-  const betLabel = params.betType === 'single' ? 'pari simple' :
-    params.betType === 'double' ? 'doublé' :
-    params.betType === 'triple' ? 'triplé' :
-    `combiné de ${matches.length} matchs`;
+function getRiskStrategy(riskLevel: 'safe' | 'balanced' | 'risky'): string {
+  switch (riskLevel) {
+    case 'safe':
+      return `STRATÉGIE PRUDENTE (risque minimum):
+- Sélectionne UNIQUEMENT les paris avec une forte probabilité implicite (cote ≤ 1.80)
+- Favorise les favoris nets: équipe à domicile avec cote < 1.70 OU écart de cote > 1.50 face à l'adversaire
+- Types autorisés: 1X2 (vote 1 ou 2 seulement si cote < 1.80), Double Chance (1X ou X2), Under 2.5 (si les deux équipes ont une défense solide)
+- ÉVITE ABSOLUMENT: les nuls (imprévisibles), les cotes > 2.00, les marchés exotiques
+- Calibre confidenceLevel entre 72 et 88 selon la clarté de la cote
+- Si une cote de favori est 1.30, confidence = 85%. Si 1.65, confidence = 74%
+- totalOdds cible: 1.20 - 2.50 pour le billet complet
+- probability globale: 65-80%`;
 
-  return `Tu es AlgoPronos AI en mode découverte. Génère un ${betLabel} court et simple.
+    case 'balanced':
+      return `STRATÉGIE ÉQUILIBRÉE (rapport risque/gain optimal):
+- Cherche la valeur (value bet): paris où la cote proposée semble supérieure à la probabilité réelle
+- Cote cible par sélection: 1.70 - 3.00
+- Types autorisés: 1X2 (toutes options), Over/Under 2.5, BTTS (Les deux équipes marquent)
+- Logique de valeur: si un match est équilibré (cotes proches) mais une équipe a clairement l'avantage à domicile, c'est de la valeur
+- Pour les Over 2.5: choisir si au moins une équipe marque beaucoup OU si les deux équipes ont une défense poreuse (cote de l'Over < 1.90)
+- Pour BTTS: si les deux équipes marquent régulièrement (cote BTTS < 1.80)
+- Calibre confidenceLevel entre 55 et 72
+- totalOdds cible: 2.50 - 7.00
+- probability globale: 45-65%`;
 
-MATCHS:
-${JSON.stringify(matches)}
+    case 'risky':
+      return `STRATÉGIE RISQUÉE (maximiser le gain potentiel):
+- Cherche les outsiders avec le meilleur potentiel de surprise
+- Cote cible par sélection: 2.50 - 6.00 (ne sélectionne pas de cotes > 7.00, trop aléatoire)
+- Types autorisés: tous (handicap, BTTS, Over 3.5, buteurs, double chance inversée)
+- Logique outsider: choisir l'équipe extérieure si elle est en meilleure forme récente, ou si l'équipe à domicile est en crise
+- Handicap asiatique: envisage si un favori net joue contre un outsider mais que la cote 1X2 est trop basse
+- Over 3.5: uniquement si les deux équipes sont très offensives ET la défense est faible (cote Over 3.5 < 2.50)
+- BTTS à cote élevée: si les deux équipes ont tendance à marquer mais aussi à encaisser
+- Calibre confidenceLevel entre 38 et 58 (sois honnête sur le risque élevé)
+- totalOdds cible: 5.00 - 30.00
+- probability globale: 25-45%`;
+  }
+}
 
-PARAMÈTRES: risque=${params.riskLevel}, cotes visées=${params.oddsRange.min}-${params.oddsRange.max}
+function getJsonSchema(tier: 'free' | 'optimized', betType: string, matchCount: number): string {
+  const betLabel = betType === 'single' ? 'pari simple' :
+    betType === 'double' ? 'doublé' :
+    betType === 'triple' ? 'triplé' :
+    `combiné de ${matchCount} matchs`;
 
-RÈGLES:
-- 1 à 2 types de paris simples uniquement (1X2 ou Over/Under basique)
-- Analyse courte: 1 phrase max par match
-- Pas de combinés complexes ni de stratégie de mise
-- Rappelle en fin de summary que l'accès complet est disponible avec un compte 1xBet optimisé IA
-
-FORMAT JSON STRICT (rien d'autre):
-{
-  "selectedMatches": [
-    {
-      "matchId": "id",
-      "homeTeam": "Équipe dom",
-      "awayTeam": "Équipe ext",
-      "league": "Championnat",
+  const matchSchema = tier === 'free'
+    ? `{
+      "matchId": "id exact du match fourni",
+      "homeTeam": "nom exact",
+      "awayTeam": "nom exact",
+      "league": "championnat exact",
       "kickoffTime": "YYYY-MM-DD HH:MM",
       "selection": {
-        "type": "1X2|Over/Under",
-        "value": "1|X|2|Over 2.5|Under 2.5",
+        "type": "1X2|Over/Under|Double Chance",
+        "value": "1|X|2|Over 2.5|Under 2.5|1X|X2",
         "odds": 1.75,
-        "reasoning": "1 phrase"
+        "reasoning": "1 phrase factuelle basée sur les cotes fournies"
       }
-    }
-  ],
-  "totalOdds": 3.20,
-  "probability": 65,
-  "analysis": {
-    "summary": "Résumé court (2 phrases). Avec un compte 1xBet optimisé IA, accède à des analyses avancées.",
-    "keyFactors": ["facteur 1", "facteur 2"],
+    }`
+    : `{
+      "matchId": "id exact du match fourni",
+      "homeTeam": "nom exact",
+      "awayTeam": "nom exact",
+      "league": "championnat exact",
+      "kickoffTime": "YYYY-MM-DD HH:MM",
+      "selection": {
+        "type": "1X2|Over/Under|BTTS|Double Chance|Handicap",
+        "value": "valeur précise (ex: Over 2.5, BTTS Oui, Handicap -1)",
+        "odds": 1.85,
+        "reasoning": "2-3 phrases avec raisonnement basé sur les cotes et la logique de risque"
+      }
+    }`;
+
+  const analysisSchema = tier === 'free'
+    ? `"summary": "2 phrases max. Résume pourquoi ces paris sont sécurisés/intéressants. Mentionne qu'un compte 1xBet optimisé IA donne accès à des analyses complètes.",
+    "keyFactors": ["facteur 1 tiré des cotes", "facteur 2"],
     "matchAnalyses": [
       {
         "matchId": "id",
         "tacticalAnalysis": "1 phrase",
-        "formAnalysis": "1 phrase",
-        "keyPlayers": "noms",
-        "prediction": "1 phrase",
+        "formAnalysis": "1 phrase basée sur la position des cotes",
+        "keyPlayers": "N/A (données non disponibles en mode découverte)",
+        "prediction": "1 phrase claire",
         "confidenceLevel": 70
       }
     ],
-    "riskAssessment": "1 phrase"
+    "riskAssessment": "1 phrase sur le niveau de risque global du billet"`
+    : `"summary": "3-4 phrases percutantes expliquant la logique globale du billet",
+    "keyFactors": ["Facteur 1 (ex: cote domicile attractive)", "Facteur 2", "Facteur 3"],
+    "matchAnalyses": [
+      {
+        "matchId": "id",
+        "tacticalAnalysis": "Analyse tactique basée sur les données disponibles (2-3 phrases)",
+        "formAnalysis": "Analyse de forme inférée depuis les cotes (2 phrases)",
+        "keyPlayers": "Joueurs clés pertinents si connus",
+        "prediction": "Prédiction claire et argumentée (2 phrases)",
+        "confidenceLevel": 75
+      }
+    ],
+    "riskAssessment": "Évaluation honnête des risques (2 phrases). Mentionne les scénarios d'échec possibles."`;
+
+  return `RÉPONDS UNIQUEMENT AVEC CE JSON (aucun texte avant ou après, aucun markdown):
+{
+  "selectedMatches": [${matchSchema}],
+  "totalOdds": 3.20,
+  "probability": 58,
+  "analysis": {
+    ${analysisSchema}
   }
-}`;
 }
 
-function buildOptimizedPrompt(params: CombineParameters, matches: object[]): string {
+RÈGLES ABSOLUES:
+- matchId doit être l'id EXACT fourni dans les données
+- odds dans selectedMatches doit être une des cotes fournies dans les données match (home/draw/away)
+- Ne jamais inventer une cote qui n'existe pas dans les données
+- totalOdds = produit de toutes les cotes sélectionnées (arrondi à 2 décimales)
+- probability = estimation honnête en % du billet entier (pas par match)
+- Si tu ne peux pas justifier un pari, ne le mets pas`;
+}
+
+// ─── Prompts ──────────────────────────────────────────────────────────────────
+
+function buildFreePrompt(params: CombineParameters, matches: object[]): {
+  system: string;
+  user: string;
+} {
   const betLabel = params.betType === 'single' ? 'pari simple' :
     params.betType === 'double' ? 'doublé' :
     params.betType === 'triple' ? 'triplé' :
     `combiné de ${matches.length} matchs`;
 
-  return `Tu es AlgoPronos AI en mode optimisé IA. L'utilisateur possède un compte 1xBet optimisé IA.
-Génère un ${betLabel} avec une analyse complète et des marchés avancés si pertinents.
+  const system = `Tu es AlgoPronos AI, un assistant d'analyse sportive rationnel et honnête.
+Tu génères des pronostics basés sur les cotes bookmaker fournies.
+Tu ne prétends JAMAIS avoir accès à des données en temps réel (blessures, compositions d'équipe) sauf si elles sont explicitement fournies.
+Tu bases tes analyses sur la logique des cotes: une cote basse = forte probabilité implicite selon le marché.
 
-MATCHS À ANALYSER:
+IMPORTANT: Tu réponds TOUJOURS en JSON pur, jamais de texte ou de markdown autour.`;
+
+  const user = `Génère un ${betLabel} (mode découverte - analyse simplifiée).
+
+${getRiskStrategy(params.riskLevel)}
+
+DONNÉES DES MATCHS:
 ${JSON.stringify(matches, null, 2)}
 
-PARAMÈTRES:
-- Type: ${betLabel}
-- Risque: ${params.riskLevel === 'safe' ? 'Prudent (cotes 1.2-2.0)' : params.riskLevel === 'balanced' ? 'Équilibré (cotes 2.0-4.0)' : 'Risqué (cotes 4.0+)'}
-- Fourchette: ${params.oddsRange.min} - ${params.oddsRange.max}
+CONTRAINTES:
+- Sélectionne EXACTEMENT ${matches.length} match(s) parmi ceux fournis
+- Types de paris autorisés en mode découverte: 1X2, Over/Under 2.5, Double Chance uniquement
+- Fourchette de cotes globale visée: ${params.oddsRange.min} - ${params.oddsRange.max}
 
-OBJECTIFS:
-- Analyse approfondie (forme, confrontations directes, contexte)
-- Marchés avancés autorisés: handicaps, buteurs, multi-buts, BTTS
-- Stratégie de mise si pertinent (ex: mise à valeur sur outsider)
-- Tu parles comme un conseiller rationnel, pas comme un vendeur de rêve
-- Mentionne que ces marchés sont disponibles sur leur compte 1xBet optimisé IA
+${getJsonSchema('free', params.betType, matches.length)}`;
 
-FORMAT JSON STRICT (rien d'autre):
-{
-  "selectedMatches": [
-    {
-      "matchId": "id",
-      "homeTeam": "Équipe dom",
-      "awayTeam": "Équipe ext",
-      "league": "Championnat",
-      "kickoffTime": "YYYY-MM-DD HH:MM",
-      "selection": {
-        "type": "1X2|Over/Under|BTTS|Handicap|Buteur",
-        "value": "valeur précise",
-        "odds": 1.85,
-        "reasoning": "Raison du choix en 1-2 phrases avec données concrètes"
-      }
-    }
-  ],
-  "totalOdds": 8.50,
-  "probability": 72,
-  "analysis": {
-    "summary": "Résumé global percutant (2-3 phrases)",
-    "keyFactors": ["Facteur clé 1", "Facteur clé 2", "Facteur clé 3"],
-    "matchAnalyses": [
-      {
-        "matchId": "id",
-        "tacticalAnalysis": "Analyse tactique approfondie (3-4 phrases)",
-        "formAnalysis": "Analyse de forme (2-3 phrases)",
-        "keyPlayers": "Joueurs clés à surveiller",
-        "prediction": "Prédiction détaillée (2-3 phrases)",
-        "confidenceLevel": 85
-      }
-    ],
-    "riskAssessment": "Évaluation des risques (2-3 phrases)"
-  }
-}`;
+  return { system, user };
+}
+
+function buildOptimizedPrompt(params: CombineParameters, matches: object[]): {
+  system: string;
+  user: string;
+} {
+  const betLabel = params.betType === 'single' ? 'pari simple' :
+    params.betType === 'double' ? 'doublé' :
+    params.betType === 'triple' ? 'triplé' :
+    `combiné de ${matches.length} matchs`;
+
+  const system = `Tu es AlgoPronos AI Premium, un conseiller en paris sportifs expert et rigoureux.
+Tu analyses les matchs comme un professionnel: tu lis les cotes, tu identifies la valeur, tu choisis le marché le plus adapté au profil de risque.
+
+PRINCIPES FONDAMENTAUX:
+1. Les cotes bookmaker reflètent la probabilité du marché. Cote 2.00 = ~50% de probabilité implicite.
+2. Une "value bet" existe quand tu penses que la probabilité réelle > probabilité implicite de la cote.
+3. Tu ne prétends jamais avoir des infos secrètes. Tu raisonnes depuis les cotes et les logiques football.
+4. Tu es honnête sur l'incertitude: tu ne dis pas "certaine victoire", tu dis "forte probabilité de".
+5. Tu adaptes STRICTEMENT ta sélection au niveau de risque demandé.
+
+IMPORTANT: Tu réponds TOUJOURS en JSON pur, jamais de texte ou de markdown autour.`;
+
+  const user = `Génère un ${betLabel} optimisé pour un utilisateur compte 1xBet IA vérifié.
+
+${getRiskStrategy(params.riskLevel)}
+
+DONNÉES DES MATCHS (utilise ces cotes comme base d'analyse):
+${JSON.stringify(matches, null, 2)}
+
+CONTRAINTES:
+- Sélectionne EXACTEMENT ${matches.length} match(s) parmi ceux fournis
+- Tous types de marchés autorisés: 1X2, Over/Under, BTTS, Double Chance, Handicap
+- Fourchette de cotes globale visée: ${params.oddsRange.min} - ${params.oddsRange.max}
+- Chaque reasoning doit mentionner la cote choisie et pourquoi elle représente de la valeur selon la stratégie
+
+${getJsonSchema('optimized', params.betType, matches.length)}`;
+
+  return { system, user };
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -374,13 +460,13 @@ export async function POST(request: Request) {
     // Visitors and registered users get concise analysis with Groq 8b
     const useOptimized = isVerified;
     const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
-    const maxTokens = useOptimized ? 4096 : 1200;
-    const prompt = useOptimized
+    const maxTokens = useOptimized ? 4096 : 1500;
+    const { system, user: userMsg } = useOptimized
       ? buildOptimizedPrompt(params, matchesForAnalysis)
       : buildFreePrompt(params, matchesForAnalysis);
 
     // ── Call Groq (0€) ─────────────────────────────────────────────────────────
-    const responseText = await callGroq(prompt, groqModel, maxTokens);
+    const responseText = await callGroq(system, userMsg, groqModel, maxTokens);
 
     // Strip markdown code blocks if present, then extract JSON object
     const stripped = responseText.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
