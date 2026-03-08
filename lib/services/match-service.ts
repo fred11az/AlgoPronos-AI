@@ -284,7 +284,16 @@ class MatchService {
       await this.cacheMatches(date, allMatches);
       console.log(`[SUCCESS] Cached ${allMatches.length} real matches`);
     } else {
-      console.log('[WARNING] No matches found from APIs - check date or network');
+      console.log('[WARNING] No matches found from APIs — using generated sample data as fallback');
+      // Fallback: generate sample matches for each requested league
+      const allLeagues = { ...leagueMapping, ...fallbackLeagues };
+      for (const code of leagueCodes) {
+        const info = allLeagues[code];
+        if (info) {
+          const samples = this.generateSampleMatches(date, code, info);
+          allMatches.push(...samples);
+        }
+      }
     }
 
     // Return filtered by requested leagues
