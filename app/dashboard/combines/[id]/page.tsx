@@ -18,8 +18,88 @@ import {
   CheckCircle,
   AlertTriangle,
   ChevronRight,
+  Share2,
+  ExternalLink,
+  DollarSign,
+  Info,
 } from 'lucide-react';
 import { formatDate, formatOdds } from '@/lib/utils';
+
+// ─── Bookmakers config ────────────────────────────────────────────────────────
+
+const BOOKMAKERS = [
+  { name: '1xBet', url: 'https://1xbet.com', color: 'bg-blue-600/20 text-blue-400 border-blue-600/30 hover:bg-blue-600/30' },
+  { name: 'Betway', url: 'https://betway.com', color: 'bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30' },
+  { name: 'Melbet', url: 'https://melbet.com', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30' },
+  { name: 'Premier Bet', url: 'https://premierbet.com', color: 'bg-purple-600/20 text-purple-400 border-purple-600/30 hover:bg-purple-600/30' },
+];
+
+// ─── Bankroll IA ──────────────────────────────────────────────────────────────
+
+function BankrollIA({ totalOdds, riskLevel }: { totalOdds: number; riskLevel?: string }) {
+  const [budget, setBudget] = useState(10000);
+
+  const riskPct = riskLevel === 'safe' ? 3 : riskLevel === 'risky' ? 10 : 5;
+  const stake = Math.round(budget * (riskPct / 100) / 100) * 100;
+  const potentialGain = Math.round(stake * totalOdds);
+  const profit = potentialGain - stake;
+
+  return (
+    <Card className="bg-gradient-to-br from-accent/5 to-primary/5 border-accent/20">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-accent" />
+          Bankroll IA
+          <span className="text-xs text-text-muted font-normal ml-1">— combien miser ?</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <label className="text-xs text-text-muted mb-1 block">Mon budget total (FCFA)</label>
+          <input
+            type="range"
+            min={5000}
+            max={500000}
+            step={5000}
+            value={budget}
+            onChange={e => setBudget(Number(e.target.value))}
+            className="w-full accent-accent h-2 rounded-lg cursor-pointer"
+          />
+          <div className="flex justify-between text-xs text-text-muted mt-1">
+            <span>5 000</span>
+            <span className="font-bold text-white">{budget.toLocaleString('fr-FR')} FCFA</span>
+            <span>500 000</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="p-3 rounded-lg bg-surface-light text-center">
+            <p className="text-xs text-text-muted mb-1">Mise recommandée</p>
+            <p className="font-bold text-white text-sm">{stake.toLocaleString('fr-FR')} F</p>
+            <p className="text-xs text-accent">{riskPct}% du budget</p>
+          </div>
+          <div className="p-3 rounded-lg bg-surface-light text-center">
+            <p className="text-xs text-text-muted mb-1">Gain potentiel</p>
+            <p className="font-bold text-green-400 text-sm">{potentialGain.toLocaleString('fr-FR')} F</p>
+            <p className="text-xs text-text-muted">si ticket gagnant</p>
+          </div>
+          <div className="p-3 rounded-lg bg-surface-light text-center">
+            <p className="text-xs text-text-muted mb-1">Profit net</p>
+            <p className="font-bold text-green-400 text-sm">+{profit.toLocaleString('fr-FR')} F</p>
+            <p className="text-xs text-text-muted">après mise</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2 p-2 rounded-lg bg-surface-light/50">
+          <Info className="h-3.5 w-3.5 text-text-muted mt-0.5 shrink-0" />
+          <p className="text-xs text-text-muted">
+            Risque {riskLevel === 'safe' ? 'faible' : riskLevel === 'risky' ? 'élevé' : 'moyen'} — mise suggérée à {riskPct}% de la bankroll. Ne jamais miser plus de 10%.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface MatchSelection {
   matchId: string;
@@ -138,6 +218,18 @@ export default function CombineDetailPage() {
     (combine.analysis?.matchAnalyses || []).map((a) => [a.matchId, a])
   );
 
+  function handleShare() {
+    const picks = combine.matches?.map(m =>
+      `${m.homeTeam} vs ${m.awayTeam} → ${m.selection.value} @ ${formatOdds(m.selection.odds)}`
+    ).join('\n') || '';
+    const text = `🤖 Mon ticket AlgoPronos AI\n\n${picks}\n\n💰 Cote totale: ${formatOdds(combine.total_odds)}\n🎯 Probabilité IA: ${combine.estimated_probability}%`;
+    if (navigator.share) {
+      navigator.share({ title: 'Mon ticket AlgoPronos AI', text });
+    } else {
+      navigator.clipboard.writeText(text);
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
@@ -165,7 +257,7 @@ export default function CombineDetailPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex flex-wrap items-center gap-6">
               <div className="text-center">
                 <div className="flex items-center gap-1 text-primary">
                   <TrendingUp className="h-4 w-4" />
@@ -178,13 +270,30 @@ export default function CombineDetailPage() {
                   <Target className="h-4 w-4" />
                   <span className="text-2xl font-bold">{combine.estimated_probability}%</span>
                 </div>
-                <p className="text-xs text-text-muted">Probabilité</p>
+                <p className="text-xs text-text-muted">Confiance IA</p>
               </div>
               <div className="text-center">
                 <Badge variant="outline" className={risk.color}>
                   {risk.label}
                 </Badge>
                 <p className="text-xs text-text-muted mt-1">Risque</p>
+              </div>
+              {/* Confidence bar */}
+              <div className="hidden md:block">
+                <div className="w-28">
+                  <div className="flex justify-between text-xs text-text-muted mb-1">
+                    <span>Confiance</span>
+                    <span className={combine.estimated_probability >= 60 ? 'text-green-400' : combine.estimated_probability >= 40 ? 'text-yellow-400' : 'text-red-400'}>
+                      {combine.estimated_probability >= 60 ? 'Élevée' : combine.estimated_probability >= 40 ? 'Moyenne' : 'Faible'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-surface-light rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${combine.estimated_probability >= 60 ? 'bg-green-400' : combine.estimated_probability >= 40 ? 'bg-yellow-400' : 'bg-red-400'}`}
+                      style={{ width: `${combine.estimated_probability}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -323,13 +432,57 @@ export default function CombineDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Bankroll IA */}
+      {!combine.analysis?.visitor && (
+        <BankrollIA
+          totalOdds={combine.total_odds}
+          riskLevel={combine.parameters?.riskLevel}
+        />
+      )}
+
+      {/* Bookmakers */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ExternalLink className="h-4 w-4 text-primary" />
+            Placer ce ticket
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-text-secondary mb-4">
+            Pariez sur ce combiné via l&apos;un de ces bookmakers partenaires :
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {BOOKMAKERS.map(bm => (
+              <a
+                key={bm.name}
+                href={bm.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border font-semibold text-sm transition-all ${bm.color}`}
+              >
+                {bm.name}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            ))}
+          </div>
+          <p className="text-xs text-text-muted mt-3 text-center">
+            Jouez de manière responsable. Les paris comportent des risques.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Actions */}
-      <div className="flex gap-3 pb-6">
+      <div className="flex flex-wrap gap-3 pb-6">
         <Button variant="gradient" asChild>
           <Link href="/dashboard/generate">
             <Zap className="mr-2 h-4 w-4" />
             Nouveau Combiné
           </Link>
+        </Button>
+        <Button variant="outline" onClick={handleShare}>
+          <Share2 className="mr-2 h-4 w-4" />
+          Partager
         </Button>
         <Button variant="outline" asChild>
           <Link href="/dashboard/combines">
