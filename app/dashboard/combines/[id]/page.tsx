@@ -219,18 +219,6 @@ export default function CombineDetailPage() {
     (combine.analysis?.matchAnalyses || []).map((a) => [a.matchId, a])
   );
 
-  function handleShare() {
-    const picks = combine.matches?.map(m =>
-      `${m.homeTeam} vs ${m.awayTeam} → ${m.selection.value} @ ${formatOdds(m.selection.odds)}`
-    ).join('\n') || '';
-    const text = `🤖 Mon ticket AlgoPronos AI\n\n${picks}\n\n💰 Cote totale: ${formatOdds(combine.total_odds)}\n🎯 Probabilité IA: ${combine.estimated_probability}%`;
-    if (navigator.share) {
-      navigator.share({ title: 'Mon ticket AlgoPronos AI', text });
-    } else {
-      navigator.clipboard.writeText(text);
-    }
-  }
-
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
