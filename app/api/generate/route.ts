@@ -236,7 +236,7 @@ function buildVisitorCoupon(picks: AlgoPick[]): {
   selectedMatches: object[];
   totalOdds: number;
   probability: number;
-  analysis: null;
+  analysis: { visitor: true };
 } {
   const totalOdds = Math.round(picks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
   const probability = Math.round(picks.reduce((acc, p) => acc * (p.selection.impliedPct / 100), 1) * 100);
@@ -257,7 +257,7 @@ function buildVisitorCoupon(picks: AlgoPick[]): {
     })),
     totalOdds,
     probability,
-    analysis: null,
+    analysis: { visitor: true },
   };
 }
 
@@ -499,7 +499,7 @@ export async function POST(request: Request) {
     let finalMatches: object[];
     let totalOdds: number;
     let probability: number;
-    let analysis: object | null;
+    let analysis: object;
 
     if (isVisitor) {
       // Visitor: return coupon without calling Groq (save quota + cost)
@@ -507,7 +507,7 @@ export async function POST(request: Request) {
       finalMatches = coupon.selectedMatches;
       totalOdds = coupon.totalOdds;
       probability = coupon.probability;
-      analysis = null;
+      analysis = coupon.analysis;
     } else {
       // Registered/verified: Groq explains pre-selected picks
       const useOptimized = isVerified;
