@@ -7,12 +7,10 @@ import { v4 as uuidv4 } from 'uuid';
  * Sets an anonymous session cookie and redirects to the dashboard.
  * Bypasses DB session creation so it works without the anonymous_sessions table.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const sessionId = uuidv4();
 
-  const response = NextResponse.redirect(
-    new URL('/dashboard', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-  );
+  const response = NextResponse.redirect(new URL('/dashboard', request.url));
 
   response.cookies.set({
     name: ANONYMOUS_COOKIE_CONFIG.name,
