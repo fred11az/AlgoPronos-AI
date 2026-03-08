@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getCurrentAnonymousSession, getAnonymousSessionId, logAnonymousEvent } from '@/lib/anonymous';
-import { fetchStatsForMatches, formatStatsForPrompt, type MatchStats } from '@/lib/services/stats-service';
+import { fetchStatsForMatches, type MatchStats } from '@/lib/services/stats-service';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 
@@ -62,7 +62,7 @@ function isNewWeek(resetAt: string | null | undefined): boolean {
 // ─── Cache key ────────────────────────────────────────────────────────────────
 
 // Increment this when prompts change significantly — forces cache invalidation
-const PROMPT_VERSION = 4;
+const PROMPT_VERSION = 5;
 
 function generateCacheKey(params: CombineParameters): string {
   const normalized = {
@@ -118,242 +118,212 @@ async function callGroq(
 
 // ─── Risk strategy helpers ────────────────────────────────────────────────────
 
-function getRiskStrategy(riskLevel: 'safe' | 'balanced' | 'risky'): string {
-  switch (riskLevel) {
-    case 'safe':
-      return `STRATÉGIE PRUDENTE (risque minimum):
-- Sélectionne UNIQUEMENT les paris avec une forte probabilité implicite (cote ≤ 1.80)
-- Favorise les favoris nets: équipe à domicile avec cote < 1.70 OU écart de cote > 1.50 face à l'adversaire
-- Types autorisés: 1X2 (vote 1 ou 2 seulement si cote < 1.80), Double Chance (1X ou X2), Under 2.5 (si les deux équipes ont une défense solide)
-- ÉVITE ABSOLUMENT: les nuls (imprévisibles), les cotes > 2.00, les marchés exotiques
-- Calibre confidenceLevel entre 72 et 88 selon la clarté de la cote
-- Si une cote de favori est 1.30, confidence = 85%. Si 1.65, confidence = 74%
-- totalOdds cible: 1.20 - 2.50 pour le billet complet
-- probability globale: 65-80%`;
+// ─── Pick algorithm (deterministic — IA explains, algorithm decides) ──────────
 
-    case 'balanced':
-      return `STRATÉGIE ÉQUILIBRÉE (rapport risque/gain optimal):
-- Cherche la valeur (value bet): paris où la cote proposée semble supérieure à la probabilité réelle
-- Cote cible par sélection: 1.70 - 3.00
-- Types autorisés: 1X2 (toutes options), Over/Under 2.5, BTTS (Les deux équipes marquent)
-- Logique de valeur: si un match est équilibré (cotes proches) mais une équipe a clairement l'avantage à domicile, c'est de la valeur
-- Pour les Over 2.5: choisir si au moins une équipe marque beaucoup OU si les deux équipes ont une défense poreuse (cote de l'Over < 1.90)
-- Pour BTTS: si les deux équipes marquent régulièrement (cote BTTS < 1.80)
-- Calibre confidenceLevel entre 55 et 72
-- totalOdds cible: 2.50 - 7.00
-- probability globale: 45-65%`;
-
-    case 'risky':
-      return `STRATÉGIE RISQUÉE (maximiser le gain potentiel):
-- Cherche les outsiders avec le meilleur potentiel de surprise
-- Cote cible par sélection: 2.50 - 6.00 (ne sélectionne pas de cotes > 7.00, trop aléatoire)
-- Types autorisés: tous (handicap, BTTS, Over 3.5, buteurs, double chance inversée)
-- Logique outsider: choisir l'équipe extérieure si elle est en meilleure forme récente, ou si l'équipe à domicile est en crise
-- Handicap asiatique: envisage si un favori net joue contre un outsider mais que la cote 1X2 est trop basse
-- Over 3.5: uniquement si les deux équipes sont très offensives ET la défense est faible (cote Over 3.5 < 2.50)
-- BTTS à cote élevée: si les deux équipes ont tendance à marquer mais aussi à encaisser
-- Calibre confidenceLevel entre 38 et 58 (sois honnête sur le risque élevé)
-- totalOdds cible: 5.00 - 30.00
-- probability globale: 25-45%`;
-  }
+function computeDCOdds(o1: number, o2: number): number {
+  return Math.round((o1 * o2 / (o1 + o2)) * 100) / 100;
 }
 
-// ─── Match formatter ──────────────────────────────────────────────────────────
+interface AlgoPick {
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  league: string;
+  kickoffTime: string;
+  selection: {
+    type: string;
+    value: string;
+    odds: number;
+    impliedPct: number;
+    modelPct: number | null;
+    valueEdge: number | null;
+  };
+}
 
-function formatMatchesForPrompt(
-  matches: {
-    id: string;
-    homeTeam: string;
-    awayTeam: string;
-    league: string;
-    country: string;
-    date: string;
-    time: string;
-    odds: { home: number; draw: number; away: number };
-  }[],
-  statsMap?: Map<string, MatchStats>,
-): string {
-  return matches.map((m, i) => {
-    const stats = statsMap?.get(m.id);
-    // Use real Bet365 odds if available, otherwise use provided odds
-    const odds = stats?.realOdds ?? m.odds;
-    const dc1X = Math.round(odds.home * odds.draw / (odds.home + odds.draw) * 100) / 100;
-    const dcX2 = Math.round(odds.draw * odds.away / (odds.draw + odds.away) * 100) / 100;
+interface PickCandidate {
+  type: string;
+  value: string;
+  odds: number;
+  impliedPct: number;
+  modelPct: number | null;
+  valueEdge: number | null;
+}
 
+function pickForMatch(
+  match: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds: { home: number; draw: number; away: number } },
+  riskLevel: 'safe' | 'balanced' | 'risky',
+  stats: MatchStats | undefined,
+  oddsRange: { min: number; max: number },
+): AlgoPick {
+  const { home: ho, draw: dr, away: aw } = stats?.realOdds ?? match.odds;
+  const dc1X = computeDCOdds(ho, dr);
+  const dcX2 = computeDCOdds(dr, aw);
+
+  const candidates: PickCandidate[] = [];
+
+  const addCandidate = (type: string, value: string, odds: number, modelPct: number | null) => {
+    if (odds < 1.01 || odds > 25) return;
+    const impliedPct = Math.round((1 / odds) * 100);
+    const valueEdge = modelPct !== null ? Math.round((modelPct - impliedPct) * 10) / 10 : null;
+    candidates.push({ type, value, odds, impliedPct, modelPct, valueEdge });
+  };
+
+  // 1X2
+  addCandidate('1X2', '1', ho, stats?.homePct ?? null);
+  addCandidate('1X2', 'X', dr, stats?.drawPct ?? null);
+  addCandidate('1X2', '2', aw, stats?.awayPct ?? null);
+  // Double Chance
+  addCandidate('Double Chance', '1X', dc1X, stats ? stats.homePct + stats.drawPct : null);
+  addCandidate('Double Chance', 'X2', dcX2, stats ? stats.drawPct + stats.awayPct : null);
+
+  // Filter by odds range — always keep at least 1 candidate
+  const inRange = candidates.filter(c => c.odds >= oddsRange.min && c.odds <= oddsRange.max);
+  const pool = inRange.length > 0 ? inRange : candidates;
+
+  let best = pool[0];
+
+  if (riskLevel === 'safe') {
+    // Prefer lowest odds (highest probability), bonus for Double Chance and positive value
+    best = pool.reduce((a, b) => {
+      const score = (c: PickCandidate) =>
+        -c.odds + (c.type === 'Double Chance' ? 0.3 : 0) + ((c.valueEdge ?? 0) > 0 ? 0.2 : 0);
+      return score(b) > score(a) ? b : a;
+    });
+  } else if (riskLevel === 'balanced') {
+    // Prefer positive value edge, then closest to 2.0 odds
+    best = pool.reduce((a, b) => {
+      const score = (c: PickCandidate) => (c.valueEdge ?? 0) * 3 - Math.abs(c.odds - 2.0);
+      return score(b) > score(a) ? b : a;
+    });
+  } else {
+    // risky: prefer highest value edge then highest odds
+    best = pool.reduce((a, b) => {
+      const score = (c: PickCandidate) => (c.valueEdge ?? 0) * 2 + c.odds * 0.3;
+      return score(b) > score(a) ? b : a;
+    });
+  }
+
+  return {
+    matchId: match.id,
+    homeTeam: match.homeTeam,
+    awayTeam: match.awayTeam,
+    league: match.league,
+    kickoffTime: `${match.date} ${match.time}`.trim(),
+    selection: {
+      type: best.type,
+      value: best.value,
+      odds: best.odds,
+      impliedPct: best.impliedPct,
+      modelPct: best.modelPct,
+      valueEdge: best.valueEdge,
+    },
+  };
+}
+
+function pickBestMarkets(
+  matches: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds: { home: number; draw: number; away: number } }[],
+  riskLevel: 'safe' | 'balanced' | 'risky',
+  statsMap: Map<string, MatchStats>,
+  oddsRange: { min: number; max: number },
+): AlgoPick[] {
+  return matches.map(m => pickForMatch(m, riskLevel, statsMap.get(m.id), oddsRange));
+}
+
+
+// ─── Visitor coupon (no AI call) ─────────────────────────────────────────────
+
+function buildVisitorCoupon(picks: AlgoPick[]): {
+  selectedMatches: object[];
+  totalOdds: number;
+  probability: number;
+  analysis: null;
+} {
+  const totalOdds = Math.round(picks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
+  const probability = Math.round(picks.reduce((acc, p) => acc * (p.selection.impliedPct / 100), 1) * 100);
+
+  return {
+    selectedMatches: picks.map(p => ({
+      matchId: p.matchId,
+      homeTeam: p.homeTeam,
+      awayTeam: p.awayTeam,
+      league: p.league,
+      kickoffTime: p.kickoffTime,
+      selection: {
+        type: p.selection.type,
+        value: p.selection.value,
+        odds: p.selection.odds,
+        reasoning: null,
+      },
+    })),
+    totalOdds,
+    probability,
+    analysis: null,
+  };
+}
+
+// ─── Explain prompt (Groq only explains pre-selected picks) ──────────────────
+
+function buildExplainPrompt(
+  picks: AlgoPick[],
+  statsMap: Map<string, MatchStats>,
+  isOptimized: boolean,
+): { system: string; user: string } {
+  const system = `Tu es AlgoPronos AI, analyste sportif professionnel.
+Les sélections ont DÉJÀ été choisies par l'algorithme AlgoPronos. TON RÔLE UNIQUEMENT: les expliquer.
+RÈGLES ABSOLUES:
+- Ne JAMAIS modifier ni contredire les sélections fournies
+- Ne JAMAIS inventer des probabilités absentes des données
+- Langage journalistique naturel — jamais robotique
+- Maximum 2-3 phrases par match${isOptimized ? ', mentionne les value bets clairement identifiés' : ''}
+- Cite la forme récente, le style de jeu ou la motivation — pas juste les cotes
+- Évite les tournures génériques: "les cotes suggèrent", "les statistiques indiquent"
+- Tu réponds EXCLUSIVEMENT en JSON valide. Zéro texte, zéro markdown.`;
+
+  const matchesText = picks.map((p, i) => {
+    const stats = statsMap.get(p.matchId);
     const lines = [
-      `MATCH ${i + 1}:`,
-      `  matchId: "${m.id}"`,
-      `  Championnat: ${m.league} (${m.country})`,
-      `  Date/Heure: ${m.date} ${m.time}`,
-      `  └─ DOMICILE: ${m.homeTeam}  →  Cote victoire "1" = ${odds.home}`,
-      `  └─ EXTÉRIEUR: ${m.awayTeam}  →  Cote victoire "2" = ${odds.away}`,
-      `  └─ NUL: Cote "X" = ${odds.draw}`,
-      `  └─ Double Chance 1X (${m.homeTeam} gagne ou nul) = ${dc1X}`,
-      `  └─ Double Chance X2 (nul ou ${m.awayTeam} gagne) = ${dcX2}`,
-      `  RAPPEL: value "1" = ${m.homeTeam} gagne | value "X" = nul | value "2" = ${m.awayTeam} gagne`,
+      `Match ${i + 1}: ${p.homeTeam} vs ${p.awayTeam} (${p.league})`,
+      `  Sélection DÉCIDÉE: ${p.selection.value} @ ${p.selection.odds} (${p.selection.type})`,
+      `  Prob. implicite bookmaker: ${p.selection.impliedPct}%`,
     ];
-
-    if (stats) {
-      lines.push(`  STATISTIQUES RÉELLES:`);
-      lines.push(formatStatsForPrompt(stats));
+    if (p.selection.modelPct !== null) {
+      lines.push(`  Prob. modèle AlgoPronos: ${p.selection.modelPct}%`);
+      if (p.selection.valueEdge !== null && p.selection.valueEdge > 0) {
+        lines.push(`  ⚡ VALUE BET: avantage +${p.selection.valueEdge}% vs bookmaker`);
+      }
     }
-
+    if (stats?.homeForm) {
+      lines.push(`  Forme ${p.homeTeam} (5 matches): ${stats.homeForm.form} | Buts moy: ${stats.homeForm.goalsFor}/m`);
+    }
+    if (stats?.awayForm) {
+      lines.push(`  Forme ${p.awayTeam} (5 matches): ${stats.awayForm.form} | Buts moy: ${stats.awayForm.goalsFor}/m`);
+    }
+    if (stats?.advice) {
+      lines.push(`  Conseil API-Football: "${stats.advice}"`);
+    }
     return lines.join('\n');
   }).join('\n\n');
-}
 
-function buildMatchIdList(matches: { id: string; homeTeam: string; awayTeam: string }[]): string {
-  return matches.map((m, i) =>
-    `  - Match ${i + 1} → matchId OBLIGATOIRE: "${m.id}" (${m.homeTeam} vs ${m.awayTeam})`
-  ).join('\n');
-}
+  const totalOdds = Math.round(picks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
 
-function getJsonSchema(tier: 'free' | 'optimized', matchCount: number): string {
-  const extraMarkets = tier === 'optimized' ? ' | BTTS Oui | BTTS Non | Handicap -1 | Handicap +1' : '';
+  const analysesSchema = picks.map(p =>
+    `{"matchId": "${p.matchId}", "reasoning": "ÉCRIRE 2-3 phrases naturelles ici"}`
+  ).join(',\n    ');
 
-  return `RÉPONDS UNIQUEMENT AVEC CE JSON VALIDE — aucun texte avant ou après, aucun markdown:
+  const user = `Explique en 2-3 phrases naturelles chaque sélection de ce coupon (cotes totales: ${totalOdds}).
+
+SÉLECTIONS ALGORITHMIQUES:
+${matchesText}
+
+RÉPONDS uniquement avec ce JSON valide:
 {
-  "selectedMatches": [
-    {
-      "matchId": "STRING — id exact de MATCHIDS OBLIGATOIRES",
-      "homeTeam": "STRING — nom exact copié des données",
-      "awayTeam": "STRING — nom exact copié des données",
-      "league": "STRING — championnat exact copié des données",
-      "kickoffTime": "STRING — date et heure du match",
-      "selection": {
-        "type": "STRING — 1X2 | Over/Under | Double Chance${extraMarkets}",
-        "value": "STRING — 1 | X | 2 | Over 2.5 | Under 2.5 | 1X | X2${extraMarkets}",
-        "odds": NUMBER — cote décimale exacte du résultat choisi,
-        "reasoning": "STRING — explication avec noms d'équipes et cotes numériques"
-      }
-    }
+  "analyses": [
+    ${analysesSchema}
   ],
-  "totalOdds": NUMBER — produit multiplié de toutes les odds,
-  "probability": NUMBER — estimation % du billet entier,
-  "analysis": {
-    "summary": "STRING — résumé de la logique du billet",
-    "keyFactors": ["STRING — facteur 1", "STRING — facteur 2"],
-    "matchAnalyses": [
-      {
-        "matchId": "STRING — id exact du match",
-        "tacticalAnalysis": "STRING — analyse tactique",
-        "formAnalysis": "STRING — analyse de forme",
-        "keyPlayers": "STRING — joueurs clés ou Non disponible",
-        "prediction": "STRING — prédiction avec nom d'équipe",
-        "confidenceLevel": NUMBER — entre 38 et 88
-      }
-    ],
-    "riskAssessment": "STRING — évaluation des risques"
-  }
-}
-
-RÈGLES DE CONTENU — chaque champ STRING doit contenir du vrai texte, pas des mots génériques:
-- reasoning: cite le nom exact des équipes + les cotes numériques. Ex: "Villarreal (cote 1.35) est largement favori face à Elche (cote 7.50). L'écart de 6.15 indique une domination attendue."
-- summary: 2 phrases décrivant la logique réelle du billet. Ex: "Ce triplé mise sur trois favoris nets avec des cotes entre 1.35 et 2.49. Le risque principal est le match St. Pauli (cote 2.49, 40% de probabilité implicite)."
-- keyFactors: facteurs observés dans les vraies données. Ex: "Écart de cote Villarreal/Elche = 6.15 → favori très net"
-- tacticalAnalysis: observation basée sur la position des cotes. Ex: "Villarreal à domicile à 1.35 vs Elche à 7.50 indique un favori quasi certain."
-- formAnalysis: inférence logique. Ex: "Une cote aussi basse suggère une forme domicile solide et un adversaire affaibli."
-- prediction: phrase directe avec nom d'équipe. Ex: "Villarreal devrait s'imposer à domicile."
-- riskAssessment: identifie le maillon faible. Ex: "Le billet dépend du match AS Roma (cote 3.18 = 31% de probabilité), le plus risqué des trois."
-- confidenceLevel: calcule depuis la cote choisie. Cote 1.40→80, 1.70→72, 2.00→62, 2.50→50, 3.00→42, 3.50→38
-
-RÈGLES TECHNIQUES:
-1. selectedMatches: EXACTEMENT ${matchCount} objets, chaque matchId UNIQUE
-2. matchIds: exactement ceux de MATCHIDS OBLIGATOIRES, rien d'autre
-3. odds: si value="1" → cote home | si value="X" → cote draw | si value="2" → cote away
-4. totalOdds: calcule toi-même le produit (ex: 1.35 × 2.49 × 3.18 = 10.69)
-5. Ne jamais inventer une cote absente des données`;
-}
-
-// ─── Prompts ──────────────────────────────────────────────────────────────────
-
-type MatchInput = Parameters<typeof formatMatchesForPrompt>[0];
-
-function buildFreePrompt(
-  params: CombineParameters,
-  matches: MatchInput,
-  statsMap?: Map<string, MatchStats>,
-): { system: string; user: string } {
-  const betLabel = params.betType === 'single' ? 'pari simple' :
-    params.betType === 'double' ? 'doublé' :
-    params.betType === 'triple' ? 'triplé' :
-    `combiné de ${matches.length} matchs`;
-
-  const hasRealStats = statsMap && Array.from(statsMap.values()).some(s => s.dataSource === 'api-football');
-
-  const system = `Tu es AlgoPronos AI, un assistant d'analyse de paris sportifs rigoureux.
-${hasRealStats
-    ? 'Tu as accès à des STATISTIQUES RÉELLES (API-Football) pour chaque match. Tes prédictions DOIVENT être basées sur ces données.'
-    : 'Tu génères des pronostics basés sur les cotes bookmaker. Tu n\'inventes aucune statistique.'}
-Cote basse = forte probabilité implicite (1.40 ≈ 71%). Cote haute = faible probabilité (5.00 ≈ 20%).
-RÈGLE ABSOLUE: "1" = victoire DOMICILE | "X" = nul | "2" = victoire EXTÉRIEUR.
-Si value="1" → odds = cote home. Si "X" → odds = cote draw. Si "2" → odds = cote away.
-Tu réponds EXCLUSIVEMENT en JSON valide. Zéro texte, zéro markdown en dehors.`;
-
-  const user = `Génère un ${betLabel} — MODE DÉCOUVERTE.
-
-${getRiskStrategy(params.riskLevel)}
-
-MATCHIDS OBLIGATOIRES (un par match, sans doublon):
-${buildMatchIdList(matches)}
-
-DONNÉES DES MATCHS${hasRealStats ? ' + STATISTIQUES RÉELLES API-Football' : ''}:
-${formatMatchesForPrompt(matches, statsMap)}
-
-${hasRealStats ? `INSTRUCTIONS: Utilise les probabilités statistiques et value bets fournis pour justifier chaque sélection.
-Le reasoning DOIT citer les chiffres de probabilité (ex: "L'API donne 68% à [équipe]").` : ''}
-Marchés autorisés: 1X2, Over 2.5, Under 2.5, Double Chance.
-Fourchette cotes totale: ${params.oddsRange.min} – ${params.oddsRange.max}. UN pari par match.
-
-${getJsonSchema('free', matches.length)}`;
-
-  return { system, user };
-}
-
-function buildOptimizedPrompt(
-  params: CombineParameters,
-  matches: MatchInput,
-  statsMap?: Map<string, MatchStats>,
-): { system: string; user: string } {
-  const betLabel = params.betType === 'single' ? 'pari simple' :
-    params.betType === 'double' ? 'doublé' :
-    params.betType === 'triple' ? 'triplé' :
-    `combiné de ${matches.length} matchs`;
-
-  const hasRealStats = statsMap && Array.from(statsMap.values()).some(s => s.dataSource === 'api-football');
-
-  const system = `Tu es AlgoPronos AI Premium, conseiller en paris sportifs professionnel.
-${hasRealStats
-    ? 'Tu as accès à des STATISTIQUES RÉELLES API-Football: forme, buts attendus, probabilités statistiques, value bets. Ces données sont ta VÉRITÉ — ne les contredis jamais.'
-    : 'Tu analyses les cotes comme un trader pour identifier la valeur.'}
-Règles fondamentales:
-1. Probabilité implicite cote C = 1/C×100%. Ex: 2.50 → 40%.
-2. Value bet = probabilité modèle > probabilité implicite. Si écart >7% → VALUE BET FORT.
-3. "1"=DOMICILE, "X"=nul, "2"=EXTÉRIEUR — sans exception.
-4. odds réponse = cote exacte du résultat choisi.
-Tu réponds EXCLUSIVEMENT en JSON valide. Zéro texte, zéro markdown.`;
-
-  const user = `Génère un ${betLabel} — MODE PREMIUM (tous marchés).
-
-${getRiskStrategy(params.riskLevel)}
-
-MATCHIDS OBLIGATOIRES (un par match, sans doublon):
-${buildMatchIdList(matches)}
-
-DONNÉES DES MATCHS${hasRealStats ? ' + STATISTIQUES RÉELLES API-Football' : ''}:
-${formatMatchesForPrompt(matches, statsMap)}
-
-${hasRealStats ? `INSTRUCTIONS ANALYSE:
-- UTILISE les probabilités statistiques pour justifier chaque choix
-- VALUE BET FORT (>7%): priorise ce pari, explique l'écart modèle vs bookmaker
-- Buts attendus > 3.0 → Over 2.5/3.5 candidats. Les deux équipes > 1.2 buts → BTTS candidat
-- Domicile goalsFor > 2.0 ET défense extérieure faible → Handicap -1 domicile possible
-- reasoning DOIT citer: probabilité statistique, cote, et calcul valeur si applicable
-  Ex: "API-Football donne 67% à [équipe] vs 47% implicite (cote 2.10) → value +20%"` : '- Cite les cotes numériques dans chaque reasoning.'}
-Marchés: 1X2, Over/Under (1.5/2.5/3.5), BTTS, Double Chance, Handicap.
-Fourchette: ${params.oddsRange.min} – ${params.oddsRange.max}. UN pari par match.
-
-${getJsonSchema('optimized', matches.length)}`;
+  "summary": "1-2 phrases sur la logique globale du coupon",
+  "keyFactors": ["facteur clé 1", "facteur clé 2", "facteur clé 3"],
+  "riskAssessment": "Identifie le match le plus risqué et explique pourquoi"
+}`;
 
   return { system, user };
 }
@@ -517,26 +487,65 @@ export async function POST(request: Request) {
     const statsCount = Array.from(statsMap.values()).filter(s => s.dataSource === 'api-football').length;
     console.log(`[stats-service] Real stats fetched for ${statsCount}/${matchesForAnalysis.length} matches`);
 
-    // ── Choose model & prompt based on tier ────────────────────────────────────
-    const useOptimized = isVerified;
-    const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
-    // Scale tokens: stats add ~200 tokens per match to the prompt
-    const baseTokens = useOptimized ? 2000 : 900;
-    const perMatchTokens = useOptimized ? 600 : 280;
-    const maxTokens = Math.min(baseTokens + matchesForAnalysis.length * perMatchTokens, useOptimized ? 6000 : 3000);
-    const { system, user: userMsg } = useOptimized
-      ? buildOptimizedPrompt(params, matchesForAnalysis, statsMap)
-      : buildFreePrompt(params, matchesForAnalysis, statsMap);
+    // ── Algorithm: deterministic pick selection ─────────────────────────────────
+    const algorithmPicks = pickBestMarkets(
+      matchesForAnalysis,
+      params.riskLevel,
+      statsMap,
+      params.oddsRange,
+    );
 
-    // ── Call Groq (0€) ─────────────────────────────────────────────────────────
-    const responseText = await callGroq(system, userMsg, groqModel, maxTokens);
+    // ── Build coupon (visitor = coupon only; user = Groq explanation) ───────────
+    let finalMatches: object[];
+    let totalOdds: number;
+    let probability: number;
+    let analysis: object | null;
 
-    // Strip markdown code blocks if present, then extract JSON object
-    const stripped = responseText.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-    const jsonMatch = stripped.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error(`Groq response not in expected JSON format: ${responseText.substring(0, 200)}`);
+    if (isVisitor) {
+      // Visitor: return coupon without calling Groq (save quota + cost)
+      const coupon = buildVisitorCoupon(algorithmPicks);
+      finalMatches = coupon.selectedMatches;
+      totalOdds = coupon.totalOdds;
+      probability = coupon.probability;
+      analysis = null;
+    } else {
+      // Registered/verified: Groq explains pre-selected picks
+      const useOptimized = isVerified;
+      const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
+      const maxTokens = Math.min(600 + algorithmPicks.length * (useOptimized ? 350 : 180), useOptimized ? 4000 : 2000);
+      const { system, user: userMsg } = buildExplainPrompt(algorithmPicks, statsMap, useOptimized);
 
-    const groqResponse = JSON.parse(jsonMatch[0]);
+      const responseText = await callGroq(system, userMsg, groqModel, maxTokens);
+      const stripped = responseText.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error(`Groq response not in expected format: ${responseText.substring(0, 200)}`);
+
+      const groqAnalysis = JSON.parse(jsonMatch[0]);
+      const analysesMap = new Map<string, string>(
+        (groqAnalysis.analyses || []).map((a: { matchId: string; reasoning: string }) => [a.matchId, a.reasoning])
+      );
+
+      totalOdds = Math.round(algorithmPicks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
+      probability = Math.round(algorithmPicks.reduce((acc, p) => acc * (p.selection.impliedPct / 100), 1) * 100);
+      finalMatches = algorithmPicks.map(p => ({
+        matchId: p.matchId,
+        homeTeam: p.homeTeam,
+        awayTeam: p.awayTeam,
+        league: p.league,
+        kickoffTime: p.kickoffTime,
+        selection: {
+          type: p.selection.type,
+          value: p.selection.value,
+          odds: p.selection.odds,
+          reasoning: analysesMap.get(p.matchId) || null,
+        },
+      }));
+      analysis = {
+        summary: groqAnalysis.summary || '',
+        keyFactors: groqAnalysis.keyFactors || [],
+        riskAssessment: groqAnalysis.riskAssessment || '',
+      };
+    }
 
     // ── Save to DB ─────────────────────────────────────────────────────────────
     const combineId = uuidv4();
@@ -546,10 +555,10 @@ export async function POST(request: Request) {
       id: combineId,
       cache_key: cacheKey,
       parameters: params,
-      matches: groqResponse.selectedMatches,
-      total_odds: groqResponse.totalOdds,
-      estimated_probability: groqResponse.probability,
-      analysis: groqResponse.analysis,
+      matches: finalMatches,
+      total_odds: totalOdds,
+      estimated_probability: probability,
+      analysis,
       usage_count: 1,
       first_generated_by: user?.id || null,
       expires_at: expiresAt.toISOString(),
@@ -601,7 +610,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       combine: generatedCombine,
       fromCache: false,
-      isOptimized: useOptimized,
+      isVisitor,
       weeklyUsage: buildWeeklyUsage(limit, usedThisWeek),
     });
 

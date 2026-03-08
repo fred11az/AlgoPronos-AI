@@ -54,7 +54,7 @@ interface CombineDetail {
     keyFactors?: string[];
     matchAnalyses?: MatchAnalysis[];
     riskAssessment?: string;
-  };
+  } | null;
   parameters?: {
     riskLevel?: string;
     betType?: string;
@@ -190,8 +190,28 @@ export default function CombineDetailPage() {
         </CardContent>
       </Card>
 
-      {/* AI Analysis Summary */}
-      {combine.analysis?.summary && (
+      {/* AI Analysis Summary — or unlock CTA for visitors */}
+      {combine.analysis === null ? (
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-secondary/5">
+          <CardContent className="p-6 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white mb-1">Analyse AlgoPronos AI</h3>
+              <p className="text-sm text-text-secondary">
+                Probabilité AlgoPronos AI : <span className="text-primary font-bold">{combine.estimated_probability}%</span>
+              </p>
+              <p className="text-sm text-text-muted mt-2">
+                Crée un compte pour débloquer l&apos;analyse complète — facteurs clés, forme des équipes, évaluation des risques.
+              </p>
+            </div>
+            <Button variant="gradient" asChild>
+              <Link href="/register">Débloquer l&apos;analyse complète →</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : combine.analysis?.summary ? (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -224,7 +244,7 @@ export default function CombineDetailPage() {
             )}
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {/* Matches */}
       <Card>
