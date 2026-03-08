@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Zap,
   ShieldCheck,
+  Trophy,
   Clock,
   X,
 } from 'lucide-react';
@@ -52,9 +53,14 @@ const navItems = [
     icon: Zap,
   },
   {
-    label: 'Historique',
+    label: 'Historique IA',
     href: '/dashboard/history',
     icon: History,
+  },
+  {
+    label: 'Classement',
+    href: '/classement',
+    icon: Trophy,
   },
   {
     label: 'Paramètres',

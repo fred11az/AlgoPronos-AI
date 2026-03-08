@@ -6,14 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import ShareTicketButton from '@/components/shared/ShareTicketButton';
 import {
   Calendar,
   Zap,
-  Share2,
   ExternalLink,
   TrendingUp,
   Target,
-  ChevronRight,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,19 +62,6 @@ export default function TicketDuJourWidget() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
-
-  function handleShare() {
-    if (!ticket) return;
-    const picks = ticket.matches
-      .map(m => `${m.homeTeam} vs ${m.awayTeam} → ${m.selection.value} @ ${m.selection.odds.toFixed(2)}`)
-      .join('\n');
-    const text = `🤖 Ticket IA du Jour — AlgoPronos AI\n\n${picks}\n\n💰 Cote: ${ticket.total_odds} · 🎯 Confiance: ${ticket.confidence_pct}%\n\n⚡ algopronos.ai`;
-    if (navigator.share) {
-      navigator.share({ title: 'Ticket IA du Jour', text });
-    } else {
-      navigator.clipboard.writeText(text);
-    }
-  }
 
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -219,14 +205,19 @@ export default function TicketDuJourWidget() {
 
         {/* Actions */}
         <div className="flex gap-2 pt-1">
-          <Button variant="outline" size="sm" onClick={handleShare} className="flex-1">
-            <Share2 className="h-3.5 w-3.5 mr-1.5" />
-            Partager
-          </Button>
+          <ShareTicketButton
+            ticketId={ticket.id}
+            totalOdds={ticket.total_odds}
+            confidencePct={ticket.confidence_pct}
+            matchCount={ticket.matches.length}
+            type="daily"
+            buttonVariant="outline"
+            label="Partager"
+            className="flex-1"
+          />
           <Button variant="ghost" size="sm" asChild className="flex-1">
-            <Link href="/dashboard/history">
-              Historique IA
-              <ChevronRight className="h-3.5 w-3.5 ml-1" />
+            <Link href="/classement">
+              Classement IA
             </Link>
           </Button>
         </div>

@@ -24,6 +24,7 @@ import {
   Info,
 } from 'lucide-react';
 import { formatDate, formatOdds } from '@/lib/utils';
+import ShareTicketButton from '@/components/shared/ShareTicketButton';
 
 // ─── Bookmakers config ────────────────────────────────────────────────────────
 
@@ -480,10 +481,15 @@ export default function CombineDetailPage() {
             Nouveau Combiné
           </Link>
         </Button>
-        <Button variant="outline" onClick={handleShare}>
-          <Share2 className="mr-2 h-4 w-4" />
-          Partager
-        </Button>
+        <ShareTicketButton
+          ticketId={combine.id}
+          totalOdds={combine.total_odds}
+          confidencePct={combine.estimated_probability}
+          matchCount={combine.matches?.length || 0}
+          type="combine"
+          buttonVariant="outline"
+          label="Partager"
+        />
         <Button variant="outline" asChild>
           <Link href="/dashboard/combines">
             <ChevronRight className="mr-2 h-4 w-4" />
