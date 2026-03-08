@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import TicketDuJourWidget from '@/components/dashboard/TicketDuJourWidget';
 import {
   Sparkles,
   TrendingUp,
@@ -276,6 +277,9 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Ticket IA du Jour */}
+      <TicketDuJourWidget />
 
       {/* Quick Actions */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
