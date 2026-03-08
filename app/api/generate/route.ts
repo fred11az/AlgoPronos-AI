@@ -373,7 +373,7 @@ export async function POST(request: Request) {
     // Verified users get full analysis with Groq 70b
     // Visitors and registered users get concise analysis with Groq 8b
     const useOptimized = isVerified;
-    const groqModel = useOptimized ? 'llama-3.1-70b-versatile' : 'llama-3.1-8b-instant';
+    const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
     const maxTokens = useOptimized ? 4096 : 1200;
     const prompt = useOptimized
       ? buildOptimizedPrompt(params, matchesForAnalysis)
@@ -382,8 +382,10 @@ export async function POST(request: Request) {
     // ── Call Groq (0€) ─────────────────────────────────────────────────────────
     const responseText = await callGroq(prompt, groqModel, maxTokens);
 
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Groq response not in expected JSON format');
+    // Strip markdown code blocks if present, then extract JSON object
+    const stripped = responseText.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+    const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error(`Groq response not in expected JSON format: ${responseText.substring(0, 200)}`);
 
     const groqResponse = JSON.parse(jsonMatch[0]);
 
@@ -404,7 +406,8 @@ export async function POST(request: Request) {
       expires_at: expiresAt.toISOString(),
     };
 
-    await supabase.from('generated_combines').insert(generatedCombine);
+    const { error: insertError } = await adminSupabase.from('generated_combines').insert(generatedCombine);
+    if (insertError) console.error('Failed to save combine to DB:', insertError);
 
     // ── Update weekly count ────────────────────────────────────────────────────
     let usedThisWeek = 1;
