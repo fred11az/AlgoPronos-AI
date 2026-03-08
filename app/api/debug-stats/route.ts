@@ -36,30 +36,37 @@ export async function GET(request: NextRequest) {
     result.apiStatus = { error: String(e) };
   }
 
-  // ── Test 2: /fixtures?date=... (matchs du jour) ────────────────────────────
+  // ── Test 2: /fixtures?date=... (tous les matchs du jour, toutes ligues) ────
   try {
     const fixturesRes = await fetch(
-      `https://v3.football.api-sports.io/fixtures?date=${date}&league=78&season=2025`,
+      `https://v3.football.api-sports.io/fixtures?date=${date}`,
       { headers: { 'x-apisports-key': apiKey } }
     );
     const fixturesData = await fixturesRes.json();
     result.fixtures = {
       httpStatus: fixturesRes.status,
       totalResults: fixturesData.results,
-      sample: fixturesData.response?.slice(0, 3).map((f: {
+      // Affiche les 10 premiers matchs toutes ligues confondues
+      sample: fixturesData.response?.slice(0, 10).map((f: {
         fixture: { id: number; date: string };
         teams: { home: { name: string }; away: { name: string } };
-        league: { name: string };
+        league: { id: number; name: string; country: string };
       }) => ({
         fixtureId: f.fixture.id,
         match: `${f.teams.home.name} vs ${f.teams.away.name}`,
-        league: f.league.name,
+        league: `${f.league.name} (${f.league.country}) — leagueId: ${f.league.id}`,
         date: f.fixture.date,
       })),
     };
   } catch (e) {
     result.fixtures = { error: String(e) };
   }
+
+  // ── Test 2b: vérifier si les matchs viennent de API-Football ou TheSportsDB
+  result.matchSourceInfo = {
+    explanation: 'Si fixtures.totalResults = 0, les matchs affichés viennent de TheSportsDB (tsdb-*) et les stats réelles ne peuvent pas être récupérées. Si >0, les matchs ont des IDs apif-* et les stats fonctionnent.',
+    tip: 'Prends un fixtureId du tableau fixtures.sample et rappelle /api/debug-stats?fixture={id}&date=' + date,
+  };
 
   // ── Test 3: /predictions (si fixture fourni) ───────────────────────────────
   if (fixtureId) {
