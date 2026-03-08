@@ -41,7 +41,7 @@ const steps = [
     emoji: '🎯',
     options: [
       { value: 'beginner', label: 'Débutant', sub: "Je commence, j'ai besoin de guides" },
-      { value: 'intermediate', label: 'Intermédiaire', sub: 'Quelques mois d'expérience' },
+      { value: 'intermediate', label: 'Intermédiaire', sub: "Quelques mois d'expérience" },
       { value: 'advanced', label: 'Confirmé', sub: 'Je connais les marchés et les cotes' },
       { value: 'expert', label: 'Expert', sub: 'Value betting, bankroll management' },
     ],
