@@ -180,37 +180,6 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* Activation Card (if not verified, not pending, and not anonymous) */}
-      {!isVerified && !isPending && !isAnonymous && (
-        <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center">
-                  <Gift className="h-7 w-7 text-primary" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xl font-bold text-white">
-                      Activez AlgoPronos AI - 100% Gratuit
-                    </h3>
-                    <Badge variant="success">Gratuit</Badge>
-                  </div>
-                  <p className="text-text-secondary max-w-xl">
-                    Créez un compte 1xBet avec notre code promo pour débloquer 2 coupons IA par jour + bonus jusqu&apos;à 208,000 FCFA
-                  </p>
-                </div>
-              </div>
-              <Button variant="gradient" size="lg" asChild>
-                <Link href="/unlock-vip">
-                  Activer Gratuitement
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Daily Usage (for verified users) */}
       {isVerified && user && (

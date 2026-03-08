@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Header } from '@/components/marketing/Header';
 import { Footer } from '@/components/marketing/Footer';
 import { PromoWidget1xBet } from '@/components/marketing/PromoWidget1xBet';
+import { BookmakerMarquee } from '@/components/marketing/BookmakerMarquee';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -442,6 +443,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Bookmaker Partners Marquee */}
+      <BookmakerMarquee />
 
       {/* FAQ Section */}
       <section id="faq" className="py-20 bg-background">

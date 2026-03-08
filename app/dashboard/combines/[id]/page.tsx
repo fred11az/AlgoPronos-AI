@@ -50,6 +50,7 @@ interface CombineDetail {
   estimated_probability: number;
   matches: MatchSelection[];
   analysis: {
+    visitor?: boolean;
     summary?: string;
     keyFactors?: string[];
     matchAnalyses?: MatchAnalysis[];
@@ -191,7 +192,7 @@ export default function CombineDetailPage() {
       </Card>
 
       {/* AI Analysis Summary — or unlock CTA for visitors */}
-      {combine.analysis === null ? (
+      {!combine.analysis || combine.analysis.visitor ? (
         <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-secondary/5">
           <CardContent className="p-6 text-center space-y-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">

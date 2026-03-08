@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -21,6 +21,7 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
   const [isSigningOut, setIsSigningOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const mobileSidebarRef = useRef<HTMLDivElement>(null);
 
   // Ferme le menu mobile quand la route change
   useEffect(() => {
@@ -34,10 +35,25 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
         setMobileMenuOpen(false);
       }
     };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Close mobile menu when touching/clicking outside the sidebar
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (mobileSidebarRef.current && !mobileSidebarRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [mobileMenuOpen]);
 
   // Gestion de la déconnexion
   const handleSignOut = useCallback(async () => {
@@ -89,6 +105,7 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
 
       {/* Mobile Sidebar */}
       <div
+        ref={mobileSidebarRef}
         className={cn(
           'fixed inset-y-0 left-0 z-50 lg:hidden transition-transform duration-300',
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
