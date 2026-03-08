@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getCurrentAnonymousSession, getAnonymousSessionId, logAnonymousEvent } from '@/lib/anonymous';
+import { fetchStatsForMatches, formatStatsForPrompt, type MatchStats } from '@/lib/services/stats-service';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 
@@ -159,27 +160,46 @@ function getRiskStrategy(riskLevel: 'safe' | 'balanced' | 'risky'): string {
 
 // ─── Match formatter ──────────────────────────────────────────────────────────
 
-function formatMatchesForPrompt(matches: {
-  id: string;
-  homeTeam: string;
-  awayTeam: string;
-  league: string;
-  country: string;
-  date: string;
-  time: string;
-  odds: { home: number; draw: number; away: number };
-}[]): string {
-  return matches.map((m, i) => `MATCH ${i + 1}:
-  matchId: "${m.id}"
-  Championnat: ${m.league} (${m.country})
-  Date/Heure: ${m.date} ${m.time}
-  └─ DOMICILE: ${m.homeTeam}  →  Cote victoire "1" = ${m.odds.home}
-  └─ EXTÉRIEUR: ${m.awayTeam}  →  Cote victoire "2" = ${m.odds.away}
-  └─ NUL: Cote "X" = ${m.odds.draw}
-  └─ Double Chance 1X (${m.homeTeam} gagne ou nul) = ${Math.round(m.odds.home * m.odds.draw / (m.odds.home + m.odds.draw) * 100) / 100}
-  └─ Double Chance X2 (nul ou ${m.awayTeam} gagne) = ${Math.round(m.odds.draw * m.odds.away / (m.odds.draw + m.odds.away) * 100) / 100}
-  └─ Over 2.5 buts ≈ calcul bookmaker | Under 2.5 buts ≈ calcul bookmaker
-  RAPPEL: value "1" = ${m.homeTeam} gagne | value "X" = nul | value "2" = ${m.awayTeam} gagne`).join('\n\n');
+function formatMatchesForPrompt(
+  matches: {
+    id: string;
+    homeTeam: string;
+    awayTeam: string;
+    league: string;
+    country: string;
+    date: string;
+    time: string;
+    odds: { home: number; draw: number; away: number };
+  }[],
+  statsMap?: Map<string, MatchStats>,
+): string {
+  return matches.map((m, i) => {
+    const stats = statsMap?.get(m.id);
+    // Use real Bet365 odds if available, otherwise use provided odds
+    const odds = stats?.realOdds ?? m.odds;
+    const dc1X = Math.round(odds.home * odds.draw / (odds.home + odds.draw) * 100) / 100;
+    const dcX2 = Math.round(odds.draw * odds.away / (odds.draw + odds.away) * 100) / 100;
+
+    const lines = [
+      `MATCH ${i + 1}:`,
+      `  matchId: "${m.id}"`,
+      `  Championnat: ${m.league} (${m.country})`,
+      `  Date/Heure: ${m.date} ${m.time}`,
+      `  └─ DOMICILE: ${m.homeTeam}  →  Cote victoire "1" = ${odds.home}`,
+      `  └─ EXTÉRIEUR: ${m.awayTeam}  →  Cote victoire "2" = ${odds.away}`,
+      `  └─ NUL: Cote "X" = ${odds.draw}`,
+      `  └─ Double Chance 1X (${m.homeTeam} gagne ou nul) = ${dc1X}`,
+      `  └─ Double Chance X2 (nul ou ${m.awayTeam} gagne) = ${dcX2}`,
+      `  RAPPEL: value "1" = ${m.homeTeam} gagne | value "X" = nul | value "2" = ${m.awayTeam} gagne`,
+    ];
+
+    if (stats) {
+      lines.push(`  STATISTIQUES RÉELLES:`);
+      lines.push(formatStatsForPrompt(stats));
+    }
+
+    return lines.join('\n');
+  }).join('\n\n');
 }
 
 function buildMatchIdList(matches: { id: string; homeTeam: string; awayTeam: string }[]): string {
@@ -271,82 +291,91 @@ RÈGLES CRITIQUES — VIOLATION = RÉPONSE INVALIDE:
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
 
-function buildFreePrompt(params: CombineParameters, matches: Parameters<typeof formatMatchesForPrompt>[0]): {
-  system: string;
-  user: string;
-} {
+type MatchInput = Parameters<typeof formatMatchesForPrompt>[0];
+
+function buildFreePrompt(
+  params: CombineParameters,
+  matches: MatchInput,
+  statsMap?: Map<string, MatchStats>,
+): { system: string; user: string } {
   const betLabel = params.betType === 'single' ? 'pari simple' :
     params.betType === 'double' ? 'doublé' :
     params.betType === 'triple' ? 'triplé' :
     `combiné de ${matches.length} matchs`;
 
+  const hasRealStats = statsMap && Array.from(statsMap.values()).some(s => s.dataSource === 'api-football');
+
   const system = `Tu es AlgoPronos AI, un assistant d'analyse de paris sportifs rigoureux.
-Tu génères des pronostics basés UNIQUEMENT sur les cotes bookmaker fournies. Tu n'inventes aucune statistique.
-Une cote basse = forte probabilité implicite selon le marché (ex: cote 1.40 ≈ 71% de probabilité).
-Une cote haute = faible probabilité implicite (ex: cote 5.00 ≈ 20% de probabilité).
+${hasRealStats
+    ? 'Tu as accès à des STATISTIQUES RÉELLES (API-Football) pour chaque match. Tes prédictions DOIVENT être basées sur ces données.'
+    : 'Tu génères des pronostics basés sur les cotes bookmaker. Tu n\'inventes aucune statistique.'}
+Cote basse = forte probabilité implicite (1.40 ≈ 71%). Cote haute = faible probabilité (5.00 ≈ 20%).
+RÈGLE ABSOLUE: "1" = victoire DOMICILE | "X" = nul | "2" = victoire EXTÉRIEUR.
+Si value="1" → odds = cote home. Si "X" → odds = cote draw. Si "2" → odds = cote away.
+Tu réponds EXCLUSIVEMENT en JSON valide. Zéro texte, zéro markdown en dehors.`;
 
-RÈGLE D'OR: Dans "1X2", le "1" désigne TOUJOURS la victoire de l'équipe à DOMICILE (homeTeam),
-"X" le nul, et "2" la victoire de l'équipe à l'EXTÉRIEUR (awayTeam).
-
-Tu réponds EXCLUSIVEMENT en JSON valide. Aucun texte, aucun markdown, aucune explication en dehors du JSON.`;
-
-  const user = `Génère un ${betLabel} — MODE DÉCOUVERTE (marchés simples uniquement).
+  const user = `Génère un ${betLabel} — MODE DÉCOUVERTE.
 
 ${getRiskStrategy(params.riskLevel)}
 
-MATCHIDS OBLIGATOIRES — tu dois utiliser exactement ces ids, un par match, sans doublon:
+MATCHIDS OBLIGATOIRES (un par match, sans doublon):
 ${buildMatchIdList(matches)}
 
-DONNÉES COMPLÈTES DES MATCHS:
-${formatMatchesForPrompt(matches)}
+DONNÉES DES MATCHS${hasRealStats ? ' + STATISTIQUES RÉELLES API-Football' : ''}:
+${formatMatchesForPrompt(matches, statsMap)}
 
-CONTRAINTES:
-- Marchés autorisés: 1X2 (valeurs: "1", "X" ou "2"), Over 2.5, Under 2.5, Double Chance ("1X" ou "X2")
-- Fourchette de cotes totale visée: ${params.oddsRange.min} – ${params.oddsRange.max}
-- UN pari par match physique (matchId unique dans le tableau)
+${hasRealStats ? `INSTRUCTIONS: Utilise les probabilités statistiques et value bets fournis pour justifier chaque sélection.
+Le reasoning DOIT citer les chiffres de probabilité (ex: "L'API donne 68% à [équipe]").` : ''}
+Marchés autorisés: 1X2, Over 2.5, Under 2.5, Double Chance.
+Fourchette cotes totale: ${params.oddsRange.min} – ${params.oddsRange.max}. UN pari par match.
 
 ${getJsonSchema('free', matches.length)}`;
 
   return { system, user };
 }
 
-function buildOptimizedPrompt(params: CombineParameters, matches: Parameters<typeof formatMatchesForPrompt>[0]): {
-  system: string;
-  user: string;
-} {
+function buildOptimizedPrompt(
+  params: CombineParameters,
+  matches: MatchInput,
+  statsMap?: Map<string, MatchStats>,
+): { system: string; user: string } {
   const betLabel = params.betType === 'single' ? 'pari simple' :
     params.betType === 'double' ? 'doublé' :
     params.betType === 'triple' ? 'triplé' :
     `combiné de ${matches.length} matchs`;
 
+  const hasRealStats = statsMap && Array.from(statsMap.values()).some(s => s.dataSource === 'api-football');
+
   const system = `Tu es AlgoPronos AI Premium, conseiller en paris sportifs professionnel.
-Tu analyses chaque match comme un trader: tu lis les cotes, tu identifies la valeur, tu choisis le marché optimal.
+${hasRealStats
+    ? 'Tu as accès à des STATISTIQUES RÉELLES API-Football: forme, buts attendus, probabilités statistiques, value bets. Ces données sont ta VÉRITÉ — ne les contredis jamais.'
+    : 'Tu analyses les cotes comme un trader pour identifier la valeur.'}
+Règles fondamentales:
+1. Probabilité implicite cote C = 1/C×100%. Ex: 2.50 → 40%.
+2. Value bet = probabilité modèle > probabilité implicite. Si écart >7% → VALUE BET FORT.
+3. "1"=DOMICILE, "X"=nul, "2"=EXTÉRIEUR — sans exception.
+4. odds réponse = cote exacte du résultat choisi.
+Tu réponds EXCLUSIVEMENT en JSON valide. Zéro texte, zéro markdown.`;
 
-RÈGLES FONDAMENTALES:
-1. Probabilité implicite d'une cote C = 1/C × 100%. Ex: cote 2.50 = 40% de probabilité implicite.
-2. "Value bet" = quand tu estimes la probabilité réelle supérieure à la probabilité implicite de la cote.
-3. Dans "1X2": "1" = victoire DOMICILE (homeTeam), "X" = nul, "2" = victoire EXTÉRIEUR (awayTeam).
-4. Si tu choisis value="1", le champ odds DOIT être la cote "home" du match. Idem pour X et 2.
-5. Tu es honnête: pas de "victoire certaine", mais "le marché donne X% de chance à...".
-6. Tu adaptes STRICTEMENT chaque sélection à la stratégie de risque demandée.
-
-Tu réponds EXCLUSIVEMENT en JSON valide. Aucun texte, aucun markdown autour.`;
-
-  const user = `Génère un ${betLabel} — MODE PREMIUM (tous marchés disponibles).
+  const user = `Génère un ${betLabel} — MODE PREMIUM (tous marchés).
 
 ${getRiskStrategy(params.riskLevel)}
 
-MATCHIDS OBLIGATOIRES — tu dois utiliser exactement ces ids, un par match, sans doublon:
+MATCHIDS OBLIGATOIRES (un par match, sans doublon):
 ${buildMatchIdList(matches)}
 
-DONNÉES COMPLÈTES DES MATCHS:
-${formatMatchesForPrompt(matches)}
+DONNÉES DES MATCHS${hasRealStats ? ' + STATISTIQUES RÉELLES API-Football' : ''}:
+${formatMatchesForPrompt(matches, statsMap)}
 
-CONTRAINTES:
-- Marchés disponibles: 1X2, Over/Under (1.5/2.5/3.5), BTTS (Oui/Non), Double Chance, Handicap asiatique
-- Fourchette de cotes totale visée: ${params.oddsRange.min} – ${params.oddsRange.max}
-- UN pari par match physique (matchId unique dans le tableau)
-- Chaque reasoning DOIT citer les cotes numériques et les noms d'équipes exacts
+${hasRealStats ? `INSTRUCTIONS ANALYSE:
+- UTILISE les probabilités statistiques pour justifier chaque choix
+- VALUE BET FORT (>7%): priorise ce pari, explique l'écart modèle vs bookmaker
+- Buts attendus > 3.0 → Over 2.5/3.5 candidats. Les deux équipes > 1.2 buts → BTTS candidat
+- Domicile goalsFor > 2.0 ET défense extérieure faible → Handicap -1 domicile possible
+- reasoning DOIT citer: probabilité statistique, cote, et calcul valeur si applicable
+  Ex: "API-Football donne 67% à [équipe] vs 47% implicite (cote 2.10) → value +20%"` : '- Cite les cotes numériques dans chaque reasoning.'}
+Marchés: 1X2, Over/Under (1.5/2.5/3.5), BTTS, Double Chance, Handicap.
+Fourchette: ${params.oddsRange.min} – ${params.oddsRange.max}. UN pari par match.
 
 ${getJsonSchema('optimized', matches.length)}`;
 
@@ -500,18 +529,28 @@ export async function POST(request: Request) {
       odds: m.odds || { home: 1.5, draw: 3.5, away: 5.0 },
     }));
 
+    // ── Fetch real stats for selected matches (API-Football predictions) ───────
+    // Only fetches for apif-* fixture IDs, falls back gracefully if no API key
+    const footballApiKey = process.env.FOOTBALL_API_KEY;
+    const statsMap = await fetchStatsForMatches(matchesForAnalysis, footballApiKey)
+      .catch(err => {
+        console.error('[stats-service] Error fetching stats:', err);
+        return new Map();
+      });
+
+    const statsCount = Array.from(statsMap.values()).filter(s => s.dataSource === 'api-football').length;
+    console.log(`[stats-service] Real stats fetched for ${statsCount}/${matchesForAnalysis.length} matches`);
+
     // ── Choose model & prompt based on tier ────────────────────────────────────
-    // Verified users get full analysis with Groq 70b
-    // Visitors and registered users get concise analysis with Groq 8b
     const useOptimized = isVerified;
     const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
-    // Scale tokens with match count to avoid truncation on accumulators
+    // Scale tokens: stats add ~200 tokens per match to the prompt
     const baseTokens = useOptimized ? 2000 : 900;
-    const perMatchTokens = useOptimized ? 500 : 200;
-    const maxTokens = Math.min(baseTokens + matchesForAnalysis.length * perMatchTokens, useOptimized ? 6000 : 2500);
+    const perMatchTokens = useOptimized ? 600 : 280;
+    const maxTokens = Math.min(baseTokens + matchesForAnalysis.length * perMatchTokens, useOptimized ? 6000 : 3000);
     const { system, user: userMsg } = useOptimized
-      ? buildOptimizedPrompt(params, matchesForAnalysis)
-      : buildFreePrompt(params, matchesForAnalysis);
+      ? buildOptimizedPrompt(params, matchesForAnalysis, statsMap)
+      : buildFreePrompt(params, matchesForAnalysis, statsMap);
 
     // ── Call Groq (0€) ─────────────────────────────────────────────────────────
     const responseText = await callGroq(system, userMsg, groqModel, maxTokens);

@@ -156,13 +156,51 @@ class MatchService {
       const data = await response.json();
 
       if (data.response && Array.isArray(data.response)) {
+        // Fetch odds for all fixtures in one batch call (bookmaker 8 = Bet365, bet 1 = Match Winner)
+        const fixtureIds = data.response
+          .map((f: { fixture: { id: number }; league: { id: number } }) =>
+            this.mapAPIFootballLeague(f.league.id) ? f.fixture.id : null
+          )
+          .filter(Boolean)
+          .join('-');
+
+        // Try to get odds for all fixtures at once
+        let oddsMap: Record<number, { home: number; draw: number; away: number }> = {};
+        try {
+          const oddsRes = await fetch(
+            `https://v3.football.api-sports.io/odds?date=${date}&bookmaker=8&bet=1`,
+            { headers: { 'x-apisports-key': apiKey } }
+          );
+          if (oddsRes.ok) {
+            const oddsData = await oddsRes.json();
+            for (const item of (oddsData.response ?? [])) {
+              const fid: number = item.fixture?.id;
+              const values = item.bookmakers?.[0]?.bets?.[0]?.values ?? [];
+              const home = values.find((v: { value: string }) => v.value === 'Home')?.odd;
+              const draw = values.find((v: { value: string }) => v.value === 'Draw')?.odd;
+              const away = values.find((v: { value: string }) => v.value === 'Away')?.odd;
+              if (fid && home && draw && away) {
+                oddsMap[fid] = {
+                  home: parseFloat(home),
+                  draw: parseFloat(draw),
+                  away: parseFloat(away),
+                };
+              }
+            }
+          }
+        } catch {
+          // Odds fetch failed — fall back to generated odds below
+        }
+
         for (const fixture of data.response) {
-          // Map to our league codes
           const leagueCode = this.mapAPIFootballLeague(fixture.league.id);
           if (!leagueCode) continue;
 
+          const fid: number = fixture.fixture.id;
+          const odds = oddsMap[fid] ?? this.generateRealisticOdds();
+
           matches.push({
-            id: `apif-${fixture.fixture.id}`,
+            id: `apif-${fid}`,
             homeTeam: fixture.teams.home.name,
             awayTeam: fixture.teams.away.name,
             league: fixture.league.name,
@@ -174,7 +212,7 @@ class MatchService {
               minute: '2-digit',
             }),
             status: this.mapAPIFootballStatus(fixture.fixture.status.short),
-            odds: this.generateRealisticOdds(),
+            odds,
           });
         }
       }
