@@ -113,6 +113,9 @@ interface MatchSelection {
     value: string;
     odds: number;
     reasoning?: string;
+    impliedPct?: number;
+    modelPct?: number | null;
+    valueEdge?: number | null;
   };
 }
 
@@ -375,8 +378,8 @@ export default function CombineDetailPage() {
                       )}
                     </div>
 
-                    {/* Selection */}
-                    <div className="flex items-center gap-3 shrink-0">
+                    {/* Selection + edge data */}
+                    <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
                       <div className="text-right">
                         <p className="text-xs text-text-muted">{match.selection.type}</p>
                         <p className="font-bold text-white">{match.selection.value}</p>
@@ -385,6 +388,25 @@ export default function CombineDetailPage() {
                         <p className="text-xs text-text-muted">Cote</p>
                         <p className="font-bold text-primary">{formatOdds(match.selection.odds)}</p>
                       </div>
+                      {/* Probability data */}
+                      {match.selection.impliedPct !== undefined && (
+                        <div className="text-center px-2 py-1.5 rounded-lg bg-surface-light min-w-[56px]">
+                          <p className="text-xs text-text-muted">Prob. impl.</p>
+                          <p className="text-sm font-semibold text-text-secondary">{match.selection.impliedPct}%</p>
+                        </div>
+                      )}
+                      {match.selection.modelPct !== null && match.selection.modelPct !== undefined && (
+                        <div className="text-center px-2 py-1.5 rounded-lg bg-surface-light min-w-[56px]">
+                          <p className="text-xs text-text-muted">Prob. modèle</p>
+                          <p className="text-sm font-semibold text-secondary">{match.selection.modelPct}%</p>
+                        </div>
+                      )}
+                      {match.selection.valueEdge !== null && match.selection.valueEdge !== undefined && match.selection.valueEdge > 0 && (
+                        <div className="text-center px-2 py-1.5 rounded-lg bg-success/10 border border-success/20 min-w-[56px]">
+                          <p className="text-xs text-success/70">Value</p>
+                          <p className="text-sm font-bold text-success">+{match.selection.valueEdge}%</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 

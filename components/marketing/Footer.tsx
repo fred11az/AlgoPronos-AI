@@ -12,10 +12,10 @@ import {
 
 const footerLinks = {
   product: [
-    { label: 'Fonctionnalités', href: '#features' },
-    { label: 'Tarifs', href: '#pricing' },
-    { label: 'Comment ça marche', href: '#how-it-works' },
-    { label: 'Témoignages', href: '#testimonials' },
+    { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
+    { label: 'Générateur de tickets', href: '/dashboard/generate' },
+    { label: 'Comment ça marche', href: '/#how-it-works' },
+    { label: 'Historique des tickets', href: '/dashboard/history' },
   ],
   legal: [
     { label: 'Conditions d\'utilisation', href: '/terms' },

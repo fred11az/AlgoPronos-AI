@@ -314,7 +314,7 @@ class MatchService {
   private async cacheMatches(date: string, matches: RealMatch[]): Promise<void> {
     try {
       const supabase = await createClient();
-      const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(); // 6 hours
+      const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(); // 12 hours
 
       await supabase.from('matches_cache').delete().eq('date', date);
 
