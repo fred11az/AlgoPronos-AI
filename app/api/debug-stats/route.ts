@@ -46,17 +46,23 @@ export async function GET(request: NextRequest) {
     result.fixtures = {
       httpStatus: fixturesRes.status,
       totalResults: fixturesData.results,
-      // Affiche les 10 premiers matchs toutes ligues confondues
-      sample: fixturesData.response?.slice(0, 10).map((f: {
-        fixture: { id: number; date: string };
-        teams: { home: { name: string }; away: { name: string } };
-        league: { id: number; name: string; country: string };
-      }) => ({
-        fixtureId: f.fixture.id,
-        match: `${f.teams.home.name} vs ${f.teams.away.name}`,
-        league: `${f.league.name} (${f.league.country}) — leagueId: ${f.league.id}`,
-        date: f.fixture.date,
-      })),
+      // Filtre uniquement les ligues supportées par l'app (mapAPIFootballLeague)
+      supportedLeagueIds: [39, 140, 135, 78, 61, 2, 3, 94, 88, 144, 71, 262, 253, 233, 200, 307],
+      sample: fixturesData.response
+        ?.filter((f: { league: { id: number } }) =>
+          [39, 140, 135, 78, 61, 2, 3, 94, 88, 144, 71, 262, 253, 233, 200, 307].includes(f.league.id)
+        )
+        .slice(0, 15)
+        .map((f: {
+          fixture: { id: number; date: string };
+          teams: { home: { name: string }; away: { name: string } };
+          league: { id: number; name: string; country: string };
+        }) => ({
+          fixtureId: f.fixture.id,
+          match: `${f.teams.home.name} vs ${f.teams.away.name}`,
+          league: `${f.league.name} (${f.league.country}) — leagueId: ${f.league.id}`,
+          date: f.fixture.date,
+        })),
     };
   } catch (e) {
     result.fixtures = { error: String(e) };
