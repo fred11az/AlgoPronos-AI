@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/lib/supabase/client';
 import { useI18n } from '@/lib/i18n/context';
 import {
   Zap,
@@ -15,7 +14,6 @@ import {
   TrendingUp,
   Target,
   ChevronRight,
-  Trophy,
 } from 'lucide-react';
 import { formatDate, formatOdds } from '@/lib/utils';
 
@@ -39,39 +37,13 @@ export default function CombinesPage() {
 
   useEffect(() => {
     async function fetchCombines() {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) return;
-
-      const { data } = await supabase
-        .from('combine_usage_log')
-        .select(`
-          combine:generated_combines(
-            id,
-            total_odds,
-            estimated_probability,
-            matches,
-            created_at
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      const uniqueCombines: Combine[] = [];
-      const seenIds = new Set<string>();
-
-      if (data) {
-        for (const item of data) {
-          const combine = item.combine as unknown as Combine | null;
-          if (combine && !seenIds.has(combine.id)) {
-            seenIds.add(combine.id);
-            uniqueCombines.push(combine);
-          }
-        }
+      const res = await fetch('/api/my-combines');
+      if (!res.ok) {
+        setLoading(false);
+        return;
       }
-
-      setCombines(uniqueCombines);
+      const { combines } = await res.json();
+      setCombines(combines || []);
       setLoading(false);
     }
 

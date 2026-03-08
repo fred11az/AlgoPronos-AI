@@ -30,6 +30,9 @@ export interface AnonymousSessionMetadata {
   // Source tracking for analytics
   source?: string;
   referrer?: string;
+  // Weekly AI usage tracking (visitors: 1/week limit)
+  weeklyAiCount?: number;
+  weeklyAiResetAt?: string; // ISO date string of the Monday starting the current week
 }
 
 export interface AnonymousSessionEvent {
