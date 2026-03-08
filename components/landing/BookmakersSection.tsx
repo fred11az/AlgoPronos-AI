@@ -1,66 +1,71 @@
 'use client';
 
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ExternalLink, ShieldCheck } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 
+// ─── Config bookmakers ────────────────────────────────────────────────────────
+// Logos à placer dans /public/bookmakers/
+// 1xbet.png | melbet.png | betwinner.png | premierbet.png | betway.png
+
 const BOOKMAKERS = [
   {
     name: '1xBet',
+    logo: '/bookmakers/1xbet.png',
     description: 'N°1 Afrique de l\'Ouest',
     bonus: 'Bonus 200%',
-    color: 'from-blue-600/20 to-blue-700/10 border-blue-600/30 hover:border-blue-500/60',
-    textColor: 'text-blue-400',
+    bgColor: 'bg-[#003087]',
+    borderColor: 'border-blue-700/40 hover:border-blue-500/70',
+    shadowColor: 'hover:shadow-blue-900/30',
     url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://1xbet.com',
     badge: 'Partenaire officiel',
-    badgeColor: 'bg-blue-500/20 text-blue-300',
-  },
-  {
-    name: 'Bet365',
-    description: 'Leader mondial',
-    bonus: 'Bonus 100%',
-    color: 'from-green-700/20 to-green-800/10 border-green-700/30 hover:border-green-600/60',
-    textColor: 'text-green-400',
-    url: 'https://www.bet365.com',
-    badge: null,
-    badgeColor: '',
+    badgeColor: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
   },
   {
     name: 'Melbet',
+    logo: '/bookmakers/melbet.png',
     description: 'Top cotes Afrique',
     bonus: 'Bonus 130%',
-    color: 'from-orange-500/20 to-orange-600/10 border-orange-500/30 hover:border-orange-400/60',
-    textColor: 'text-orange-400',
+    bgColor: 'bg-[#1a1a1a]',
+    borderColor: 'border-yellow-500/30 hover:border-yellow-400/60',
+    shadowColor: 'hover:shadow-yellow-900/20',
     url: 'https://melbet.com',
     badge: null,
     badgeColor: '',
   },
   {
     name: 'Betwinner',
+    logo: '/bookmakers/betwinner.png',
     description: 'Large marché',
     bonus: 'Bonus 200%',
-    color: 'from-yellow-500/20 to-yellow-600/10 border-yellow-500/30 hover:border-yellow-400/60',
-    textColor: 'text-yellow-400',
+    bgColor: 'bg-[#1a2a1a]',
+    borderColor: 'border-yellow-600/30 hover:border-yellow-500/60',
+    shadowColor: 'hover:shadow-yellow-900/20',
     url: 'https://betwinner.com',
     badge: null,
     badgeColor: '',
   },
   {
     name: 'PremierBet',
+    logo: '/bookmakers/premierbet.png',
     description: 'Spécialiste Afrique',
     bonus: 'Bonus local',
-    color: 'from-purple-600/20 to-purple-700/10 border-purple-600/30 hover:border-purple-500/60',
-    textColor: 'text-purple-400',
+    bgColor: 'bg-white',
+    borderColor: 'border-green-600/30 hover:border-green-500/60',
+    shadowColor: 'hover:shadow-green-900/20',
     url: 'https://premierbet.com',
     badge: null,
     badgeColor: '',
   },
   {
     name: 'Betway',
+    logo: '/bookmakers/betway.png',
     description: 'Fiable & sécurisé',
     bonus: 'Bonus 50%',
-    color: 'from-teal-600/20 to-teal-700/10 border-teal-600/30 hover:border-teal-500/60',
-    textColor: 'text-teal-400',
+    bgColor: 'bg-[#1a1a1a]',
+    borderColor: 'border-green-600/30 hover:border-green-500/60',
+    shadowColor: 'hover:shadow-green-900/20',
     url: 'https://betway.com',
     badge: null,
     badgeColor: '',
@@ -89,33 +94,45 @@ export function BookmakersSection() {
           </div>
         </ScrollReveal>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* Logo grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
           {BOOKMAKERS.map((bm, i) => (
             <ScrollReveal key={bm.name} delay={i * 0.08}>
               <motion.a
                 href={bm.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`group block bg-gradient-to-br ${bm.color} border rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}
-                whileTap={{ scale: 0.98 }}
+                className={`group relative flex flex-col items-center rounded-2xl border ${bm.borderColor} transition-all duration-300 hover:-translate-y-2 hover:shadow-xl ${bm.shadowColor} overflow-hidden`}
+                whileTap={{ scale: 0.97 }}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className={`text-xl font-bold ${bm.textColor}`}>{bm.name}</div>
-                    <div className="text-sm text-text-secondary mt-0.5">{bm.description}</div>
+                {/* Logo area */}
+                <div className={`w-full ${bm.bgColor} flex items-center justify-center p-5 h-28 relative`}>
+                  <Image
+                    src={bm.logo}
+                    alt={bm.name}
+                    width={140}
+                    height={60}
+                    className="object-contain max-h-16 w-auto"
+                    unoptimized
+                  />
+                  {/* Visit arrow */}
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ExternalLink className="h-3.5 w-3.5 text-white/60" />
                   </div>
-                  <ExternalLink className={`h-4 w-4 ${bm.textColor} opacity-0 group-hover:opacity-100 transition-opacity mt-1`} />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm font-semibold px-2 py-1 rounded-lg bg-white/5 ${bm.textColor}`}>
-                    {bm.bonus}
-                  </span>
-                  {bm.badge && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${bm.badgeColor}`}>
-                      {bm.badge}
-                    </span>
-                  )}
+                {/* Info area */}
+                <div className="w-full bg-surface px-4 py-3">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-sm font-bold text-white">{bm.name}</span>
+                    {bm.badge && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${bm.badgeColor}`}>
+                        ★
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-text-muted">{bm.description}</div>
+                  <div className="mt-2 text-xs font-semibold text-primary">{bm.bonus}</div>
                 </div>
               </motion.a>
             </ScrollReveal>

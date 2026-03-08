@@ -20,9 +20,9 @@ import {
   CheckCircle2,
   Zap,
   Activity,
-  Database,
   LineChart,
   Users,
+  Star,
 } from 'lucide-react';
 import { HeroTicketPreview } from '@/components/landing/HeroTicketPreview';
 import { StatsBar } from '@/components/landing/StatsBar';
@@ -37,17 +37,17 @@ const faqItems = [
   {
     question: 'Comment l\'algorithme sélectionne-t-il les picks ?',
     answer:
-      "L'algorithme calcule la probabilité implicite de chaque cote bookmaker, puis la compare à la probabilité estimée par le modèle statistique (données API-Football). Il sélectionne les marchés où l'écart (value edge) est le plus favorable selon votre niveau de risque choisi.",
+      "L'algorithme calcule la probabilité implicite de chaque cote bookmaker, puis la compare à la probabilité estimée par notre modèle statistique. Il sélectionne les marchés où l'écart est le plus favorable selon votre niveau de risque choisi.",
   },
   {
     question: 'D\'où viennent les données utilisées ?',
     answer:
-      "Les matchs et cotes proviennent de deux sources : API-Football (cotes Bet365 en temps réel, probabilités, forme des équipes, xG) et TheSportsDB (couverture élargie). Les données sont mises en cache 12h pour garantir la rapidité.",
+      "Nos analyses s'appuient sur des données sportives actualisées en continu : statistiques de forme des équipes, cotes bookmakers en temps réel, probabilités de victoire et expected goals. Les données sont mises à jour régulièrement pour garantir la précision.",
   },
   {
-    question: 'Que signifie "value edge" ?',
+    question: 'Que signifie "value betting" ?',
     answer:
-      "Le value edge (avantage de valeur) est la différence entre la probabilité estimée par notre modèle et la probabilité implicite du bookmaker. Un edge positif de +8% signifie que notre modèle estime la probabilité à 8 points au-dessus de ce que le bookmaker pense. C'est un indicateur de paris sous-cotés.",
+      "Le value betting consiste à identifier les cotes sous-évaluées par les bookmakers. Notre algorithme compare la probabilité estimée par notre modèle à la probabilité implicite proposée. Un écart positif indique un pari potentiellement sous-coté.",
   },
   {
     question: 'L\'accès est-il vraiment gratuit ?',
@@ -57,7 +57,7 @@ const faqItems = [
   {
     question: 'Combien de temps prend la génération d\'un ticket ?',
     answer:
-      "La génération est généralement effectuée en moins de 15 secondes : récupération des matchs, calcul statistique, sélection algorithmique des picks, et rédaction de l'analyse par l'IA (Groq LLaMA). Les résultats sont ensuite mis en cache 48h.",
+      "La génération est généralement effectuée en moins de 15 secondes : récupération des matchs, calcul statistique et sélection algorithmique des picks, puis rédaction de l'analyse IA. Les résultats sont ensuite mis en cache pour des réponses instantanées.",
   },
   {
     question: 'Les résultats passés sont-ils visibles ?',
@@ -72,38 +72,32 @@ const DATA_SIGNALS = [
   {
     icon: Activity,
     title: 'Forme des équipes',
-    description: 'Analyse des 5 derniers matchs : résultats, buts marqués/encaissés, séquences.',
-    source: 'API-Football',
+    description: 'Analyse des 5 derniers matchs : résultats, buts marqués/encaissés, dynamique de série.',
   },
   {
     icon: LineChart,
-    title: 'Statistiques xG',
+    title: 'Statistiques avancées',
     description: 'Expected Goals (xG) pour mesurer la qualité réelle des occasions, indépendamment du score.',
-    source: 'API-Football',
   },
   {
-    icon: Database,
+    icon: Star,
     title: 'Cotes bookmakers',
-    description: 'Cotes Bet365 en temps réel converties en probabilité implicite pour chaque marché.',
-    source: 'Bet365 / API-Football',
+    description: 'Cotes en temps réel converties en probabilité implicite pour chaque marché disponible.',
   },
   {
     icon: TrendingUp,
     title: 'Value betting',
-    description: 'Calcul de l\'écart entre probabilité modèle et probabilité implicite bookmaker (value edge).',
-    source: 'Algorithme AlgoPronos',
+    description: 'Détection des marchés sous-côtés : écart entre probabilité estimée et cote bookmaker.',
   },
   {
     icon: BarChart3,
     title: 'Probabilités du modèle',
-    description: 'Probabilités de victoire/nul/défaite issues du modèle prédictif API-Football.',
-    source: 'API-Football Predictions',
+    description: 'Probabilités de victoire/nul/défaite issues de notre modèle prédictif statistique.',
   },
   {
     icon: Target,
     title: 'Sélection par niveau de risque',
-    description: 'Prudent (Double Chance, cotes basses), Équilibré (value bet), Risqué (high edge + high odds).',
-    source: 'Algorithme AlgoPronos',
+    description: 'Prudent, Équilibré ou Risqué : l\'algorithme adapte les marchés à votre profil.',
   },
 ];
 
@@ -131,7 +125,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-8">
                 <Brain className="h-4 w-4 text-primary" />
                 <span className="text-primary text-sm font-medium">
-                  Outil d&apos;analyse statistique — API-Football + Groq LLaMA
+                  Outil d&apos;analyse IA pour les paris sportifs
                 </span>
               </div>
 
@@ -144,14 +138,14 @@ export default function LandingPage() {
 
               <p className="text-lg sm:text-xl text-text-secondary mb-10 max-w-xl leading-relaxed">
                 L&apos;algorithme analyse les statistiques, les cotes et la forme des équipes
-                pour générer des combinés optimisés. Données réelles, raisonnement transparent.
+                pour générer des combinés optimisés.
               </p>
 
               {/* Feature bullets */}
               <div className="space-y-3 mb-10">
                 {[
-                  { icon: Database, text: 'Données API-Football + TheSportsDB en temps réel' },
-                  { icon: TrendingUp, text: 'Calcul de value edge (probabilité modèle vs bookmaker)' },
+                  { icon: Star, text: 'Statistiques et cotes sportives en temps réel' },
+                  { icon: TrendingUp, text: 'Sélection optimisée des marchés par notre algorithme' },
                   { icon: Zap, text: 'Analyse et ticket générés en moins de 15 secondes' },
                 ].map(({ icon: Icon, text }, i) => (
                   <div key={i} className="flex items-center gap-3 text-text-secondary">
@@ -233,7 +227,7 @@ export default function LandingPage() {
                 num: '1',
                 icon: Target,
                 title: 'Sélectionnez vos matchs',
-                desc: "Parcourez les matchs du jour issus de API-Football et TheSportsDB. Choisissez vos championnats et les rencontres qui vous intéressent.",
+                desc: "Parcourez les matchs du jour. Choisissez vos championnats et les rencontres qui vous intéressent.",
                 detail: 'Premier League, La Liga, Ligue 1, CAN, Champions League...',
                 color: 'from-primary to-primary/50',
               },
@@ -241,7 +235,7 @@ export default function LandingPage() {
                 num: '2',
                 icon: Shield,
                 title: 'Choisissez votre niveau de risque',
-                desc: "Prudent (Double Chance, cotes 1.2–2.0), Équilibré (value bets, cotes 2.0–4.0), Risqué (edge élevé, cotes 4.0+).",
+                desc: "Prudent, Équilibré ou Risqué : définissez votre profil de parieur.",
                 detail: "L'algorithme adapte la sélection des marchés en conséquence.",
                 color: 'from-secondary to-secondary/50',
               },
@@ -249,8 +243,8 @@ export default function LandingPage() {
                 num: '3',
                 icon: Brain,
                 title: 'L\'IA génère un combiné optimisé',
-                desc: "L'algorithme sélectionne le marché optimal (1X2, Double Chance, Over/Under) et Groq LLaMA rédige l'analyse pour chaque pick.",
-                detail: 'Probabilité implicite, value edge et raisonnement affichés.',
+                desc: "L'algorithme sélectionne le marché optimal (1X2, Double Chance, Over/Under) et l'IA rédige une analyse complète pour chaque pick.",
+                detail: 'Probabilité estimée, indicateur de valeur et raisonnement affichés.',
                 color: 'from-accent to-accent/50',
               },
             ].map((step, i) => (
@@ -282,8 +276,8 @@ export default function LandingPage() {
                 6 signaux pour chaque ticket
               </h2>
               <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-                L&apos;algorithme combine données réelles et calcul statistique pour identifier
-                les meilleures opportunités de value betting.
+                Notre algorithme combine données sportives et calcul statistique pour identifier
+                les meilleures opportunités.
               </p>
             </div>
           </ScrollReveal>
@@ -296,37 +290,11 @@ export default function LandingPage() {
                     <signal.icon className="h-5 w-5" />
                   </div>
                   <h3 className="text-base font-bold text-white mb-2">{signal.title}</h3>
-                  <p className="text-text-secondary text-sm leading-relaxed mb-3">{signal.description}</p>
-                  <div className="inline-flex items-center gap-1 text-xs text-text-muted bg-surface-light px-2 py-1 rounded-md">
-                    <Database className="h-3 w-3" />
-                    {signal.source}
-                  </div>
+                  <p className="text-text-secondary text-sm leading-relaxed">{signal.description}</p>
                 </div>
               </ScrollReveal>
             ))}
           </div>
-
-          {/* Architecture note */}
-          <ScrollReveal delay={0.3}>
-            <div className="mt-12 bg-surface border border-surface-light rounded-2xl p-6 max-w-3xl mx-auto">
-              <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" />
-                Architecture technique
-              </h3>
-              <div className="grid sm:grid-cols-3 gap-4 text-sm">
-                {[
-                  { label: 'Données matchs', value: 'API-Football + TheSportsDB', color: 'text-primary' },
-                  { label: 'Analyse IA', value: 'Groq LLaMA 3.3-70b', color: 'text-secondary' },
-                  { label: 'Cache données', value: '12h (matchs) / 48h (tickets)', color: 'text-accent' },
-                ].map((item, i) => (
-                  <div key={i} className="bg-background/60 rounded-xl p-3">
-                    <div className="text-text-muted text-xs mb-1">{item.label}</div>
-                    <div className={`font-semibold ${item.color}`}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </ScrollReveal>
         </div>
       </section>
 
@@ -378,8 +346,8 @@ export default function LandingPage() {
               Prêt à analyser vos prochains paris ?
             </h2>
             <p className="text-text-secondary text-lg mb-10 max-w-2xl mx-auto">
-              Générez votre premier ticket IA gratuitement. Données réelles,
-              algorithme transparent, analyse Groq LLaMA incluse.
+              Générez votre premier ticket IA gratuitement. Analyse statistique avancée,
+              sélection optimisée et raisonnement complet inclus.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="xl" variant="gradient" asChild>
