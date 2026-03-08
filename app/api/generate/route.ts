@@ -483,7 +483,7 @@ export async function POST(request: Request) {
             weekly_ai_reset_at: weekStart,
           }).eq('id', user.id);
         }
-        await supabase.from('combine_usage_log').insert({
+        await adminSupabase.from('combine_usage_log').insert({
           user_id: user.id, combine_id: cachedCombine.id,
           usage_type: 'from_cache', user_tier: user.tier,
         });
@@ -555,8 +555,18 @@ export async function POST(request: Request) {
       expires_at: expiresAt.toISOString(),
     };
 
+    // Delete any expired record with same cache_key to avoid UNIQUE constraint conflict
+    await adminSupabase
+      .from('generated_combines')
+      .delete()
+      .eq('cache_key', cacheKey)
+      .lt('expires_at', new Date().toISOString());
+
     const { error: insertError } = await adminSupabase.from('generated_combines').insert(generatedCombine);
-    if (insertError) console.error('Failed to save combine to DB:', insertError);
+    if (insertError) {
+      console.error('Failed to save combine to DB:', insertError);
+      return NextResponse.json({ error: 'Erreur lors de la sauvegarde du combiné. Veuillez réessayer.' }, { status: 500 });
+    }
 
     // ── Update weekly count ────────────────────────────────────────────────────
     let usedThisWeek = 1;
@@ -572,7 +582,7 @@ export async function POST(request: Request) {
         combineId, fromCache: false,
       });
     } else if (user) {
-      await supabase.from('combine_usage_log').insert({
+      await adminSupabase.from('combine_usage_log').insert({
         user_id: user.id, combine_id: combineId,
         usage_type: 'generated', user_tier: user.tier,
       });
