@@ -6,13 +6,11 @@ import { ExternalLink, ShieldCheck } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 
 // ─── Config bookmakers ────────────────────────────────────────────────────────
-// Logos à placer dans /public/bookmakers/
-// 1xbet.png | melbet.png | betwinner.png | premierbet.png | betway.png
 
 const BOOKMAKERS = [
   {
     name: '1xBet',
-    logo: '/bookmakers/1xbet.png',
+    logo: '/bookmakers/1xbet.webp',
     description: 'N°1 Afrique de l\'Ouest',
     bonus: 'Bonus 200%',
     bgColor: 'bg-[#003087]',
@@ -36,7 +34,7 @@ const BOOKMAKERS = [
   },
   {
     name: 'Betwinner',
-    logo: '/bookmakers/betwinner.png',
+    logo: '/bookmakers/betwinner.webp',
     description: 'Large marché',
     bonus: 'Bonus 200%',
     bgColor: 'bg-[#1a2a1a]',
@@ -48,7 +46,7 @@ const BOOKMAKERS = [
   },
   {
     name: 'PremierBet',
-    logo: '/bookmakers/premierbet.png',
+    logo: '/bookmakers/premierbet.jpg',
     description: 'Spécialiste Afrique',
     bonus: 'Bonus local',
     bgColor: 'bg-white',
@@ -60,7 +58,7 @@ const BOOKMAKERS = [
   },
   {
     name: 'Betway',
-    logo: '/bookmakers/betway.png',
+    logo: '/bookmakers/betway.jpg',
     description: 'Fiable & sécurisé',
     bonus: 'Bonus 50%',
     bgColor: 'bg-[#1a1a1a]',

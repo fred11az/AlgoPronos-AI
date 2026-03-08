@@ -22,7 +22,7 @@ const BOOKMAKERS: Bookmaker[] = [
   {
     id: '1xbet',
     name: '1xBet',
-    logo: '/bookmakers/1xbet.png',
+    logo: '/bookmakers/1xbet.webp',
     bgColor: 'bg-[#003087]',
     bonus: 'Bonus 200%',
     bonusDetail: "jusqu'à 250 000 FCFA sur 1er dépôt",
@@ -42,7 +42,7 @@ const BOOKMAKERS: Bookmaker[] = [
   {
     id: 'betwinner',
     name: 'Betwinner',
-    logo: '/bookmakers/betwinner.png',
+    logo: '/bookmakers/betwinner.webp',
     bgColor: 'bg-[#1a2a1a]',
     bonus: 'Bonus 200%',
     bonusDetail: "jusqu'à 200 000 FCFA",
@@ -51,7 +51,7 @@ const BOOKMAKERS: Bookmaker[] = [
   {
     id: 'betway',
     name: 'Betway',
-    logo: '/bookmakers/betway.png',
+    logo: '/bookmakers/betway.jpg',
     bgColor: 'bg-[#1a1a1a]',
     bonus: 'Bonus 50%',
     bonusDetail: "jusqu'à 50 000 FCFA",
@@ -60,7 +60,7 @@ const BOOKMAKERS: Bookmaker[] = [
   {
     id: 'premierbet',
     name: 'PremierBet',
-    logo: '/bookmakers/premierbet.png',
+    logo: '/bookmakers/premierbet.jpg',
     bgColor: 'bg-white',
     bonus: 'Bonus local',
     bonusDetail: 'offre réservée Afrique',
