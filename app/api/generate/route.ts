@@ -60,8 +60,12 @@ function isNewWeek(resetAt: string | null | undefined): boolean {
 
 // ─── Cache key ────────────────────────────────────────────────────────────────
 
+// Increment this when prompts change significantly — forces cache invalidation
+const PROMPT_VERSION = 2;
+
 function generateCacheKey(params: CombineParameters): string {
   const normalized = {
+    v: PROMPT_VERSION,
     date: new Date(params.date).toISOString().split('T')[0],
     leagues: [...params.leagues].sort(),
     oddsMin: params.oddsRange.min,
@@ -460,7 +464,10 @@ export async function POST(request: Request) {
     // Visitors and registered users get concise analysis with Groq 8b
     const useOptimized = isVerified;
     const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
-    const maxTokens = useOptimized ? 4096 : 1500;
+    // Scale tokens with match count to avoid truncation on accumulators
+    const baseTokens = useOptimized ? 2000 : 900;
+    const perMatchTokens = useOptimized ? 500 : 200;
+    const maxTokens = Math.min(baseTokens + matchesForAnalysis.length * perMatchTokens, useOptimized ? 6000 : 2500);
     const { system, user: userMsg } = useOptimized
       ? buildOptimizedPrompt(params, matchesForAnalysis)
       : buildFreePrompt(params, matchesForAnalysis);
