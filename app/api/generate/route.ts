@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { getCurrentAnonymousSession, logAnonymousEvent } from '@/lib/anonymous';
-import Anthropic from '@anthropic-ai/sdk';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface SelectedMatch {
   id: string;
@@ -35,7 +33,33 @@ interface CombineParameters {
   selectedMatches?: SelectedMatch[];
 }
 
-// Generate cache key from parameters
+// ─── Quota config ─────────────────────────────────────────────────────────────
+
+const WEEKLY_LIMITS = {
+  visitor: 1,    // anonymous session
+  registered: 2, // has AlgoPronos account but no 1xBet verification
+  verified: 999, // 1xBet account verified → effectively unlimited
+} as const;
+
+// ─── Week helpers ─────────────────────────────────────────────────────────────
+
+/** Returns the date (YYYY-MM-DD) of the Monday that started the current week */
+function getWeekStart(): string {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0 = Sunday
+  const diff = day === 0 ? -6 : 1 - day; // shift to Monday
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() + diff);
+  return monday.toISOString().split('T')[0];
+}
+
+function isNewWeek(resetAt: string | null | undefined): boolean {
+  if (!resetAt) return true;
+  return resetAt < getWeekStart();
+}
+
+// ─── Cache key ────────────────────────────────────────────────────────────────
+
 function generateCacheKey(params: CombineParameters): string {
   const normalized = {
     date: new Date(params.date).toISOString().split('T')[0],
@@ -47,129 +71,247 @@ function generateCacheKey(params: CombineParameters): string {
     betType: params.betType,
     selectedMatchIds: params.selectedMatches?.map(m => m.id).sort() || [],
   };
-
-  const str = JSON.stringify(normalized);
-  const hash = createHash('sha256').update(str).digest('hex');
-  return hash.substring(0, 16);
+  return createHash('sha256').update(JSON.stringify(normalized)).digest('hex').substring(0, 16);
 }
 
-const DAILY_COUPON_LIMIT = 2;
+// ─── Groq call ($0 cost) ──────────────────────────────────────────────────────
+
+async function callGroq(prompt: string, model: string, maxTokens: number): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Groq error ${response.status}: ${err}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0]?.message?.content || '';
+}
+
+// ─── Prompts ──────────────────────────────────────────────────────────────────
+
+function buildFreePrompt(params: CombineParameters, matches: object[]): string {
+  const betLabel = params.betType === 'single' ? 'pari simple' :
+    params.betType === 'double' ? 'doublé' :
+    params.betType === 'triple' ? 'triplé' :
+    `combiné de ${matches.length} matchs`;
+
+  return `Tu es AlgoPronos AI en mode découverte. Génère un ${betLabel} court et simple.
+
+MATCHS:
+${JSON.stringify(matches)}
+
+PARAMÈTRES: risque=${params.riskLevel}, cotes visées=${params.oddsRange.min}-${params.oddsRange.max}
+
+RÈGLES:
+- 1 à 2 types de paris simples uniquement (1X2 ou Over/Under basique)
+- Analyse courte: 1 phrase max par match
+- Pas de combinés complexes ni de stratégie de mise
+- Rappelle en fin de summary que l'accès complet est disponible avec un compte 1xBet optimisé IA
+
+FORMAT JSON STRICT (rien d'autre):
+{
+  "selectedMatches": [
+    {
+      "matchId": "id",
+      "homeTeam": "Équipe dom",
+      "awayTeam": "Équipe ext",
+      "league": "Championnat",
+      "kickoffTime": "YYYY-MM-DD HH:MM",
+      "selection": {
+        "type": "1X2|Over/Under",
+        "value": "1|X|2|Over 2.5|Under 2.5",
+        "odds": 1.75,
+        "reasoning": "1 phrase"
+      }
+    }
+  ],
+  "totalOdds": 3.20,
+  "probability": 65,
+  "analysis": {
+    "summary": "Résumé court (2 phrases). Avec un compte 1xBet optimisé IA, accède à des analyses avancées.",
+    "keyFactors": ["facteur 1", "facteur 2"],
+    "matchAnalyses": [
+      {
+        "matchId": "id",
+        "tacticalAnalysis": "1 phrase",
+        "formAnalysis": "1 phrase",
+        "keyPlayers": "noms",
+        "prediction": "1 phrase",
+        "confidenceLevel": 70
+      }
+    ],
+    "riskAssessment": "1 phrase"
+  }
+}`;
+}
+
+function buildOptimizedPrompt(params: CombineParameters, matches: object[]): string {
+  const betLabel = params.betType === 'single' ? 'pari simple' :
+    params.betType === 'double' ? 'doublé' :
+    params.betType === 'triple' ? 'triplé' :
+    `combiné de ${matches.length} matchs`;
+
+  return `Tu es AlgoPronos AI en mode optimisé IA. L'utilisateur possède un compte 1xBet optimisé IA.
+Génère un ${betLabel} avec une analyse complète et des marchés avancés si pertinents.
+
+MATCHS À ANALYSER:
+${JSON.stringify(matches, null, 2)}
+
+PARAMÈTRES:
+- Type: ${betLabel}
+- Risque: ${params.riskLevel === 'safe' ? 'Prudent (cotes 1.2-2.0)' : params.riskLevel === 'balanced' ? 'Équilibré (cotes 2.0-4.0)' : 'Risqué (cotes 4.0+)'}
+- Fourchette: ${params.oddsRange.min} - ${params.oddsRange.max}
+
+OBJECTIFS:
+- Analyse approfondie (forme, confrontations directes, contexte)
+- Marchés avancés autorisés: handicaps, buteurs, multi-buts, BTTS
+- Stratégie de mise si pertinent (ex: mise à valeur sur outsider)
+- Tu parles comme un conseiller rationnel, pas comme un vendeur de rêve
+- Mentionne que ces marchés sont disponibles sur leur compte 1xBet optimisé IA
+
+FORMAT JSON STRICT (rien d'autre):
+{
+  "selectedMatches": [
+    {
+      "matchId": "id",
+      "homeTeam": "Équipe dom",
+      "awayTeam": "Équipe ext",
+      "league": "Championnat",
+      "kickoffTime": "YYYY-MM-DD HH:MM",
+      "selection": {
+        "type": "1X2|Over/Under|BTTS|Handicap|Buteur",
+        "value": "valeur précise",
+        "odds": 1.85,
+        "reasoning": "Raison du choix en 1-2 phrases avec données concrètes"
+      }
+    }
+  ],
+  "totalOdds": 8.50,
+  "probability": 72,
+  "analysis": {
+    "summary": "Résumé global percutant (2-3 phrases)",
+    "keyFactors": ["Facteur clé 1", "Facteur clé 2", "Facteur clé 3"],
+    "matchAnalyses": [
+      {
+        "matchId": "id",
+        "tacticalAnalysis": "Analyse tactique approfondie (3-4 phrases)",
+        "formAnalysis": "Analyse de forme (2-3 phrases)",
+        "keyPlayers": "Joueurs clés à surveiller",
+        "prediction": "Prédiction détaillée (2-3 phrases)",
+        "confidenceLevel": 85
+      }
+    ],
+    "riskAssessment": "Évaluation des risques (2-3 phrases)"
+  }
+}`;
+}
+
+// ─── Main handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   try {
-    // First, check for authenticated user
+    const supabase = await createClient();
+    const adminSupabase = createAdminClient();
+
+    // ── Identify user ──────────────────────────────────────────────────────────
     const user = await getCurrentUser();
+    const anonymousSession = !user ? await getCurrentAnonymousSession() : null;
 
-    // If no authenticated user, check for anonymous session
-    if (!user) {
-      const anonymousSession = await getCurrentAnonymousSession();
+    if (!user && !anonymousSession) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-      if (anonymousSession) {
-        // Anonymous user is trying to generate - log the attempt and return NOT_VERIFIED
-        // This is the SAME blocking behavior as for unverified authenticated users
+    const weekStart = getWeekStart();
+    const isVerified = user?.tier === 'verified';
+    const isRegistered = !!user && !isVerified;
+    const isVisitor = !user && !!anonymousSession;
+
+    const limit = isVerified ? WEEKLY_LIMITS.verified
+      : isRegistered ? WEEKLY_LIMITS.registered
+      : WEEKLY_LIMITS.visitor;
+
+    // ── Weekly quota check ─────────────────────────────────────────────────────
+    if (isVisitor && anonymousSession) {
+      const meta = anonymousSession.metadata || {};
+      const currentCount = isNewWeek(meta.weeklyAiResetAt) ? 0 : (meta.weeklyAiCount ?? 0);
+
+      if (currentCount >= limit) {
         await logAnonymousEvent(anonymousSession.id, 'generation_attempted', {
-          timestamp: new Date().toISOString(),
+          blocked: true, reason: 'WEEKLY_LIMIT', count: currentCount,
         });
-
         return NextResponse.json(
           {
-            error: 'Verification required',
-            code: 'NOT_VERIFIED',
+            error: 'Weekly limit reached',
+            code: 'WEEKLY_LIMIT',
             isAnonymous: true,
-            message: 'Créez un compte et activez-le pour générer des coupons IA',
+            limit,
+            remaining: 0,
+            message: 'Tu as atteint ta limite d\'analyses IA pour cette semaine. Crée un compte AlgoPronos AI pour 2 analyses/semaine ou un compte 1xBet optimisé IA pour un accès illimité.',
           },
-          { status: 403 }
+          { status: 429 }
         );
       }
+    } else if (isRegistered && user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('weekly_ai_count, weekly_ai_reset_at')
+        .eq('id', user.id)
+        .single();
 
-      // No authenticated user AND no anonymous session
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      const currentCount = isNewWeek(profile?.weekly_ai_reset_at) ? 0 : (profile?.weekly_ai_count ?? 0);
+
+      if (currentCount >= limit) {
+        return NextResponse.json(
+          {
+            error: 'Weekly limit reached',
+            code: 'WEEKLY_LIMIT',
+            limit,
+            remaining: 0,
+            message: 'Tu as atteint ta limite d\'analyses IA pour cette semaine. Crée un compte 1xBet optimisé IA pour un accès illimité.',
+          },
+          { status: 429 }
+        );
+      }
     }
 
-    // Authenticated user - check if verified (created 1xbet account)
-    // This is the EXISTING behavior, unchanged
-    if (user.tier !== 'verified') {
-      return NextResponse.json(
-        { error: 'Verification required', code: 'NOT_VERIFIED' },
-        { status: 403 }
-      );
-    }
-
-    // Check daily coupon limit (2 per day)
-    const supabase = await createClient();
-    const today = new Date().toISOString().split('T')[0];
-
-    // Get user's daily coupon usage
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('daily_coupon_count, last_coupon_date')
-      .eq('id', user.id)
-      .single();
-
-    let currentCount = profile?.daily_coupon_count || 0;
-    const lastDate = profile?.last_coupon_date;
-
-    // Reset count if it's a new day
-    if (lastDate !== today) {
-      currentCount = 0;
-    }
-
-    // Check limit
-    if (currentCount >= DAILY_COUPON_LIMIT) {
-      return NextResponse.json(
-        {
-          error: 'Daily limit reached',
-          code: 'DAILY_LIMIT',
-          limit: DAILY_COUPON_LIMIT,
-          remaining: 0
-        },
-        { status: 429 }
-      );
-    }
-
+    // ── Parse & validate body ──────────────────────────────────────────────────
     const body = await request.json();
     const params: CombineParameters = body.parameters;
 
-    // Validate parameters
     if (!params.leagues || params.leagues.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one league is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'At least one league is required' }, { status: 400 });
     }
 
-    // Validate match count based on bet type
-    const minMatches = params.betType === 'single' ? 1 : params.betType === 'double' ? 2 : params.betType === 'triple' ? 3 : 4;
+    const minMatches = params.betType === 'single' ? 1
+      : params.betType === 'double' ? 2
+      : params.betType === 'triple' ? 3 : 4;
 
-    if (params.matchCount < minMatches) {
-      return NextResponse.json(
-        { error: `At least ${minMatches} match(es) required for ${params.betType}` },
-        { status: 400 }
-      );
-    }
-
-    // Check if we have selected matches
-    if (!params.selectedMatches || params.selectedMatches.length === 0) {
-      return NextResponse.json(
-        { error: 'No matches selected' },
-        { status: 400 }
-      );
-    }
-
-    if (params.selectedMatches.length < minMatches) {
+    if (!params.selectedMatches || params.selectedMatches.length < minMatches) {
       return NextResponse.json(
         { error: `Select at least ${minMatches} match(es) for ${params.betType}` },
         { status: 400 }
       );
     }
 
-    // Generate cache key
+    // ── Cache lookup ───────────────────────────────────────────────────────────
     const cacheKey = generateCacheKey(params);
 
-    // Check cache first
     const { data: cachedCombine } = await supabase
       .from('generated_combines')
       .select('*')
@@ -178,41 +320,41 @@ export async function POST(request: Request) {
       .single();
 
     if (cachedCombine) {
-      // Log cache hit
-      await supabase.from('combine_usage_log').insert({
-        user_id: user.id,
-        combine_id: cachedCombine.id,
-        usage_type: 'from_cache',
-        user_tier: user.tier,
-      });
-
       // Increment usage count
       await supabase
         .from('generated_combines')
         .update({ usage_count: cachedCombine.usage_count + 1 })
         .eq('id', cachedCombine.id);
 
-      // Update daily coupon count (cache hits also count)
-      await supabase
-        .from('profiles')
-        .update({
-          daily_coupon_count: currentCount + 1,
-          last_coupon_date: today,
-        })
-        .eq('id', user.id);
+      // Log & increment weekly count
+      if (isVisitor && anonymousSession) {
+        const meta = anonymousSession.metadata || {};
+        const currentCount = isNewWeek(meta.weeklyAiResetAt) ? 0 : (meta.weeklyAiCount ?? 0);
+        await adminSupabase.from('anonymous_sessions').update({
+          metadata: { ...meta, weeklyAiCount: currentCount + 1, weeklyAiResetAt: weekStart },
+        }).eq('id', anonymousSession.id);
+        await logAnonymousEvent(anonymousSession.id, 'generation_attempted', { fromCache: true });
+      } else if (user) {
+        const { data: profile } = await supabase
+          .from('profiles').select('weekly_ai_count, weekly_ai_reset_at').eq('id', user.id).single();
+        const currentCount = isNewWeek(profile?.weekly_ai_reset_at) ? 0 : (profile?.weekly_ai_count ?? 0);
+        if (!isVerified) {
+          await supabase.from('profiles').update({
+            weekly_ai_count: currentCount + 1,
+            weekly_ai_reset_at: weekStart,
+          }).eq('id', user.id);
+        }
+        await supabase.from('combine_usage_log').insert({
+          user_id: user.id, combine_id: cachedCombine.id,
+          usage_type: 'from_cache', user_tier: user.tier,
+        });
+      }
 
-      return NextResponse.json({
-        combine: cachedCombine,
-        fromCache: true,
-        dailyUsage: {
-          used: currentCount + 1,
-          limit: DAILY_COUPON_LIMIT,
-          remaining: DAILY_COUPON_LIMIT - (currentCount + 1),
-        },
-      });
+      const weeklyUsage = buildWeeklyUsage(limit, 1);
+      return NextResponse.json({ combine: cachedCombine, fromCache: true, weeklyUsage });
     }
 
-    // Prepare match data for Claude
+    // ── Prepare match data ─────────────────────────────────────────────────────
     const matchesForAnalysis = params.selectedMatches.map(m => ({
       id: m.id,
       homeTeam: m.homeTeam,
@@ -224,161 +366,92 @@ export async function POST(request: Request) {
       odds: m.odds || { home: 1.5, draw: 3.5, away: 5.0 },
     }));
 
-    // Determine bet type label
-    const betTypeLabel = params.betType === 'single' ? 'pari simple' :
-                         params.betType === 'double' ? 'doublé' :
-                         params.betType === 'triple' ? 'triplé' :
-                         `combiné de ${params.selectedMatches.length} matchs`;
+    // ── Choose model & prompt based on tier ────────────────────────────────────
+    // Verified users get full analysis with Groq 70b
+    // Visitors and registered users get concise analysis with Groq 8b
+    const useOptimized = isVerified;
+    const groqModel = useOptimized ? 'llama-3.1-70b-versatile' : 'llama-3.1-8b-instant';
+    const maxTokens = useOptimized ? 4096 : 1200;
+    const prompt = useOptimized
+      ? buildOptimizedPrompt(params, matchesForAnalysis)
+      : buildFreePrompt(params, matchesForAnalysis);
 
-    // Call Claude Sonnet for analysis
-    const prompt = `Tu es AlgoPronos AI, l'analyste sportif le plus précis d'Afrique de l'Ouest.
+    // ── Call Groq (0€) ─────────────────────────────────────────────────────────
+    const responseText = await callGroq(prompt, groqModel, maxTokens);
 
-# MISSION
-Génère un ${betTypeLabel} optimal basé sur une analyse approfondie des ${params.selectedMatches.length} match(s) sélectionné(s) par l'utilisateur.
-
-# MATCHS À ANALYSER
-${JSON.stringify(matchesForAnalysis, null, 2)}
-
-# PARAMÈTRES DU PARI
-- Type de pari : ${betTypeLabel}
-- Nombre de matchs : ${params.selectedMatches.length}
-- Niveau de risque : ${params.riskLevel === 'safe' ? 'Prudent (cotes 1.2-2.0)' : params.riskLevel === 'balanced' ? 'Équilibré (cotes 2.0-4.0)' : 'Risqué (cotes 4.0+)'}
-- Fourchette de cotes visée : ${params.oddsRange.min} - ${params.oddsRange.max}
-
-# TON TRAVAIL
-1. Analyse chaque match en profondeur
-2. Pour chaque match, choisis le meilleur pronostic (1X2, Over/Under, etc.)
-3. Fournis une analyse détaillée et professionnelle
-4. Calcule la cote totale et la probabilité estimée
-
-# FORMAT DE RÉPONSE (JSON STRICT)
-{
-  "selectedMatches": [
-    {
-      "matchId": "id du match",
-      "homeTeam": "Équipe domicile",
-      "awayTeam": "Équipe extérieur",
-      "league": "Championnat",
-      "kickoffTime": "Date et heure au format: 2025-01-15 20:00",
-      "selection": {
-        "type": "1X2|Over/Under|BTTS",
-        "value": "1|X|2|Over 2.5|Under 2.5|Oui|Non",
-        "odds": 1.85,
-        "reasoning": "Raison du choix en 1-2 phrases"
-      }
-    }
-  ],
-  "totalOdds": 8.50,
-  "probability": 72,
-  "analysis": {
-    "summary": "Résumé global du ${betTypeLabel} (2-3 phrases percutantes)",
-    "keyFactors": [
-      "Facteur clé 1",
-      "Facteur clé 2",
-      "Facteur clé 3"
-    ],
-    "matchAnalyses": [
-      {
-        "matchId": "id du match",
-        "tacticalAnalysis": "Analyse tactique approfondie (3-4 phrases)",
-        "formAnalysis": "Analyse de forme des équipes (2-3 phrases)",
-        "keyPlayers": "Joueurs clés à surveiller",
-        "prediction": "Prédiction détaillée (2-3 phrases)",
-        "confidenceLevel": 85
-      }
-    ],
-    "riskAssessment": "Évaluation des risques du ${betTypeLabel} (2-3 phrases)"
-  }
-}
-
-# RÈGLES CRITIQUES
-- Analyse TOUS les ${params.selectedMatches.length} match(s) fournis
-- Sois PRÉCIS et PROFESSIONNEL dans tes analyses
-- Utilise des données CONCRÈTES (forme récente, confrontations, etc.)
-- La probabilité doit refléter le niveau de risque choisi
-- Pour un pari simple, sois particulièrement approfondi dans l'analyse
-- Si ${params.riskLevel} = 'safe', privilégie les favoris clairs
-- Si ${params.riskLevel} = 'balanced', mix équilibré
-- Si ${params.riskLevel} = 'risky', ose des pronostics audacieux
-
-RÉPONDS UNIQUEMENT AVEC LE JSON, RIEN D'AUTRE.`;
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 4000,
-      temperature: 0.7,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const responseText = message.content[0].type === 'text'
-      ? message.content[0].text
-      : '';
-
-    // Parse JSON response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Claude response not in expected JSON format');
-    }
+    if (!jsonMatch) throw new Error('Groq response not in expected JSON format');
 
-    const claudeResponse = JSON.parse(jsonMatch[0]);
+    const groqResponse = JSON.parse(jsonMatch[0]);
 
-    // Create combine record
+    // ── Save to DB ─────────────────────────────────────────────────────────────
     const combineId = uuidv4();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h cache
 
     const generatedCombine = {
       id: combineId,
       cache_key: cacheKey,
       parameters: params,
-      matches: claudeResponse.selectedMatches,
-      total_odds: claudeResponse.totalOdds,
-      estimated_probability: claudeResponse.probability,
-      analysis: claudeResponse.analysis,
+      matches: groqResponse.selectedMatches,
+      total_odds: groqResponse.totalOdds,
+      estimated_probability: groqResponse.probability,
+      analysis: groqResponse.analysis,
       usage_count: 1,
-      first_generated_by: user.id,
+      first_generated_by: user?.id || null,
       expires_at: expiresAt.toISOString(),
     };
 
-    // Save to database
-    const { error: insertError } = await supabase
-      .from('generated_combines')
-      .insert(generatedCombine);
+    await supabase.from('generated_combines').insert(generatedCombine);
 
-    if (insertError) {
-      console.error('Error saving combine:', insertError);
+    // ── Update weekly count ────────────────────────────────────────────────────
+    let usedThisWeek = 1;
+
+    if (isVisitor && anonymousSession) {
+      const meta = anonymousSession.metadata || {};
+      const currentCount = isNewWeek(meta.weeklyAiResetAt) ? 0 : (meta.weeklyAiCount ?? 0);
+      usedThisWeek = currentCount + 1;
+      await adminSupabase.from('anonymous_sessions').update({
+        metadata: { ...meta, weeklyAiCount: usedThisWeek, weeklyAiResetAt: weekStart },
+      }).eq('id', anonymousSession.id);
+      await logAnonymousEvent(anonymousSession.id, 'generation_attempted', {
+        combineId, fromCache: false,
+      });
+    } else if (user) {
+      await supabase.from('combine_usage_log').insert({
+        user_id: user.id, combine_id: combineId,
+        usage_type: 'generated', user_tier: user.tier,
+      });
+      if (!isVerified) {
+        const { data: profile } = await supabase
+          .from('profiles').select('weekly_ai_count, weekly_ai_reset_at').eq('id', user.id).single();
+        const currentCount = isNewWeek(profile?.weekly_ai_reset_at) ? 0 : (profile?.weekly_ai_count ?? 0);
+        usedThisWeek = currentCount + 1;
+        await supabase.from('profiles').update({
+          weekly_ai_count: usedThisWeek,
+          weekly_ai_reset_at: weekStart,
+        }).eq('id', user.id);
+      }
     }
-
-    // Log usage
-    await supabase.from('combine_usage_log').insert({
-      user_id: user.id,
-      combine_id: combineId,
-      usage_type: 'generated',
-      user_tier: user.tier,
-    });
-
-    // Update daily coupon count
-    await supabase
-      .from('profiles')
-      .update({
-        daily_coupon_count: currentCount + 1,
-        last_coupon_date: today,
-      })
-      .eq('id', user.id);
 
     return NextResponse.json({
       combine: generatedCombine,
       fromCache: false,
-      dailyUsage: {
-        used: currentCount + 1,
-        limit: DAILY_COUPON_LIMIT,
-        remaining: DAILY_COUPON_LIMIT - (currentCount + 1),
-      },
+      isOptimized: useOptimized,
+      weeklyUsage: buildWeeklyUsage(limit, usedThisWeek),
     });
+
   } catch (error) {
     console.error('Error generating combine:', error);
-    return NextResponse.json(
-      { error: 'Generation failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
   }
+}
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
+function buildWeeklyUsage(limit: number, used: number) {
+  return {
+    used,
+    limit: limit >= 999 ? null : limit, // null = unlimited for verified users
+    remaining: limit >= 999 ? null : Math.max(0, limit - used),
+  };
 }

@@ -334,10 +334,28 @@ export async function isUnverifiedUser(): Promise<boolean> {
 }
 
 /**
- * Check if the current user can generate coupons
- * (Only verified authenticated users can generate)
+ * Check if the current user can attempt coupon generation.
+ * Visitors (anonymous) and registered users can generate with weekly limits.
+ * Verified users generate without limits.
+ * Returns false only when there is no session at all.
  */
 export async function canGenerateCoupons(): Promise<boolean> {
   const context = await getUserContext();
-  return context?.type === 'authenticated' && context.tier === 'verified';
+  return context !== null;
+}
+
+/**
+ * Returns the generation tier for quota/prompt decisions.
+ * 'verified'   → unlimited, optimized prompt (Groq 70b)
+ * 'registered' → 2/week, free prompt (Groq 8b)
+ * 'visitor'    → 1/week, free prompt (Groq 8b)
+ * null         → no session, cannot generate
+ */
+export async function getGenerationTier(): Promise<'verified' | 'registered' | 'visitor' | null> {
+  const context = await getUserContext();
+  if (!context) return null;
+  if (context.type === 'authenticated') {
+    return context.tier === 'verified' ? 'verified' : 'registered';
+  }
+  return 'visitor';
 }
