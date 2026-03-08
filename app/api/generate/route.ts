@@ -61,7 +61,7 @@ function isNewWeek(resetAt: string | null | undefined): boolean {
 // ─── Cache key ────────────────────────────────────────────────────────────────
 
 // Increment this when prompts change significantly — forces cache invalidation
-const PROMPT_VERSION = 2;
+const PROMPT_VERSION = 3;
 
 function generateCacheKey(params: CombineParameters): string {
   const normalized = {
@@ -157,90 +157,121 @@ function getRiskStrategy(riskLevel: 'safe' | 'balanced' | 'risky'): string {
   }
 }
 
-function getJsonSchema(tier: 'free' | 'optimized', betType: string, matchCount: number): string {
-  const betLabel = betType === 'single' ? 'pari simple' :
-    betType === 'double' ? 'doublé' :
-    betType === 'triple' ? 'triplé' :
-    `combiné de ${matchCount} matchs`;
+// ─── Match formatter ──────────────────────────────────────────────────────────
 
-  const matchSchema = tier === 'free'
+function formatMatchesForPrompt(matches: {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  league: string;
+  country: string;
+  date: string;
+  time: string;
+  odds: { home: number; draw: number; away: number };
+}[]): string {
+  return matches.map((m, i) => `MATCH ${i + 1}:
+  matchId: "${m.id}"
+  Championnat: ${m.league} (${m.country})
+  Date/Heure: ${m.date} ${m.time}
+  └─ DOMICILE: ${m.homeTeam}  →  Cote victoire "1" = ${m.odds.home}
+  └─ EXTÉRIEUR: ${m.awayTeam}  →  Cote victoire "2" = ${m.odds.away}
+  └─ NUL: Cote "X" = ${m.odds.draw}
+  └─ Double Chance 1X (${m.homeTeam} gagne ou nul) = ${Math.round(m.odds.home * m.odds.draw / (m.odds.home + m.odds.draw) * 100) / 100}
+  └─ Double Chance X2 (nul ou ${m.awayTeam} gagne) = ${Math.round(m.odds.draw * m.odds.away / (m.odds.draw + m.odds.away) * 100) / 100}
+  └─ Over 2.5 buts ≈ calcul bookmaker | Under 2.5 buts ≈ calcul bookmaker
+  RAPPEL: value "1" = ${m.homeTeam} gagne | value "X" = nul | value "2" = ${m.awayTeam} gagne`).join('\n\n');
+}
+
+function buildMatchIdList(matches: { id: string; homeTeam: string; awayTeam: string }[]): string {
+  return matches.map((m, i) =>
+    `  - Match ${i + 1} → matchId OBLIGATOIRE: "${m.id}" (${m.homeTeam} vs ${m.awayTeam})`
+  ).join('\n');
+}
+
+function getJsonSchema(tier: 'free' | 'optimized', matchCount: number): string {
+  const matchExample = tier === 'free'
     ? `{
-      "matchId": "id exact du match fourni",
-      "homeTeam": "nom exact",
-      "awayTeam": "nom exact",
-      "league": "championnat exact",
-      "kickoffTime": "YYYY-MM-DD HH:MM",
+      "matchId": "<id exact du match — voir liste MATCHIDS OBLIGATOIRES>",
+      "homeTeam": "<copie exacte du nom domicile>",
+      "awayTeam": "<copie exacte du nom extérieur>",
+      "league": "<copie exacte du championnat>",
+      "kickoffTime": "<date> <heure>",
       "selection": {
-        "type": "1X2|Over/Under|Double Chance",
-        "value": "1|X|2|Over 2.5|Under 2.5|1X|X2",
+        "type": "1X2",
+        "value": "1",
         "odds": 1.75,
-        "reasoning": "1 phrase factuelle basée sur les cotes fournies"
+        "reasoning": "Phrase courte ex: Le marché donne 70% de chance à [ÉQUIPE] (cote 1.43) face à un adversaire coté à 6.50."
       }
     }`
     : `{
-      "matchId": "id exact du match fourni",
-      "homeTeam": "nom exact",
-      "awayTeam": "nom exact",
-      "league": "championnat exact",
-      "kickoffTime": "YYYY-MM-DD HH:MM",
+      "matchId": "<id exact du match — voir liste MATCHIDS OBLIGATOIRES>",
+      "homeTeam": "<copie exacte du nom domicile>",
+      "awayTeam": "<copie exacte du nom extérieur>",
+      "league": "<copie exacte du championnat>",
+      "kickoffTime": "<date> <heure>",
       "selection": {
-        "type": "1X2|Over/Under|BTTS|Double Chance|Handicap",
-        "value": "valeur précise (ex: Over 2.5, BTTS Oui, Handicap -1)",
-        "odds": 1.85,
-        "reasoning": "2-3 phrases avec raisonnement basé sur les cotes et la logique de risque"
+        "type": "1X2",
+        "value": "1",
+        "odds": 1.75,
+        "reasoning": "2-3 phrases. Ex: [ÉQUIPE] est nettement favori à domicile (cote 1.52 vs 5.20 extérieur). L'écart de cote de 3.68 indique une confiance élevée du marché. Ce choix colle avec notre stratégie équilibrée."
       }
     }`;
 
-  const analysisSchema = tier === 'free'
-    ? `"summary": "2 phrases max. Résume pourquoi ces paris sont sécurisés/intéressants. Mentionne qu'un compte 1xBet optimisé IA donne accès à des analyses complètes.",
-    "keyFactors": ["facteur 1 tiré des cotes", "facteur 2"],
+  const analysisExample = tier === 'free'
+    ? `"summary": "Ce billet [type] vise [objectif clair]. [Phrase sur le profil de risque.]",
+    "keyFactors": ["Favori net à domicile sur Match 1", "Marché offensif sur Match 2", "..."],
     "matchAnalyses": [
       {
-        "matchId": "id",
-        "tacticalAnalysis": "1 phrase",
-        "formAnalysis": "1 phrase basée sur la position des cotes",
-        "keyPlayers": "N/A (données non disponibles en mode découverte)",
-        "prediction": "1 phrase claire",
-        "confidenceLevel": 70
+        "matchId": "<id exact>",
+        "tacticalAnalysis": "Une phrase concrète. Ex: L'écart de cote (1.35 vs 7.00) indique un favori net.",
+        "formAnalysis": "Une phrase. Ex: Le marché n'a pas bougé, signal de stabilité.",
+        "keyPlayers": "Non disponible en mode découverte",
+        "prediction": "Une phrase directe. Ex: [ÉQUIPE DOMICILE] devrait s'imposer.",
+        "confidenceLevel": 78
       }
     ],
-    "riskAssessment": "1 phrase sur le niveau de risque global du billet"`
-    : `"summary": "3-4 phrases percutantes expliquant la logique globale du billet",
-    "keyFactors": ["Facteur 1 (ex: cote domicile attractive)", "Facteur 2", "Facteur 3"],
+    "riskAssessment": "Risque [niveau]: [raison concrète]. Principale menace: [scénario d'échec]"`
+    : `"summary": "Ce billet [type] est construit sur [logique]. [Argument value-bet]. [Avertissement honnête si risque élevé].",
+    "keyFactors": ["Valeur identifiée sur [équipe] Match 1 (cote X vs probabilité Y)", "Marché Over/Under justifié car..."],
     "matchAnalyses": [
       {
-        "matchId": "id",
-        "tacticalAnalysis": "Analyse tactique basée sur les données disponibles (2-3 phrases)",
-        "formAnalysis": "Analyse de forme inférée depuis les cotes (2 phrases)",
-        "keyPlayers": "Joueurs clés pertinents si connus",
-        "prediction": "Prédiction claire et argumentée (2 phrases)",
-        "confidenceLevel": 75
+        "matchId": "<id exact>",
+        "tacticalAnalysis": "2-3 phrases avec cotes citées explicitement.",
+        "formAnalysis": "2 phrases. Inférence depuis les cotes et logique football.",
+        "keyPlayers": "Joueurs connus si pertinents, sinon 'Données non disponibles'",
+        "prediction": "Prédiction argumentée avec les cotes. Ex: Avec une cote de 1.65, le marché donne 60% de chance à [ÉQUIPE].",
+        "confidenceLevel": 68
       }
     ],
-    "riskAssessment": "Évaluation honnête des risques (2 phrases). Mentionne les scénarios d'échec possibles."`;
+    "riskAssessment": "2 phrases honnêtes. Cite le principal risque de chaque sélection. Ex: Le Match 2 est le maillon faible (cote 2.80 = seul. 36% de probabilité implicite)."`;
 
-  return `RÉPONDS UNIQUEMENT AVEC CE JSON (aucun texte avant ou après, aucun markdown):
+  return `FORMAT JSON STRICT — RÉPONDS UNIQUEMENT AVEC CE JSON (zéro texte avant ou après, zéro markdown):
 {
-  "selectedMatches": [${matchSchema}],
+  "selectedMatches": [
+    ${matchExample}
+    // ... répète pour chaque match — EXACTEMENT ${matchCount} entrées
+  ],
   "totalOdds": 3.20,
-  "probability": 58,
+  "probability": 55,
   "analysis": {
-    ${analysisSchema}
+    ${analysisExample}
   }
 }
 
-RÈGLES ABSOLUES:
-- matchId doit être l'id EXACT fourni dans les données
-- odds dans selectedMatches doit être une des cotes fournies dans les données match (home/draw/away)
-- Ne jamais inventer une cote qui n'existe pas dans les données
-- totalOdds = produit de toutes les cotes sélectionnées (arrondi à 2 décimales)
-- probability = estimation honnête en % du billet entier (pas par match)
-- Si tu ne peux pas justifier un pari, ne le mets pas`;
+RÈGLES CRITIQUES — VIOLATION = RÉPONSE INVALIDE:
+1. selectedMatches doit contenir EXACTEMENT ${matchCount} objets — ni plus ni moins
+2. Chaque matchId doit être UNIQUE — UN seul pari par match physique, JAMAIS deux fois le même
+3. Les matchIds DOIVENT être exactement ceux listés dans MATCHIDS OBLIGATOIRES
+4. odds = cote exacte du résultat choisi (ex: si value="2", alors odds = cote "away" du match)
+5. Si value="1" → odds = cote home. Si value="X" → odds = cote draw. Si value="2" → odds = cote away
+6. totalOdds = multiplication de toutes les odds (ex: 1.75 × 2.10 = 3.68)
+7. Ne jamais inventer une cote — utilise uniquement les cotes fournies dans les données match
+8. reasoning doit citer le NOM des équipes concernées, pas juste "l'équipe"`;
 }
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
 
-function buildFreePrompt(params: CombineParameters, matches: object[]): {
+function buildFreePrompt(params: CombineParameters, matches: Parameters<typeof formatMatchesForPrompt>[0]): {
   system: string;
   user: string;
 } {
@@ -249,31 +280,37 @@ function buildFreePrompt(params: CombineParameters, matches: object[]): {
     params.betType === 'triple' ? 'triplé' :
     `combiné de ${matches.length} matchs`;
 
-  const system = `Tu es AlgoPronos AI, un assistant d'analyse sportive rationnel et honnête.
-Tu génères des pronostics basés sur les cotes bookmaker fournies.
-Tu ne prétends JAMAIS avoir accès à des données en temps réel (blessures, compositions d'équipe) sauf si elles sont explicitement fournies.
-Tu bases tes analyses sur la logique des cotes: une cote basse = forte probabilité implicite selon le marché.
+  const system = `Tu es AlgoPronos AI, un assistant d'analyse de paris sportifs rigoureux.
+Tu génères des pronostics basés UNIQUEMENT sur les cotes bookmaker fournies. Tu n'inventes aucune statistique.
+Une cote basse = forte probabilité implicite selon le marché (ex: cote 1.40 ≈ 71% de probabilité).
+Une cote haute = faible probabilité implicite (ex: cote 5.00 ≈ 20% de probabilité).
 
-IMPORTANT: Tu réponds TOUJOURS en JSON pur, jamais de texte ou de markdown autour.`;
+RÈGLE D'OR: Dans "1X2", le "1" désigne TOUJOURS la victoire de l'équipe à DOMICILE (homeTeam),
+"X" le nul, et "2" la victoire de l'équipe à l'EXTÉRIEUR (awayTeam).
 
-  const user = `Génère un ${betLabel} (mode découverte - analyse simplifiée).
+Tu réponds EXCLUSIVEMENT en JSON valide. Aucun texte, aucun markdown, aucune explication en dehors du JSON.`;
+
+  const user = `Génère un ${betLabel} — MODE DÉCOUVERTE (marchés simples uniquement).
 
 ${getRiskStrategy(params.riskLevel)}
 
-DONNÉES DES MATCHS:
-${JSON.stringify(matches, null, 2)}
+MATCHIDS OBLIGATOIRES — tu dois utiliser exactement ces ids, un par match, sans doublon:
+${buildMatchIdList(matches)}
+
+DONNÉES COMPLÈTES DES MATCHS:
+${formatMatchesForPrompt(matches)}
 
 CONTRAINTES:
-- Sélectionne EXACTEMENT ${matches.length} match(s) parmi ceux fournis
-- Types de paris autorisés en mode découverte: 1X2, Over/Under 2.5, Double Chance uniquement
-- Fourchette de cotes globale visée: ${params.oddsRange.min} - ${params.oddsRange.max}
+- Marchés autorisés: 1X2 (valeurs: "1", "X" ou "2"), Over 2.5, Under 2.5, Double Chance ("1X" ou "X2")
+- Fourchette de cotes totale visée: ${params.oddsRange.min} – ${params.oddsRange.max}
+- UN pari par match physique (matchId unique dans le tableau)
 
-${getJsonSchema('free', params.betType, matches.length)}`;
+${getJsonSchema('free', matches.length)}`;
 
   return { system, user };
 }
 
-function buildOptimizedPrompt(params: CombineParameters, matches: object[]): {
+function buildOptimizedPrompt(params: CombineParameters, matches: Parameters<typeof formatMatchesForPrompt>[0]): {
   system: string;
   user: string;
 } {
@@ -282,32 +319,36 @@ function buildOptimizedPrompt(params: CombineParameters, matches: object[]): {
     params.betType === 'triple' ? 'triplé' :
     `combiné de ${matches.length} matchs`;
 
-  const system = `Tu es AlgoPronos AI Premium, un conseiller en paris sportifs expert et rigoureux.
-Tu analyses les matchs comme un professionnel: tu lis les cotes, tu identifies la valeur, tu choisis le marché le plus adapté au profil de risque.
+  const system = `Tu es AlgoPronos AI Premium, conseiller en paris sportifs professionnel.
+Tu analyses chaque match comme un trader: tu lis les cotes, tu identifies la valeur, tu choisis le marché optimal.
 
-PRINCIPES FONDAMENTAUX:
-1. Les cotes bookmaker reflètent la probabilité du marché. Cote 2.00 = ~50% de probabilité implicite.
-2. Une "value bet" existe quand tu penses que la probabilité réelle > probabilité implicite de la cote.
-3. Tu ne prétends jamais avoir des infos secrètes. Tu raisonnes depuis les cotes et les logiques football.
-4. Tu es honnête sur l'incertitude: tu ne dis pas "certaine victoire", tu dis "forte probabilité de".
-5. Tu adaptes STRICTEMENT ta sélection au niveau de risque demandé.
+RÈGLES FONDAMENTALES:
+1. Probabilité implicite d'une cote C = 1/C × 100%. Ex: cote 2.50 = 40% de probabilité implicite.
+2. "Value bet" = quand tu estimes la probabilité réelle supérieure à la probabilité implicite de la cote.
+3. Dans "1X2": "1" = victoire DOMICILE (homeTeam), "X" = nul, "2" = victoire EXTÉRIEUR (awayTeam).
+4. Si tu choisis value="1", le champ odds DOIT être la cote "home" du match. Idem pour X et 2.
+5. Tu es honnête: pas de "victoire certaine", mais "le marché donne X% de chance à...".
+6. Tu adaptes STRICTEMENT chaque sélection à la stratégie de risque demandée.
 
-IMPORTANT: Tu réponds TOUJOURS en JSON pur, jamais de texte ou de markdown autour.`;
+Tu réponds EXCLUSIVEMENT en JSON valide. Aucun texte, aucun markdown autour.`;
 
-  const user = `Génère un ${betLabel} optimisé pour un utilisateur compte 1xBet IA vérifié.
+  const user = `Génère un ${betLabel} — MODE PREMIUM (tous marchés disponibles).
 
 ${getRiskStrategy(params.riskLevel)}
 
-DONNÉES DES MATCHS (utilise ces cotes comme base d'analyse):
-${JSON.stringify(matches, null, 2)}
+MATCHIDS OBLIGATOIRES — tu dois utiliser exactement ces ids, un par match, sans doublon:
+${buildMatchIdList(matches)}
+
+DONNÉES COMPLÈTES DES MATCHS:
+${formatMatchesForPrompt(matches)}
 
 CONTRAINTES:
-- Sélectionne EXACTEMENT ${matches.length} match(s) parmi ceux fournis
-- Tous types de marchés autorisés: 1X2, Over/Under, BTTS, Double Chance, Handicap
-- Fourchette de cotes globale visée: ${params.oddsRange.min} - ${params.oddsRange.max}
-- Chaque reasoning doit mentionner la cote choisie et pourquoi elle représente de la valeur selon la stratégie
+- Marchés disponibles: 1X2, Over/Under (1.5/2.5/3.5), BTTS (Oui/Non), Double Chance, Handicap asiatique
+- Fourchette de cotes totale visée: ${params.oddsRange.min} – ${params.oddsRange.max}
+- UN pari par match physique (matchId unique dans le tableau)
+- Chaque reasoning DOIT citer les cotes numériques et les noms d'équipes exacts
 
-${getJsonSchema('optimized', params.betType, matches.length)}`;
+${getJsonSchema('optimized', matches.length)}`;
 
   return { system, user };
 }
