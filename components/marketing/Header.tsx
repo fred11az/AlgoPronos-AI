@@ -8,10 +8,10 @@ import { Menu, X, Sparkles, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { label: 'Fonctionnalités', href: '#features' },
   { label: 'Comment ça marche', href: '#how-it-works' },
-  { label: 'Tarifs', href: '#pricing' },
-  { label: 'Témoignages', href: '#testimonials' },
+  { label: 'Données analysées', href: '#data' },
+  { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
+  { label: 'Bookmakers', href: '#bookmakers' },
 ];
 
 export function Header() {
