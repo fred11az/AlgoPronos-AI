@@ -62,7 +62,7 @@ function isNewWeek(resetAt: string | null | undefined): boolean {
 // ─── Cache key ────────────────────────────────────────────────────────────────
 
 // Increment this when prompts change significantly — forces cache invalidation
-const PROMPT_VERSION = 3;
+const PROMPT_VERSION = 4;
 
 function generateCacheKey(params: CombineParameters): string {
   const normalized = {
@@ -209,84 +209,60 @@ function buildMatchIdList(matches: { id: string; homeTeam: string; awayTeam: str
 }
 
 function getJsonSchema(tier: 'free' | 'optimized', matchCount: number): string {
-  const matchExample = tier === 'free'
-    ? `{
-      "matchId": "<id exact du match — voir liste MATCHIDS OBLIGATOIRES>",
-      "homeTeam": "<copie exacte du nom domicile>",
-      "awayTeam": "<copie exacte du nom extérieur>",
-      "league": "<copie exacte du championnat>",
-      "kickoffTime": "<date> <heure>",
-      "selection": {
-        "type": "1X2",
-        "value": "1",
-        "odds": 1.75,
-        "reasoning": "Phrase courte ex: Le marché donne 70% de chance à [ÉQUIPE] (cote 1.43) face à un adversaire coté à 6.50."
-      }
-    }`
-    : `{
-      "matchId": "<id exact du match — voir liste MATCHIDS OBLIGATOIRES>",
-      "homeTeam": "<copie exacte du nom domicile>",
-      "awayTeam": "<copie exacte du nom extérieur>",
-      "league": "<copie exacte du championnat>",
-      "kickoffTime": "<date> <heure>",
-      "selection": {
-        "type": "1X2",
-        "value": "1",
-        "odds": 1.75,
-        "reasoning": "2-3 phrases. Ex: [ÉQUIPE] est nettement favori à domicile (cote 1.52 vs 5.20 extérieur). L'écart de cote de 3.68 indique une confiance élevée du marché. Ce choix colle avec notre stratégie équilibrée."
-      }
-    }`;
+  const extraMarkets = tier === 'optimized' ? ' | BTTS Oui | BTTS Non | Handicap -1 | Handicap +1' : '';
 
-  const analysisExample = tier === 'free'
-    ? `"summary": "Ce billet [type] vise [objectif clair]. [Phrase sur le profil de risque.]",
-    "keyFactors": ["Favori net à domicile sur Match 1", "Marché offensif sur Match 2", "..."],
-    "matchAnalyses": [
-      {
-        "matchId": "<id exact>",
-        "tacticalAnalysis": "Une phrase concrète. Ex: L'écart de cote (1.35 vs 7.00) indique un favori net.",
-        "formAnalysis": "Une phrase. Ex: Le marché n'a pas bougé, signal de stabilité.",
-        "keyPlayers": "Non disponible en mode découverte",
-        "prediction": "Une phrase directe. Ex: [ÉQUIPE DOMICILE] devrait s'imposer.",
-        "confidenceLevel": 78
-      }
-    ],
-    "riskAssessment": "Risque [niveau]: [raison concrète]. Principale menace: [scénario d'échec]"`
-    : `"summary": "Ce billet [type] est construit sur [logique]. [Argument value-bet]. [Avertissement honnête si risque élevé].",
-    "keyFactors": ["Valeur identifiée sur [équipe] Match 1 (cote X vs probabilité Y)", "Marché Over/Under justifié car..."],
-    "matchAnalyses": [
-      {
-        "matchId": "<id exact>",
-        "tacticalAnalysis": "2-3 phrases avec cotes citées explicitement.",
-        "formAnalysis": "2 phrases. Inférence depuis les cotes et logique football.",
-        "keyPlayers": "Joueurs connus si pertinents, sinon 'Données non disponibles'",
-        "prediction": "Prédiction argumentée avec les cotes. Ex: Avec une cote de 1.65, le marché donne 60% de chance à [ÉQUIPE].",
-        "confidenceLevel": 68
-      }
-    ],
-    "riskAssessment": "2 phrases honnêtes. Cite le principal risque de chaque sélection. Ex: Le Match 2 est le maillon faible (cote 2.80 = seul. 36% de probabilité implicite)."`;
-
-  return `FORMAT JSON STRICT — RÉPONDS UNIQUEMENT AVEC CE JSON (zéro texte avant ou après, zéro markdown):
+  return `RÉPONDS UNIQUEMENT AVEC CE JSON VALIDE — aucun texte avant ou après, aucun markdown:
 {
   "selectedMatches": [
-    ${matchExample}
-    // ... répète pour chaque match — EXACTEMENT ${matchCount} entrées
+    {
+      "matchId": "STRING — id exact de MATCHIDS OBLIGATOIRES",
+      "homeTeam": "STRING — nom exact copié des données",
+      "awayTeam": "STRING — nom exact copié des données",
+      "league": "STRING — championnat exact copié des données",
+      "kickoffTime": "STRING — date et heure du match",
+      "selection": {
+        "type": "STRING — 1X2 | Over/Under | Double Chance${extraMarkets}",
+        "value": "STRING — 1 | X | 2 | Over 2.5 | Under 2.5 | 1X | X2${extraMarkets}",
+        "odds": NUMBER — cote décimale exacte du résultat choisi,
+        "reasoning": "STRING — explication avec noms d'équipes et cotes numériques"
+      }
+    }
   ],
-  "totalOdds": 3.20,
-  "probability": 55,
+  "totalOdds": NUMBER — produit multiplié de toutes les odds,
+  "probability": NUMBER — estimation % du billet entier,
   "analysis": {
-    ${analysisExample}
+    "summary": "STRING — résumé de la logique du billet",
+    "keyFactors": ["STRING — facteur 1", "STRING — facteur 2"],
+    "matchAnalyses": [
+      {
+        "matchId": "STRING — id exact du match",
+        "tacticalAnalysis": "STRING — analyse tactique",
+        "formAnalysis": "STRING — analyse de forme",
+        "keyPlayers": "STRING — joueurs clés ou Non disponible",
+        "prediction": "STRING — prédiction avec nom d'équipe",
+        "confidenceLevel": NUMBER — entre 38 et 88
+      }
+    ],
+    "riskAssessment": "STRING — évaluation des risques"
   }
 }
 
-RÈGLES CRITIQUES — VIOLATION = RÉPONSE INVALIDE:
-1. selectedMatches doit contenir EXACTEMENT ${matchCount} objets — ni plus ni moins
-2. Chaque matchId doit être UNIQUE — UN seul pari par match physique, JAMAIS deux fois le même
-3. Les matchIds DOIVENT être exactement ceux listés dans MATCHIDS OBLIGATOIRES
-4. odds = cote exacte du résultat choisi (ex: si value="2", alors odds = cote "away" du match)
-5. Si value="1" → odds = cote home. Si value="X" → odds = cote draw. Si value="2" → odds = cote away
-6. totalOdds = multiplication de toutes les odds (ex: 1.75 × 2.10 = 3.68)
-7. Ne jamais inventer une cote — utilise uniquement les cotes fournies dans les données match
-8. reasoning doit citer le NOM des équipes concernées, pas juste "l'équipe"`;
+RÈGLES DE CONTENU — chaque champ STRING doit contenir du vrai texte, pas des mots génériques:
+- reasoning: cite le nom exact des équipes + les cotes numériques. Ex: "Villarreal (cote 1.35) est largement favori face à Elche (cote 7.50). L'écart de 6.15 indique une domination attendue."
+- summary: 2 phrases décrivant la logique réelle du billet. Ex: "Ce triplé mise sur trois favoris nets avec des cotes entre 1.35 et 2.49. Le risque principal est le match St. Pauli (cote 2.49, 40% de probabilité implicite)."
+- keyFactors: facteurs observés dans les vraies données. Ex: "Écart de cote Villarreal/Elche = 6.15 → favori très net"
+- tacticalAnalysis: observation basée sur la position des cotes. Ex: "Villarreal à domicile à 1.35 vs Elche à 7.50 indique un favori quasi certain."
+- formAnalysis: inférence logique. Ex: "Une cote aussi basse suggère une forme domicile solide et un adversaire affaibli."
+- prediction: phrase directe avec nom d'équipe. Ex: "Villarreal devrait s'imposer à domicile."
+- riskAssessment: identifie le maillon faible. Ex: "Le billet dépend du match AS Roma (cote 3.18 = 31% de probabilité), le plus risqué des trois."
+- confidenceLevel: calcule depuis la cote choisie. Cote 1.40→80, 1.70→72, 2.00→62, 2.50→50, 3.00→42, 3.50→38
+
+RÈGLES TECHNIQUES:
+1. selectedMatches: EXACTEMENT ${matchCount} objets, chaque matchId UNIQUE
+2. matchIds: exactement ceux de MATCHIDS OBLIGATOIRES, rien d'autre
+3. odds: si value="1" → cote home | si value="X" → cote draw | si value="2" → cote away
+4. totalOdds: calcule toi-même le produit (ex: 1.35 × 2.49 × 3.18 = 10.69)
+5. Ne jamais inventer une cote absente des données`;
 }
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
