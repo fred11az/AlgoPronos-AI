@@ -312,7 +312,7 @@ export default function GeneratePage() {
         { text: 'Analyse des équipes sélectionnées...', progress: 15 },
         { text: 'Étude des statistiques récentes...', progress: 30 },
         { text: 'Analyse des confrontations directes...', progress: 45 },
-        { text: 'Consultation de l\'IA Claude Sonnet 4.5...', progress: 60 },
+        { text: 'AlgoPronos AI en cours d\'analyse pour vous...', progress: 60 },
         { text: 'Calcul des probabilités...', progress: 75 },
         { text: 'Génération des pronostics détaillés...', progress: 90 },
         { text: 'Finalisation...', progress: 98 },
@@ -399,7 +399,7 @@ export default function GeneratePage() {
 
               <div className="flex items-center justify-center gap-2 text-sm text-text-muted">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Claude Sonnet 4.5 analyse {selectedMatches.length} match{selectedMatches.length > 1 ? 's' : ''}...</span>
+                <span>AlgoPronos AI analyse {selectedMatches.length} match{selectedMatches.length > 1 ? 's' : ''}...</span>
               </div>
             </div>
           </CardContent>
