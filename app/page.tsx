@@ -136,17 +136,17 @@ const faqItems = [
   {
     question: 'AlgoPronos AI est vraiment 100% gratuit ?',
     answer:
-      'Oui, absolument ! AlgoPronos AI est entièrement gratuit. La seule condition est de créer un compte 1xBet avec notre code promo. Vous bénéficiez alors de 2 coupons IA par jour, sans jamais payer.',
+      'Oui, absolument ! AlgoPronos AI est entièrement gratuit. La seule condition est de créer un compte 1xBet via notre lien partenaire. Vous bénéficiez alors d\'analyses IA sans jamais payer.',
   },
   {
-    question: 'Combien de coupons puis-je générer par jour ?',
+    question: 'Combien de coupons puis-je générer par semaine ?',
     answer:
-      'Chaque utilisateur vérifié peut générer 2 coupons par jour. Le compteur se réinitialise automatiquement à minuit. Cela vous permet d\'analyser les matchs du jour et du lendemain.',
+      'Chaque utilisateur vérifié bénéficie d\'analyses IA illimitées. Les visiteurs et utilisateurs inscrits disposent d\'un quota hebdomadaire qui s\'élargit à chaque palier.',
   },
   {
     question: 'Combien de temps prend la vérification ?',
     answer:
-      'La vérification est généralement effectuée sous 24 heures maximum. Une fois approuvée, votre compte est activé et vous pouvez commencer à générer des coupons immédiatement.',
+      'La vérification est généralement effectuée sous 24 heures maximum. Une fois approuvée, votre compte est activé et vous pouvez commencer à générer des pronostics immédiatement.',
   },
   {
     question: 'Puis-je utiliser AlgoPronos AI sur mobile ?',
@@ -179,7 +179,7 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 bg-success/10 border border-success/20 rounded-full px-4 py-2 mb-8">
             <Gift className="h-4 w-4 text-success" />
             <span className="text-success text-sm font-medium">
-              100% Gratuit - 2 coupons IA par jour
+              100% Gratuit - Analyses IA illimitées
             </span>
           </div>
 
@@ -197,7 +197,7 @@ export default function LandingPage() {
           {/* Subheadline */}
           <p className="text-lg sm:text-xl md:text-2xl text-text-secondary mb-12 max-w-3xl mx-auto">
             Analyses professionnelles automatisées. 100% gratuit avec votre compte 1xBet.
-            2 coupons IA par jour.
+            Pronostics IA personnalisés selon votre profil.
           </p>
 
           {/* Stats */}
@@ -212,20 +212,20 @@ export default function LandingPage() {
               value="15,234"
               label="Utilisateurs actifs"
             />
-            <Stat icon={<Zap className="h-6 w-6" />} value="<15s" label="Génération IA" />
+            <Stat icon={<Zap className="h-6 w-6" />} value="&lt;15s" label="Génération IA" />
           </div>
 
           {/* CTA */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="xl" variant="gradient" asChild>
-              <Link href="/unlock-vip">
+              <Link href="/onboarding">
                 <Rocket className="mr-2 h-5 w-5" />
                 Activer Mon Compte Gratuit
               </Link>
             </Button>
             <Button size="xl" variant="outline" asChild>
-              <Link href="/register">
-                Créer un compte
+              <Link href="/try-free">
+                Essayer sans compte
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -324,7 +324,7 @@ export default function LandingPage() {
             <StepCard
               number="1"
               title="Créez un compte 1xBet"
-              description="Utilisez notre code promo pour bénéficier des bonus et activer AlgoPronos AI"
+              description="Utilisez notre lien partenaire pour bénéficier des bonus et activer AlgoPronos AI"
             />
             <StepCard
               number="2"
@@ -351,7 +351,7 @@ export default function LandingPage() {
               Accès Complet Sans Payer
             </h2>
             <p className="text-text-secondary text-lg">
-              Créez simplement un compte 1xBet avec notre code promo
+              Créez simplement un compte 1xBet via notre lien partenaire
             </p>
           </div>
 
@@ -368,19 +368,19 @@ export default function LandingPage() {
                 <div className="flex items-baseline justify-center gap-1">
                   <span className="text-5xl font-bold text-white">0 FCFA</span>
                 </div>
-                <p className="text-text-muted mt-1">2 coupons par jour</p>
+                <p className="text-text-muted mt-1">Analyses IA illimitées</p>
                 <p className="text-text-secondary mt-4">
-                  Activez avec un compte 1xBet et notre code promo
+                  Activez avec un compte 1xBet via notre lien partenaire
                 </p>
               </div>
               <ul className="space-y-4 mb-8">
                 {[
-                  '2 coupons IA par jour',
+                  'Analyses IA illimitées',
                   'Analyses complètes par match',
                   'Tous les championnats',
                   'Toutes les cotes (1.5 à 100+)',
-                  'Historique de vos coupons',
-                  'Bonus 1xBet jusqu\'à 208,000 FCFA',
+                  'Historique de vos pronostics',
+                  'Bonus 1xBet jusqu\'à 250 000 FCFA',
                   'Support par email',
                   'Accès à vie',
                 ].map((feature, index) => (
@@ -396,7 +396,7 @@ export default function LandingPage() {
                 className="w-full"
                 asChild
               >
-                <Link href="/unlock-vip">
+                <Link href="/onboarding">
                   <Gift className="mr-2 h-5 w-5" />
                   Activer Mon Compte Gratuit
                 </Link>
@@ -479,18 +479,18 @@ export default function LandingPage() {
           </h2>
           <p className="text-text-secondary text-lg mb-8 max-w-2xl mx-auto">
             Rejoignez plus de 15,000 utilisateurs qui font confiance à AlgoPronos AI
-            pour leurs paris sportifs. 100% gratuit, 2 coupons par jour.
+            pour leurs paris sportifs. 100% gratuit, analyses IA personnalisées.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="xl" variant="gradient" asChild>
-              <Link href="/unlock-vip">
+              <Link href="/onboarding">
                 <Rocket className="mr-2 h-5 w-5" />
                 Activer Mon Compte Gratuit
               </Link>
             </Button>
             <Button size="xl" variant="outline" asChild>
-              <Link href="/register">
-                Créer un compte
+              <Link href="/try-free">
+                Essayer sans compte
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>

@@ -46,7 +46,7 @@ export function Header() {
               </Link>
             </Button>
             <Button variant="gradient" asChild>
-              <Link href="/unlock-vip">
+              <Link href="/onboarding">
                 <Sparkles className="mr-2 h-4 w-4" />
                 Activer Gratuitement
               </Link>
@@ -93,7 +93,7 @@ export function Header() {
               </Link>
             </Button>
             <Button variant="gradient" className="w-full" asChild>
-              <Link href="/unlock-vip">
+              <Link href="/onboarding">
                 <Sparkles className="mr-2 h-4 w-4" />
                 Activer Gratuitement
               </Link>

@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { LogoIcon } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
 import {
-  Crown,
   Gift,
   Percent,
   Users,
@@ -14,30 +12,17 @@ import {
   Clock,
   Shield,
   Star,
-  Flame,
   CheckCircle2,
-  Copy,
-  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PromoWidget1xBetProps {
-  promoCode?: string;
   className?: string;
 }
 
 export function PromoWidget1xBet({
-  promoCode = 'ALGOPRONO2025',
   className,
 }: PromoWidget1xBetProps) {
-  const [copied, setCopied] = useState(false);
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(promoCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const benefits = [
     {
       icon: Rocket,
@@ -148,32 +133,6 @@ export function PromoWidget1xBet({
           ))}
         </div>
 
-        {/* Code Promo */}
-        <div className="bg-gradient-to-r from-[#00D4FF]/10 to-primary/10 rounded-2xl p-4 mb-6 border border-[#00D4FF]/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-text-muted mb-1">Code d&apos;activation compte optimisé :</p>
-              <p className="text-2xl font-bold text-white tracking-wider">{promoCode}</p>
-            </div>
-            <button
-              onClick={copyToClipboard}
-              className="flex items-center gap-2 bg-[#00D4FF]/20 hover:bg-[#00D4FF]/30 text-[#00D4FF] px-4 py-2 rounded-lg transition-all"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  <span className="text-sm font-medium">Copié !</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  <span className="text-sm font-medium">Copier</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
         {/* Calcul Total */}
         <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 mb-6 border border-white/10">
           <div className="space-y-2 text-sm">
@@ -203,7 +162,7 @@ export function PromoWidget1xBet({
           className="w-full bg-gradient-to-r from-[#00D4FF] to-primary hover:opacity-90 text-white font-bold shadow-xl shadow-[#00D4FF]/25"
           asChild
         >
-          <Link href="/unlock-vip">
+          <Link href="/onboarding">
             <Rocket className="mr-2 h-5 w-5" />
             Créer Mon Compte Optimisé (Gratuit)
             <ArrowRight className="ml-2 h-5 w-5" />

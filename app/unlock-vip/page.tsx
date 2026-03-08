@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Logo } from '@/components/shared/Logo';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
@@ -16,11 +15,8 @@ import {
   ExternalLink,
   FileCheck,
   CheckCircle,
-  Copy,
-  Check,
   Loader2,
   Send,
-  AlertCircle,
   Upload,
   Gift,
   Zap,
@@ -37,7 +33,9 @@ import {
 } from '@/components/ui/accordion';
 import toast from 'react-hot-toast';
 
-const PROMO_CODE = process.env.NEXT_PUBLIC_1XBET_PROMO_CODE || 'ALGOPRONO2025';
+const AFFILIATE_URL =
+  process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
+  'https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599';
 
 export default function ActivatePage() {
   const router = useRouter();
@@ -45,13 +43,11 @@ export default function ActivatePage() {
 
   const [user, setUser] = useState<{ id: string; tier: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
   const [pendingVerification, setPendingVerification] = useState(false);
 
   // Form state
   const [identifier, setIdentifier] = useState('');
   const [screenshot, setScreenshot] = useState<File | null>(null);
-  const [attested, setAttested] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -93,13 +89,6 @@ export default function ActivatePage() {
     checkUser();
   }, [router]);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(PROMO_CODE);
-    setCopied(true);
-    toast.success('Code copié !');
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -116,11 +105,6 @@ export default function ActivatePage() {
 
     if (!identifier.trim()) {
       toast.error('Veuillez entrer votre ID ou email 1xBet');
-      return;
-    }
-
-    if (!attested) {
-      toast.error('Veuillez confirmer que vous avez utilisé le code promo');
       return;
     }
 
@@ -282,7 +266,7 @@ export default function ActivatePage() {
             number="1"
             icon={<ExternalLink className="h-6 w-6" />}
             title="Créez un compte 1xBet"
-            description="Cliquez sur le bouton ci-dessous et inscrivez-vous avec notre code promo"
+            description="Cliquez sur le bouton ci-dessous et inscrivez-vous via notre lien partenaire"
           />
           <ProcessStep
             number="2"
@@ -301,39 +285,9 @@ export default function ActivatePage() {
         {/* Main Card */}
         <Card className="border-surface-light">
           <CardContent className="p-8">
-            {/* Promo Code */}
-            <div className="bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl p-6 mb-8 border-2 border-primary/30">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-sm text-text-secondary mb-1">
-                    Code promo obligatoire
-                  </div>
-                  <div className="text-3xl font-bold text-white tracking-wider">
-                    {PROMO_CODE}
-                  </div>
-                </div>
-                <Button variant="outline" onClick={copyToClipboard}>
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Copié !
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copier
-                    </>
-                  )}
-                </Button>
-              </div>
-              <p className="text-sm text-text-secondary">
-                Utilisez ce code lors de votre inscription pour bénéficier des bonus ET activer AlgoPronos AI
-              </p>
-            </div>
-
-            {/* 1xBet CTA */}
+              {/* 1xBet CTA */}
             <a
-              href="https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599"
+              href={AFFILIATE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full bg-gradient-to-r from-primary to-primary-dark text-white font-bold py-6 rounded-2xl hover:opacity-90 transition-opacity mb-8 text-center text-xl"
@@ -406,32 +360,6 @@ export default function ActivatePage() {
                 </p>
               </div>
 
-              <div className="bg-warning/10 border border-warning/30 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-text-secondary">
-                    <strong className="text-warning">Important :</strong>{' '}
-                    Le compte 1xBet doit être NOUVEAU et créé avec le code <strong>{PROMO_CODE}</strong>.
-                    Les comptes existants ne sont pas acceptés.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="attest"
-                  checked={attested}
-                  onCheckedChange={(checked) => setAttested(checked as boolean)}
-                  className="mt-1"
-                />
-                <label
-                  htmlFor="attest"
-                  className="text-sm text-text-secondary cursor-pointer"
-                >
-                  Je confirme avoir créé un nouveau compte 1xBet avec le code promo <strong>{PROMO_CODE}</strong>
-                </label>
-              </div>
-
               <Button
                 type="submit"
                 size="lg"
@@ -482,7 +410,7 @@ export default function ActivatePage() {
               </AccordionTrigger>
               <AccordionContent>
                 Non, aucun dépôt n&apos;est requis pour activer AlgoPronos AI.
-                Créez simplement le compte avec notre code promo et soumettez votre ID.
+                Créez simplement le compte 1xBet et soumettez votre ID.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem
@@ -493,8 +421,8 @@ export default function ActivatePage() {
                 C&apos;est vraiment 100% gratuit ?
               </AccordionTrigger>
               <AccordionContent>
-                Oui ! AlgoPronos AI est entièrement gratuit. Vous bénéficiez de 2 coupons par jour
-                sans jamais payer. La seule condition est de créer un compte 1xBet avec notre code promo.
+                Oui ! AlgoPronos AI est entièrement gratuit. Vous bénéficiez d&apos;analyses IA
+                sans jamais payer. La seule condition est de créer un compte 1xBet via notre lien.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem
