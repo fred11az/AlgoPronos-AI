@@ -224,7 +224,7 @@ export default function LandingPage() {
               </Link>
             </Button>
             <Button size="xl" variant="outline" asChild>
-              <Link href="/try-free">
+              <Link href="/api/try-free">
                 Essayer sans compte
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
@@ -489,7 +489,7 @@ export default function LandingPage() {
               </Link>
             </Button>
             <Button size="xl" variant="outline" asChild>
-              <Link href="/try-free">
+              <Link href="/api/try-free">
                 Essayer sans compte
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>

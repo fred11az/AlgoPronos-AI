@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getCurrentAnonymousSession, logAnonymousEvent } from '@/lib/anonymous';
+import { getCurrentAnonymousSession, getAnonymousSessionId, logAnonymousEvent } from '@/lib/anonymous';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 
@@ -231,16 +231,19 @@ export async function POST(request: Request) {
 
     // ── Identify user ──────────────────────────────────────────────────────────
     const user = await getCurrentUser();
-    const anonymousSession = !user ? await getCurrentAnonymousSession() : null;
+    const anonymousCookieId = !user ? await getAnonymousSessionId() : null;
+    const anonymousSession = anonymousCookieId ? await getCurrentAnonymousSession() : null;
 
-    if (!user && !anonymousSession) {
+    // Allow if authenticated OR has anonymous cookie (with or without DB session)
+    if (!user && !anonymousCookieId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const weekStart = getWeekStart();
     const isVerified = user?.tier === 'verified';
     const isRegistered = !!user && !isVerified;
-    const isVisitor = !user && !!anonymousSession;
+    // isVisitor = anonymous cookie present (with or without DB session)
+    const isVisitor = !user && !!anonymousCookieId;
 
     const limit = isVerified ? WEEKLY_LIMITS.verified
       : isRegistered ? WEEKLY_LIMITS.registered

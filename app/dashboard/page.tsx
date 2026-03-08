@@ -160,42 +160,6 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Anonymous User Welcome Card */}
-      {isAnonymous && (
-        <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/30">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center">
-                  <Sparkles className="h-7 w-7 text-blue-400" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xl font-bold text-white">
-                      Mode Essai Gratuit
-                    </h3>
-                    <Badge variant="outline" className="border-blue-500/50 text-blue-400">
-                      Actif
-                    </Badge>
-                  </div>
-                  <p className="text-text-secondary max-w-xl">
-                    Vous pouvez explorer le dashboard, sélectionner des matchs et préparer vos coupons.
-                    Pour générer des pronostics IA, créez un compte et activez-le gratuitement.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="gradient" size="lg" asChild>
-                  <Link href="/register">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Créer un Compte
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Verification Status */}
       {!isVerified && isPending && (
