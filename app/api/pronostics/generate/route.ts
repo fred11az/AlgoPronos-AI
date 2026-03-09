@@ -264,10 +264,11 @@ export async function POST(req: NextRequest) {
   });
 }
 
-// Also support GET for easy browser testing in dev
+// Support GET with secret param for browser testing
 export async function GET(req: NextRequest) {
-  if (process.env.NODE_ENV !== 'development') {
-    return NextResponse.json({ error: 'Use POST in production' }, { status: 405 });
+  const secret = new URL(req.url).searchParams.get('secret');
+  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized — add ?secret=YOUR_CRON_SECRET' }, { status: 401 });
   }
   return POST(req);
 }
