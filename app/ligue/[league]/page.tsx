@@ -12,6 +12,7 @@ interface PredictionSummary {
   slug: string;
   home_team: string;
   away_team: string;
+  league: string;
   match_date: string;
   match_time: string;
   prediction: string;
@@ -71,7 +72,7 @@ export default async function LeaguePage({
   const { data: predictions, error } = await supabase
     .from('match_predictions')
     .select(
-      'slug, home_team, away_team, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away'
+      'slug, home_team, away_team, league, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away'
     )
     .eq('league_slug', slug)
     .gte('match_date', today)
