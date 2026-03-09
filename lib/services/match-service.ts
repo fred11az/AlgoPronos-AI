@@ -224,11 +224,12 @@ class MatchService {
   }
 
   // Main function to get matches - REAL DATA from BOTH APIs combined
-  async getMatchesForDate(date: string, leagueCodes: string[]): Promise<RealMatch[]> {
+  async getMatchesForDate(date: string, leagueCodes?: string[]): Promise<RealMatch[]> {
     // Check cache first
     const cachedMatches = await this.getCachedMatches(date);
     if (cachedMatches && cachedMatches.length > 0) {
       console.log(`[CACHE] Returning ${cachedMatches.length} real matches for ${date}`);
+      if (!leagueCodes || leagueCodes.length === 0) return cachedMatches;
       return cachedMatches.filter((m) => leagueCodes.includes(m.leagueCode));
     }
 
@@ -287,7 +288,8 @@ class MatchService {
       console.log('[WARNING] No matches found from APIs - check date or network');
     }
 
-    // Return filtered by requested leagues
+    // Return filtered by requested leagues (or all if no filter)
+    if (!leagueCodes || leagueCodes.length === 0) return allMatches;
     return allMatches.filter((m) => leagueCodes.includes(m.leagueCode));
   }
 
