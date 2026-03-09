@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { LogoIcon } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
 import {
@@ -162,11 +161,15 @@ export function PromoWidget1xBet({
           className="w-full bg-gradient-to-r from-[#00D4FF] to-primary hover:opacity-90 text-white font-bold shadow-xl shadow-[#00D4FF]/25"
           asChild
         >
-          <Link href="/onboarding">
+          <a
+            href={process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://1xbet.com'}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Rocket className="mr-2 h-5 w-5" />
             Créer Mon Compte Optimisé (Gratuit)
             <ArrowRight className="ml-2 h-5 w-5" />
-          </Link>
+          </a>
         </Button>
 
         {/* Trust indicators */}

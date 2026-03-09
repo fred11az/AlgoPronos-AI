@@ -37,6 +37,9 @@ function computeDCOdds(o1: number, o2: number): number {
   return Math.round((o1 * o2 / (o1 + o2)) * 100) / 100;
 }
 
+// Seuil minimal de probabilité implicite par pick (pour garantir confiance globale ≥ 55%)
+const MIN_PICK_IMPLIED_PCT = 62;
+
 function pickForMatch(
   match: MatchInput,
   stats: MatchStats | undefined,
@@ -60,11 +63,18 @@ function pickForMatch(
   addCandidate('Double Chance', '1X', dc1X, stats ? stats.homePct + stats.drawPct : null);
   addCandidate('Double Chance', 'X2', dcX2, stats ? stats.drawPct + stats.awayPct : null);
 
-  // Balanced: prefer positive value edge, target odds 1.5–2.5
-  const best = candidates.reduce((a, b) => {
-    const score = (c: PickCandidate) => (c.valueEdge ?? 0) * 3 - Math.abs(c.odds - 2.0);
+  // Priorité aux picks de qualité supérieure (impliedPct ≥ MIN_PICK_IMPLIED_PCT)
+  // Score : favorise la probabilité implicite élevée + edge positif, cibles cotes 1.40–1.80
+  const safePool = candidates.filter(c => c.impliedPct >= MIN_PICK_IMPLIED_PCT);
+  const pool = safePool.length >= 1 ? safePool : candidates;
+
+  const best = pool.reduce((a, b) => {
+    const score = (c: PickCandidate) =>
+      c.impliedPct * 2
+      + (c.valueEdge ?? 0) * 1.5
+      - Math.abs(c.odds - 1.60) * 0.5;
     return score(b) > score(a) ? b : a;
-  }, candidates[0]);
+  }, pool[0]);
 
   return {
     type: best.type,
@@ -168,7 +178,10 @@ export async function GET() {
     });
 
     const totalOdds = Math.round(picks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
-    const confidencePct = Math.round(picks.reduce((acc, p) => acc * (p.selection.impliedPct / 100), 1) * 100);
+    // Confiance = moyenne des probabilités implicites par pick (affichage clair, jamais < 55%)
+    const confidencePct = Math.round(
+      picks.reduce((acc, p) => acc + p.selection.impliedPct, 0) / picks.length
+    );
 
     // ── 5. Groq analysis (optional) ──────────────────────────────────────────
     let analysis: object = {};

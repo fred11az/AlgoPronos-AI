@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
 import PublicTicketClient from './PublicTicketClient';
 
@@ -136,12 +137,19 @@ export default async function PublicTicketPage(
       {/* Header */}
       <header className="border-b border-border bg-surface/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-              <span className="text-white font-bold text-sm">A</span>
-            </div>
-            <span className="font-bold text-white text-sm">AlgoPronos AI</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-1.5 text-sm text-text-muted hover:text-white transition-colors">
+              <ArrowLeft className="h-4 w-4" />
+              Retour
+            </Link>
+            <span className="text-surface-light text-xs">|</span>
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                <span className="text-white font-bold text-xs">A</span>
+              </div>
+              <span className="font-bold text-white text-sm hidden sm:block">AlgoPronos AI</span>
+            </Link>
+          </div>
           <Link
             href="/dashboard/generate"
             className="text-xs text-primary font-semibold border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/10 transition-colors"

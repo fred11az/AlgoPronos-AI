@@ -36,7 +36,7 @@ interface DailyTicket {
 }
 
 const BOOKMAKERS = [
-  { name: '1xBet', url: 'https://1xbet.com', color: 'bg-blue-600/20 text-blue-400 border-blue-600/30' },
+  { name: '1xBet', url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://1xbet.com', color: 'bg-blue-600/20 text-blue-400 border-blue-600/30' },
   { name: 'Betway', url: 'https://betway.com', color: 'bg-green-600/20 text-green-400 border-green-600/30' },
   { name: 'Melbet', url: 'https://melbet.com', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
 ];

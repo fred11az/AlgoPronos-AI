@@ -21,6 +21,7 @@ import {
 import { BookmakerSelector, BookmakerAffiliateButtons } from './BookmakerSelector';
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
 import { LiveTicketSection } from '@/components/landing/LiveTicketSection';
+import { VerificateurWidget } from '@/components/landing/VerificateurWidget';
 
 // ─── SEO Metadata ──────────────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ export default function CompteOptimiseIAPage() {
       <Header />
 
       {/* ─── HERO ────────────────────────────────────────────────────────────── */}
-      <section className="relative min-h-[90vh] flex items-center pt-20 overflow-hidden">
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden">
         {/* Blobs */}
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <div className="absolute top-20 left-10 w-96 h-96 bg-primary rounded-full mix-blend-multiply filter blur-[130px] animate-blob" />
@@ -378,6 +379,36 @@ export default function CompteOptimiseIAPage() {
               </ScrollReveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ─── VÉRIFICATEUR ────────────────────────────────────────────────────── */}
+      <section id="verificateur" className="py-20 bg-background">
+        <div className="max-w-5xl mx-auto px-4">
+          <ScrollReveal>
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-full px-4 py-2 mb-5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-400" />
+                </span>
+                <span className="text-red-400 text-sm font-semibold">Important · À vérifier avant de jouer</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+                Votre compte est-il{' '}
+                <span className="bg-gradient-to-r from-primary to-[#00D4FF] bg-clip-text text-transparent">
+                  Optimisé IA ?
+                </span>
+              </h2>
+              <p className="text-text-secondary max-w-xl mx-auto">
+                Les comptes non créés via AlgoPronos ne bénéficient pas de la configuration
+                nécessaire. Vérifiez en quelques secondes.
+              </p>
+            </div>
+          </ScrollReveal>
+          <ScrollReveal delay={0.1}>
+            <VerificateurWidget />
+          </ScrollReveal>
         </div>
       </section>
 

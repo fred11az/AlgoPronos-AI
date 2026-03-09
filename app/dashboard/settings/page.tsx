@@ -66,6 +66,14 @@ export default function SettingsPage() {
           phone: data.phone || '',
           country: data.country || 'BJ',
         });
+        // Charger les préférences de notification depuis metadata
+        const meta = (data.metadata as Record<string, unknown>) || {};
+        setNotifications({
+          email: meta.notify_email !== false,
+          newCombines: meta.notify_new_combines !== false,
+          results: meta.notify_results !== false,
+          promotions: meta.notify_promotions === true,
+        });
       }
 
       setLoading(false);
@@ -80,12 +88,20 @@ export default function SettingsPage() {
     setSaving(true);
 
     try {
+      const currentMeta = (profile.metadata as Record<string, unknown>) || {};
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: formData.full_name,
           phone: formData.phone,
           country: formData.country,
+          metadata: {
+            ...currentMeta,
+            notify_email: notifications.email,
+            notify_results: notifications.results,
+            notify_new_combines: notifications.newCombines,
+            notify_promotions: notifications.promotions,
+          },
         })
         .eq('id', profile.id);
 
@@ -306,6 +322,29 @@ export default function SettingsPage() {
               }
             />
           </div>
+
+          <Separator />
+
+          {/* WhatsApp info */}
+          <div className="bg-surface-light rounded-xl p-4">
+            <p className="text-sm font-medium text-white mb-1">
+              📱 Notifications WhatsApp
+            </p>
+            <p className="text-xs text-text-muted leading-relaxed">
+              Pour recevoir les résultats sur WhatsApp, renseignez votre numéro de téléphone
+              (format international, ex&nbsp;: +22996123456) dans la section Profil ci-dessus
+              et activez les notifications résultats.
+            </p>
+          </div>
+
+          <Button onClick={handleSave} disabled={saving} size="sm">
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Sauvegarder les préférences
+          </Button>
         </CardContent>
       </Card>
 

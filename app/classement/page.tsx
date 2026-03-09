@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/server';
+import { ArrowLeft } from 'lucide-react';
 import ClassementClient from './ClassementClient';
 
 export const metadata: Metadata = {
@@ -51,12 +52,19 @@ export default async function ClassementPage() {
       {/* Header */}
       <header className="border-b border-border bg-surface/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-              <span className="text-white font-bold text-sm">A</span>
-            </div>
-            <span className="font-bold text-white text-sm">AlgoPronos AI</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-1.5 text-sm text-text-muted hover:text-white transition-colors">
+              <ArrowLeft className="h-4 w-4" />
+              Retour
+            </Link>
+            <span className="text-surface-light text-xs">|</span>
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                <span className="text-white font-bold text-xs">A</span>
+              </div>
+              <span className="font-bold text-white text-sm">AlgoPronos AI</span>
+            </Link>
+          </div>
           <div className="flex items-center gap-2">
             <Link
               href="/dashboard/generate"

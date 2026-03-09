@@ -14,14 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { supabase } from '@/lib/supabase/client';
 import { Loader2, Mail, Lock, User, Phone, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const countries = [
   { code: 'BJ', name: 'Bénin' },
   { code: 'TG', name: 'Togo' },
-  { code: 'CI', name: 'Côte d\'Ivoire' },
+  { code: 'CI', name: "Côte d'Ivoire" },
   { code: 'SN', name: 'Sénégal' },
   { code: 'ML', name: 'Mali' },
   { code: 'BF', name: 'Burkina Faso' },
@@ -35,7 +34,6 @@ export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const intent = searchParams.get('intent');
-  const plan = searchParams.get('plan');
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -55,61 +53,51 @@ export default function RegisterPage() {
       toast.error('Les mots de passe ne correspondent pas');
       return;
     }
-
     if (formData.password.length < 6) {
       toast.error('Le mot de passe doit contenir au moins 6 caractères');
       return;
     }
-
     if (!acceptTerms) {
-      toast.error('Veuillez accepter les conditions d\'utilisation');
+      toast.error("Veuillez accepter les conditions d'utilisation");
       return;
     }
 
     setLoading(true);
 
     try {
-      // Determine the redirect URL after email verification
-      const baseUrl = window.location.origin;
       const nextPath = intent === 'vip' || intent === 'activate' ? '/unlock-vip' : '/dashboard';
+      const redirectTo = `${window.location.origin}/auth/callback?next=${nextPath}`;
 
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          emailRedirectTo: `${baseUrl}/auth/callback?next=${nextPath}`,
-          data: {
-            full_name: formData.fullName,
-            phone: formData.phone,
-            country: formData.country,
-          },
-        },
+      // Création du compte + envoi email via notre API (bypass SMTP Supabase)
+      const res = await fetch('/api/auth/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'signup',
+          email: formData.email,
+          password: formData.password,
+          fullName: formData.fullName,
+          phone: formData.phone,
+          country: formData.country,
+          redirectTo,
+        }),
       });
 
-      if (error) {
-        if (error.message.includes('already registered')) {
-          toast.error('Cet email est déjà utilisé');
+      const result = await res.json();
+
+      if (!res.ok) {
+        const msg = result?.error || '';
+        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('déjà')) {
+          toast.error('Cet email est déjà utilisé. Veuillez vous connecter.');
+          router.push('/login');
         } else {
-          toast.error(error.message);
+          toast.error(msg || 'Une erreur est survenue lors de la création du compte');
         }
         return;
       }
 
-      // Check if email confirmation is required
-      // If user.identities is empty, the email is already registered
-      if (data?.user?.identities?.length === 0) {
-        toast.error('Cet email est déjà utilisé. Veuillez vous connecter.');
-        router.push('/login');
-        return;
-      }
-
-      // Store email for verify-email page to use
       localStorage.setItem('pendingVerificationEmail', formData.email);
-
-      // Show success message
       toast.success('Compte créé ! Vérifiez votre email pour activer votre compte.');
-
-      // Redirect to verify-email page
       router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
     } catch {
       toast.error('Une erreur est survenue');
@@ -157,9 +145,7 @@ export default function RegisterPage() {
                 type="text"
                 placeholder="Jean Dupont"
                 value={formData.fullName}
-                onChange={(e) =>
-                  setFormData({ ...formData, fullName: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                 className="pl-10"
                 required
               />
@@ -175,9 +161,7 @@ export default function RegisterPage() {
                 type="email"
                 placeholder="vous@exemple.com"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="pl-10"
                 required
               />
@@ -193,9 +177,7 @@ export default function RegisterPage() {
                 type="tel"
                 placeholder="+229 97 00 00 00"
                 value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="pl-10"
               />
             </div>
@@ -203,20 +185,13 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <Label htmlFor="country">Pays</Label>
-            <Select
-              value={formData.country}
-              onValueChange={(value) =>
-                setFormData({ ...formData, country: value })
-              }
-            >
+            <Select value={formData.country} onValueChange={(v) => setFormData({ ...formData, country: v })}>
               <SelectTrigger id="country">
                 <SelectValue placeholder="Sélectionner..." />
               </SelectTrigger>
               <SelectContent>
-                {countries.map((country) => (
-                  <SelectItem key={country.code} value={country.code}>
-                    {country.name}
-                  </SelectItem>
+                {countries.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -231,9 +206,7 @@ export default function RegisterPage() {
                 type="password"
                 placeholder="••••••••"
                 value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="pl-10"
                 required
                 minLength={6}
@@ -250,9 +223,7 @@ export default function RegisterPage() {
                 type="password"
                 placeholder="••••••••"
                 value={formData.confirmPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, confirmPassword: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 className="pl-10"
                 required
               />
@@ -269,27 +240,17 @@ export default function RegisterPage() {
           />
           <label htmlFor="terms" className="text-sm text-text-secondary cursor-pointer">
             J&apos;accepte les{' '}
-            <Link href="/terms" className="text-primary hover:underline">
-              conditions d&apos;utilisation
-            </Link>{' '}
+            <Link href="/terms" className="text-primary hover:underline">conditions d&apos;utilisation</Link>{' '}
             et la{' '}
-            <Link href="/privacy" className="text-primary hover:underline">
-              politique de confidentialité
-            </Link>
+            <Link href="/privacy" className="text-primary hover:underline">politique de confidentialité</Link>
           </label>
         </div>
 
         <Button type="submit" size="lg" className="w-full" disabled={loading}>
           {loading ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Création du compte...
-            </>
+            <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Création du compte...</>
           ) : (
-            <>
-              <CheckCircle2 className="mr-2 h-5 w-5" />
-              Créer mon compte
-            </>
+            <><CheckCircle2 className="mr-2 h-5 w-5" />Créer mon compte</>
           )}
         </Button>
       </form>
@@ -298,8 +259,7 @@ export default function RegisterPage() {
       <div className="text-center text-sm text-text-secondary">
         Déjà un compte ?{' '}
         <Link href="/login" className="text-primary hover:underline font-medium">
-          Se connecter
-          <ArrowRight className="inline ml-1 h-4 w-4" />
+          Se connecter <ArrowRight className="inline ml-1 h-4 w-4" />
         </Link>
       </div>
     </div>

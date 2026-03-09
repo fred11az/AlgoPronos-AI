@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { Brain, TrendingUp, Shield, ExternalLink, Clock, Loader2, Zap } from 'lucide-react';
+import { Brain, TrendingUp, Shield, ExternalLink, Clock, Loader2, Zap, CheckCircle2, XCircle, MinusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface MatchPick {
@@ -38,6 +38,56 @@ function valueLabel(type: string, value: string, home: string, away: string): st
   return value;
 }
 
+function StatusBanner({ status }: { status: string }) {
+  if (status === 'won') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-3 bg-green-500/15 border border-green-500/30 rounded-xl px-5 py-3 mx-6 mt-5"
+      >
+        <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+        <div>
+          <p className="text-green-400 font-bold text-sm">Ticket Gagné ✅</p>
+          <p className="text-green-400/70 text-xs">Félicitations ! Ce ticket s&apos;est avéré gagnant.</p>
+        </div>
+        <span className="ml-auto text-green-400 font-bold text-lg">+{' '}x{}</span>
+      </motion.div>
+    );
+  }
+  if (status === 'lost') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-3 bg-red-500/15 border border-red-500/30 rounded-xl px-5 py-3 mx-6 mt-5"
+      >
+        <XCircle className="h-5 w-5 text-red-400 shrink-0" />
+        <div>
+          <p className="text-red-400 font-bold text-sm">Ticket Perdu ❌</p>
+          <p className="text-red-400/70 text-xs">Résultat défavorable. L&apos;IA apprend de chaque ticket.</p>
+        </div>
+      </motion.div>
+    );
+  }
+  if (status === 'void') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-3 bg-surface-light border border-surface-light rounded-xl px-5 py-3 mx-6 mt-5"
+      >
+        <MinusCircle className="h-5 w-5 text-text-muted shrink-0" />
+        <div>
+          <p className="text-text-secondary font-bold text-sm">Ticket Annulé ⏸</p>
+          <p className="text-text-muted text-xs">Un ou plusieurs matchs ont été annulés.</p>
+        </div>
+      </motion.div>
+    );
+  }
+  return null;
+}
+
 export function LiveTicketSection() {
   const [ticket, setTicket] = useState<DailyTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +101,8 @@ export function LiveTicketSection() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const isResolved = ticket && ticket.status !== 'pending';
 
   return (
     <section className="py-24 bg-background relative overflow-hidden">
@@ -71,13 +123,17 @@ export function LiveTicketSection() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
             </span>
-            <span className="text-primary text-sm font-semibold">En direct</span>
+            <span className="text-primary text-sm font-semibold">
+              {isResolved ? 'Résultats du jour' : 'En direct'}
+            </span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
             🎯 Ticket IA du Jour
           </h2>
           <p className="text-text-secondary text-lg max-w-xl mx-auto">
-            Notre IA analyse des centaines de matchs chaque matin et sélectionne les 3 meilleures opportunités
+            {isResolved
+              ? 'Les résultats de ce ticket sont maintenant disponibles.'
+              : 'Notre IA analyse des centaines de matchs chaque matin et sélectionne les 3 meilleures opportunités'}
           </p>
         </motion.div>
 
@@ -103,11 +159,19 @@ export function LiveTicketSection() {
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             >
               {/* Glow effect */}
-              <div className="absolute -inset-2 bg-gradient-to-r from-primary/20 via-secondary/10 to-primary/20 rounded-3xl blur-xl" />
+              <div className={`absolute -inset-2 rounded-3xl blur-xl ${
+                ticket.status === 'won'  ? 'bg-green-500/20' :
+                ticket.status === 'lost' ? 'bg-red-500/20' :
+                'bg-gradient-to-r from-primary/20 via-secondary/10 to-primary/20'
+              }`} />
 
               <div className="relative bg-surface border border-primary/25 rounded-2xl overflow-hidden shadow-2xl">
                 {/* Card header */}
-                <div className="bg-gradient-to-r from-primary to-secondary px-6 py-5 flex items-center justify-between">
+                <div className={`px-6 py-5 flex items-center justify-between ${
+                  ticket.status === 'won'  ? 'bg-gradient-to-r from-green-600 to-green-500' :
+                  ticket.status === 'lost' ? 'bg-gradient-to-r from-red-700 to-red-600' :
+                  'bg-gradient-to-r from-primary to-secondary'
+                }`}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
                       <Brain className="h-5 w-5 text-white" />
@@ -116,7 +180,10 @@ export function LiveTicketSection() {
                       <div className="font-bold text-white">AlgoPronos AI</div>
                       <div className="text-xs text-white/70 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Généré aujourd&apos;hui
+                        {ticket.status === 'won'  ? 'Ticket Gagné ✅' :
+                         ticket.status === 'lost' ? 'Ticket Perdu ❌' :
+                         ticket.status === 'void' ? 'Annulé ⏸' :
+                         'Généré aujourd\'hui'}
                       </div>
                     </div>
                   </div>
@@ -146,7 +213,11 @@ export function LiveTicketSection() {
                         </div>
                       </div>
                       <div className="flex-shrink-0 text-right">
-                        <div className="text-2xl font-bold text-primary">
+                        <div className={`text-2xl font-bold ${
+                          ticket.status === 'won' ? 'text-green-400' :
+                          ticket.status === 'lost' ? 'text-red-400' :
+                          'text-primary'
+                        }`}>
                           {match.selection.odds.toFixed(2)}
                         </div>
                         <div className="flex items-center gap-1 justify-end text-xs text-secondary">
@@ -169,7 +240,11 @@ export function LiveTicketSection() {
                   </div>
                   <div className="w-full bg-surface-light rounded-full h-2 overflow-hidden">
                     <motion.div
-                      className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
+                      className={`h-full rounded-full ${
+                        ticket.status === 'won'  ? 'bg-gradient-to-r from-green-500 to-green-400' :
+                        ticket.status === 'lost' ? 'bg-gradient-to-r from-red-600 to-red-500' :
+                        'bg-gradient-to-r from-primary to-secondary'
+                      }`}
                       initial={{ width: 0 }}
                       animate={{ width: `${ticket.confidence_pct}%` }}
                       transition={{ duration: 1.2, delay: 0.5, ease: 'easeOut' }}
@@ -179,18 +254,37 @@ export function LiveTicketSection() {
 
                 {/* Footer CTA */}
                 <div className="px-6 py-5 flex flex-col sm:flex-row gap-3 border-t border-surface-light">
-                  <Button size="lg" variant="gradient" className="flex-1" asChild>
-                    <Link href="/onboarding">
-                      <TrendingUp className="mr-2 h-4 w-4" />
-                      Jouer ce ticket
-                    </Link>
-                  </Button>
-                  <Button size="lg" variant="outline" className="flex-1" asChild>
-                    <Link href="/classement">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Voir le classement
-                    </Link>
-                  </Button>
+                  {ticket.status === 'pending' ? (
+                    <>
+                      <Button size="lg" variant="gradient" className="flex-1" asChild>
+                        <Link href="/onboarding">
+                          <TrendingUp className="mr-2 h-4 w-4" />
+                          Jouer ce ticket
+                        </Link>
+                      </Button>
+                      <Button size="lg" variant="outline" className="flex-1" asChild>
+                        <Link href="/classement">
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Voir le classement
+                        </Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button size="lg" variant="outline" className="flex-1" asChild>
+                        <Link href="/classement">
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Voir l&apos;historique
+                        </Link>
+                      </Button>
+                      <Button size="lg" variant="gradient" className="flex-1" asChild>
+                        <Link href="/dashboard/generate">
+                          <TrendingUp className="mr-2 h-4 w-4" />
+                          Générer mon ticket
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>
