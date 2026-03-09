@@ -9,7 +9,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { matchService } from '@/lib/services/match-service';
+import { matchService, type RealMatch } from '@/lib/services/match-service';
 import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/slugify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -153,28 +153,28 @@ export async function POST(req: NextRequest) {
   const skipped: string[] = [];
   const errors: string[] = [];
 
-  // Fetch matches for next 7 days
+  // Compute date range: today → today+6 (7 days, 1 API call)
   const today = new Date();
-  const dateStrings: string[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    dateStrings.push(d.toISOString().split('T')[0]);
+  const fromStr = today.toISOString().split('T')[0];
+  const toDate = new Date(today);
+  toDate.setDate(today.getDate() + 6);
+  const toStr = toDate.toISOString().split('T')[0];
+
+  // Fetch ALL 7 days in 2 API calls (fixtures + odds)
+  let matchesByDate: Record<string, RealMatch[]>;
+  try {
+    matchesByDate = await matchService.getMatchesForRange(fromStr, toStr);
+  } catch (err) {
+    return NextResponse.json(
+      { success: false, error: String(err), hint: 'Check FOOTBALL_API_KEY in Vercel env vars' },
+      { status: 500 }
+    );
   }
 
   const apiDebug: Record<string, number> = {};
+  for (const [d, m] of Object.entries(matchesByDate)) apiDebug[d] = m.length;
 
-  for (const dateStr of dateStrings) {
-    let matches;
-    try {
-      matches = await matchService.getMatchesForDate(dateStr);
-      apiDebug[dateStr] = matches.length;
-    } catch (err) {
-      errors.push(`Fetch error for ${dateStr}: ${String(err)}`);
-      apiDebug[dateStr] = -1;
-      continue;
-    }
-
+  for (const [dateStr, matches] of Object.entries(matchesByDate)) {
     for (const match of matches) {
       const slug = createMatchSlug(match.homeTeam, match.awayTeam);
 
@@ -205,7 +205,6 @@ export async function POST(req: NextRequest) {
       const homeForm = generateForm();
       const awayForm = generateForm();
 
-      // Generate AI analysis (rate-limited: skip if no Groq key)
       const aiAnalysis = await callGroqAnalysis(
         match.homeTeam,
         match.awayTeam,
