@@ -9,6 +9,7 @@ import {
   Settings,
   BarChart3,
   ArrowLeft,
+  Ticket,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ const adminNavItems = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { label: 'Utilisateurs', href: '/admin/users', icon: Users },
   { label: 'Vérifications VIP', href: '/admin/verifications', icon: CheckCircle },
+  { label: 'Tickets IA', href: '/admin/tickets', icon: Ticket },
   { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { label: 'Paramètres', href: '/admin/settings', icon: Settings },
 ];

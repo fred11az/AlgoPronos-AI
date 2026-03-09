@@ -28,6 +28,7 @@ import { HeroTicketPreview } from '@/components/landing/HeroTicketPreview';
 import { StatsBar } from '@/components/landing/StatsBar';
 import { LiveTicketSection } from '@/components/landing/LiveTicketSection';
 import { ClassementPreview } from '@/components/landing/ClassementPreview';
+import { GrandesAffichesPreview } from '@/components/landing/GrandesAffichesPreview';
 import { BookmakersSection } from '@/components/landing/BookmakersSection';
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
 
@@ -303,6 +304,9 @@ export default function LandingPage() {
 
       {/* ─── HISTORIQUE / CLASSEMENT ──────────────────────────────────────────── */}
       <ClassementPreview />
+
+      {/* ─── GRANDES AFFICHES ─────────────────────────────────────────────────── */}
+      <GrandesAffichesPreview />
 
       {/* ─── BOOKMAKERS ───────────────────────────────────────────────────────── */}
       <BookmakersSection />
