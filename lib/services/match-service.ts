@@ -223,72 +223,30 @@ class MatchService {
     return matches;
   }
 
-  // Main function to get matches - REAL DATA from BOTH APIs combined
+  // Main function to get matches — API-Football as primary source
   async getMatchesForDate(date: string, leagueCodes?: string[]): Promise<RealMatch[]> {
+    const apiKey = process.env.FOOTBALL_API_KEY;
+    if (!apiKey) {
+      throw new Error('FOOTBALL_API_KEY is not set. Add it to your Vercel environment variables.');
+    }
+
     // Check cache first
     const cachedMatches = await this.getCachedMatches(date);
     if (cachedMatches && cachedMatches.length > 0) {
-      console.log(`[CACHE] Returning ${cachedMatches.length} real matches for ${date}`);
+      console.log(`[CACHE] Returning ${cachedMatches.length} matches for ${date}`);
       if (!leagueCodes || leagueCodes.length === 0) return cachedMatches;
       return cachedMatches.filter((m) => leagueCodes.includes(m.leagueCode));
     }
 
-    console.log(`[API] Fetching real matches for ${date} from BOTH APIs...`);
+    console.log(`[API-Football] Fetching matches for ${date}...`);
+    const allMatches = await this.fetchFromAPIFootball(date, apiKey);
+    console.log(`[API-Football] Found ${allMatches.length} matches for ${date}`);
 
-    // Call BOTH APIs in PARALLEL for maximum coverage
-    const apiKey = process.env.FOOTBALL_API_KEY;
-
-    const [apiFootballMatches, tsdbMatches] = await Promise.all([
-      // API-Football (if key available)
-      apiKey
-        ? this.fetchFromAPIFootball(date, apiKey)
-            .then(matches => {
-              console.log(`[API-Football] Found ${matches.length} matches`);
-              return matches;
-            })
-            .catch(err => {
-              console.error('[API-Football] Error:', err.message);
-              return [] as RealMatch[];
-            })
-        : Promise.resolve([] as RealMatch[]),
-
-      // TheSportsDB (always free)
-      this.fetchFromTSDB(date)
-        .then(matches => {
-          console.log(`[TheSportsDB] Found ${matches.length} matches`);
-          return matches;
-        })
-        .catch(err => {
-          console.error('[TheSportsDB] Error:', err.message);
-          return [] as RealMatch[];
-        }),
-    ]);
-
-    // Merge results, avoiding duplicates (by team names)
-    const allMatches: RealMatch[] = [...apiFootballMatches];
-    const existingMatchKeys = new Set(
-      apiFootballMatches.map(m => `${m.homeTeam.toLowerCase()}-${m.awayTeam.toLowerCase()}`)
-    );
-
-    for (const match of tsdbMatches) {
-      const key = `${match.homeTeam.toLowerCase()}-${match.awayTeam.toLowerCase()}`;
-      if (!existingMatchKeys.has(key)) {
-        allMatches.push(match);
-        existingMatchKeys.add(key);
-      }
-    }
-
-    console.log(`[TOTAL] Combined ${allMatches.length} unique matches from both APIs`);
-
-    // Cache real matches for 6 hours
+    // Cache for 12 hours
     if (allMatches.length > 0) {
       await this.cacheMatches(date, allMatches);
-      console.log(`[SUCCESS] Cached ${allMatches.length} real matches`);
-    } else {
-      console.log('[WARNING] No matches found from APIs - check date or network');
     }
 
-    // Return filtered by requested leagues (or all if no filter)
     if (!leagueCodes || leagueCodes.length === 0) return allMatches;
     return allMatches.filter((m) => leagueCodes.includes(m.leagueCode));
   }
@@ -433,22 +391,39 @@ class MatchService {
 
   private mapAPIFootballLeague(leagueId: number): string | null {
     const mapping: Record<number, string> = {
-      39: 'PL',   // Premier League
-      140: 'LA',  // La Liga
-      135: 'SA',  // Serie A
-      78: 'BL',   // Bundesliga
-      61: 'FL',   // Ligue 1
-      2: 'CL',    // Champions League
-      3: 'EL',    // Europa League
-      94: 'PT1',  // Primeira Liga
-      88: 'NL1',  // Eredivisie
-      144: 'BE1', // Pro League
-      71: 'BR1',  // Brasileirão
-      262: 'MX1', // Liga MX
-      253: 'US1', // MLS
-      233: 'EG1', // Egyptian Premier
-      200: 'TR1', // Super Lig
-      307: 'SA1', // Saudi Pro League
+      // Europe Top 5
+      39: 'PL',    // Premier League
+      140: 'LA',   // La Liga
+      135: 'SA',   // Serie A
+      78: 'BL',    // Bundesliga
+      61: 'FL',    // Ligue 1
+      // European competitions
+      2: 'CL',     // Champions League
+      3: 'EL',     // Europa League
+      848: 'ECL',  // Conference League
+      // Other Europe
+      94: 'PT1',   // Primeira Liga
+      88: 'NL1',   // Eredivisie
+      144: 'BE1',  // Pro League
+      203: 'TR1',  // Süper Lig
+      179: 'SC1',  // Scottish Premiership
+      197: 'GR1',  // Super League Greece
+      207: 'CH1',  // Super League Switzerland
+      218: 'AT1',  // Bundesliga Austria
+      // Americas
+      71: 'BR1',   // Brasileirão
+      128: 'AR1',  // Liga Profesional Argentina
+      262: 'MX1',  // Liga MX
+      253: 'US1',  // MLS
+      11: 'COPA',  // Copa Libertadores
+      // Africa
+      233: 'EG1',  // Egyptian Premier
+      200: 'MA1',  // Botola Pro
+      // Asia
+      307: 'SA1',  // Saudi Pro League
+      98: 'JP1',   // J-League
+      292: 'KR1',  // K-League
+      188: 'AU1',  // A-League
     };
     return mapping[leagueId] || null;
   }
