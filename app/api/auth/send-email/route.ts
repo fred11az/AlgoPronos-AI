@@ -2,7 +2,7 @@
  * POST /api/auth/send-email
  *
  * Route unifiée pour tous les emails d'authentification.
- * Bypasse le SMTP Supabase (non configuré) — utilise Resend directement.
+ * Bypasse le SMTP Supabase — utilise Resend directement.
  *
  * Body:
  *   type: 'signup' | 'resend' | 'recovery'
@@ -18,136 +18,248 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createAdminClient } from '@/lib/supabase/server';
 
-const FROM = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@algopronos.ai>';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+const FROM    = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com').replace(/\/$/, '');
 
-// ─── Email HTML templates ─────────────────────────────────────────────────────
+// Logo SVG inline (compatible Gmail / Outlook / Apple Mail)
+const LOGO_SVG = `<svg viewBox="0 0 220 56" fill="none" xmlns="http://www.w3.org/2000/svg" width="220" height="56">
+  <circle cx="28" cy="28" r="25" stroke="#00D4FF" stroke-width="1.5" fill="none"/>
+  <line x1="14" y1="20" x2="28" y2="28" stroke="#00D4FF" stroke-width="1.5"/>
+  <line x1="28" y1="28" x2="42" y2="20" stroke="#00D4FF" stroke-width="1.5"/>
+  <line x1="14" y1="20" x2="25" y2="14" stroke="#00D4FF" stroke-width="1.5"/>
+  <line x1="25" y1="14" x2="42" y2="20" stroke="#00D4FF" stroke-width="1.5"/>
+  <line x1="28" y1="28" x2="17" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
+  <line x1="28" y1="28" x2="39" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
+  <line x1="17" y1="37" x2="39" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
+  <line x1="14" y1="20" x2="17" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
+  <line x1="42" y1="20" x2="39" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
+  <circle cx="14" cy="20" r="3.5" fill="#00D4FF"/>
+  <circle cx="25" cy="14" r="3" fill="#00D4FF"/>
+  <circle cx="42" cy="20" r="3.5" fill="#00D4FF"/>
+  <circle cx="28" cy="28" r="4" fill="#00D4FF"/>
+  <circle cx="17" cy="37" r="3" fill="#00D4FF"/>
+  <circle cx="39" cy="37" r="3" fill="#00D4FF"/>
+  <text x="63" y="26" font-family="Arial,Helvetica,sans-serif" font-size="16" font-weight="700" fill="#FFFFFF">AlgoPronos</text>
+  <text x="170" y="26" font-family="Arial,Helvetica,sans-serif" font-size="16" font-weight="700" fill="#00D4FF">AI</text>
+  <text x="64" y="42" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="500" fill="#00D4FF" letter-spacing="2.5">DATA &gt; EMOTION</text>
+</svg>`;
 
-function baseLayout(content: string): string {
+// ─── Layout de base ──────────────────────────────────────────────────────────
+
+function baseLayout(content: string, previewText: string): string {
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="x-apple-disable-message-reformatting"/>
   <title>AlgoPronos AI</title>
+  <!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
 </head>
-<body style="margin:0;padding:0;background:#0f1623;font-family:'Helvetica Neue',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f1623;min-height:100vh;">
-    <tr>
-      <td align="center" style="padding:40px 16px;">
-        <table width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0">
-          <!-- Logo -->
-          <tr>
-            <td align="center" style="padding-bottom:28px;">
-              <table cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="background:linear-gradient(135deg,#10b981,#6366f1);border-radius:12px;width:44px;height:44px;text-align:center;vertical-align:middle;">
-                    <span style="color:#fff;font-weight:900;font-size:20px;line-height:44px;">A</span>
-                  </td>
-                  <td style="padding-left:10px;vertical-align:middle;">
-                    <span style="color:#fff;font-weight:700;font-size:18px;">AlgoPronos AI</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- Card -->
-          <tr>
-            <td style="background:#1a2332;border:1px solid #2d3a4d;border-radius:20px;overflow:hidden;">
-              ${content}
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="padding-top:24px;text-align:center;color:#4a5568;font-size:12px;line-height:1.6;">
-              © ${new Date().getFullYear()} AlgoPronos AI · 18+ · Jouez responsable<br/>
-              <a href="${APP_URL}" style="color:#10b981;text-decoration:none;">${APP_URL.replace('https://', '')}</a>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+<body style="margin:0;padding:0;background-color:#0d1520;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
+
+<!-- Preheader invisible -->
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#0d1520;">${previewText}&nbsp;‌&nbsp;‌&nbsp;‌</div>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0d1520;">
+  <tr>
+    <td align="center" style="padding:32px 16px 48px;">
+
+      <!-- Container -->
+      <table width="100%" style="max-width:560px;" cellpadding="0" cellspacing="0" border="0">
+
+        <!-- Logo -->
+        <tr>
+          <td align="center" style="padding-bottom:24px;">
+            <a href="${APP_URL}" style="display:inline-block;text-decoration:none;">
+              ${LOGO_SVG}
+            </a>
+          </td>
+        </tr>
+
+        <!-- Card -->
+        <tr>
+          <td style="background-color:#162032;border:1px solid #1e3a5f;border-radius:16px;overflow:hidden;">
+            ${content}
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding-top:28px;text-align:center;">
+            <p style="margin:0 0 6px;color:#3d5a7a;font-size:12px;line-height:1.6;">
+              © ${new Date().getFullYear()} AlgoPronos AI · Jouez responsable · 18+
+            </p>
+            <p style="margin:0;font-size:12px;">
+              <a href="${APP_URL}" style="color:#00D4FF;text-decoration:none;">algopronos.com</a>
+              &nbsp;·&nbsp;
+              <a href="${APP_URL}/support" style="color:#3d5a7a;text-decoration:none;">Support</a>
+              &nbsp;·&nbsp;
+              <a href="${APP_URL}/privacy" style="color:#3d5a7a;text-decoration:none;">Confidentialité</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`;
 }
 
+// ─── Template : Email de vérification / confirmation ─────────────────────────
+
 function verificationEmail(name: string, link: string): string {
-  const firstName = name.split(' ')[0] || 'là';
-  return baseLayout(`
-    <!-- Header gradient -->
-    <div style="background:linear-gradient(135deg,#10b981,#059669);padding:32px 32px 24px;text-align:center;">
-      <div style="width:64px;height:64px;background:rgba(255,255,255,0.2);border-radius:16px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
-        <span style="font-size:32px;line-height:64px;display:block;">✉️</span>
+  const firstName = (name || '').split(' ')[0] || 'là';
+
+  const body = `
+    <!-- Header accent bar -->
+    <div style="height:4px;background:linear-gradient(90deg,#00D4FF,#0099FF);"></div>
+
+    <!-- Header icon -->
+    <div style="padding:36px 40px 0;text-align:center;">
+      <div style="display:inline-block;background-color:#0d1c2e;border:1px solid #00D4FF30;border-radius:50%;width:72px;height:72px;line-height:72px;font-size:32px;">
+        ✉️
       </div>
-      <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">Confirmez votre email</h1>
+      <h1 style="margin:20px 0 8px;color:#FFFFFF;font-size:24px;font-weight:700;letter-spacing:-0.3px;">
+        Confirmez votre email
+      </h1>
+      <p style="margin:0;color:#6b8cad;font-size:15px;line-height:1.6;">
+        Plus qu'une étape avant de commencer à gagner
+      </p>
     </div>
+
     <!-- Body -->
-    <div style="padding:32px;">
-      <p style="margin:0 0 16px;color:#e2e8f0;font-size:15px;line-height:1.6;">
-        Bonjour <strong>${firstName}</strong> 👋
+    <div style="padding:28px 40px;">
+
+      <p style="margin:0 0 20px;color:#c8ddf0;font-size:15px;line-height:1.7;">
+        Bonjour <strong style="color:#FFFFFF;">${firstName}</strong> 👋
       </p>
-      <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.7;">
-        Bienvenue sur AlgoPronos AI ! Cliquez sur le bouton ci-dessous pour confirmer
-        votre adresse email et activer votre compte.
+      <p style="margin:0 0 28px;color:#8aabcc;font-size:14px;line-height:1.7;">
+        Bienvenue sur <strong style="color:#00D4FF;">AlgoPronos AI</strong> ! Cliquez sur le bouton
+        ci-dessous pour confirmer votre adresse email et activer votre compte.
       </p>
-      <!-- CTA Button -->
-      <table width="100%" cellpadding="0" cellspacing="0">
+
+      <!-- CTA -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td align="center" style="padding:8px 0 24px;">
-            <a href="${link}" style="display:inline-block;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;font-size:15px;text-decoration:none;padding:14px 36px;border-radius:12px;">
-              ✅ Confirmer mon email
+          <td align="center" style="padding-bottom:28px;">
+            <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${link}" style="height:52px;v-text-anchor:middle;width:260px;" arcsize="15%" fillcolor="#00D4FF"><w:anchorlock/><center style="color:#000000;font-family:Arial;font-size:15px;font-weight:bold;">✅ Confirmer mon email</center></v:roundrect><![endif]-->
+            <!--[if !mso]><!-->
+            <a href="${link}"
+               style="display:inline-block;background-color:#00D4FF;color:#000000;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:15px 48px;border-radius:10px;letter-spacing:0.2px;">
+              ✅&nbsp;&nbsp;Confirmer mon email
             </a>
+            <!--<![endif]-->
           </td>
         </tr>
       </table>
-      <!-- Features -->
-      <div style="background:#0f1623;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
-        <p style="margin:0 0 10px;color:#10b981;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Ce qui vous attend</p>
-        <p style="margin:4px 0;color:#a0aec0;font-size:13px;">🎯 Ticket IA du Jour · 3 picks sélectionnés par l'algorithme</p>
-        <p style="margin:4px 0;color:#a0aec0;font-size:13px;">⚡ 2 coupons combinés par jour · 100% gratuit</p>
-        <p style="margin:4px 0;color:#a0aec0;font-size:13px;">📊 Analyse de probabilités en temps réel</p>
-      </div>
-      <p style="margin:0;color:#4a5568;font-size:12px;line-height:1.6;">
-        Ce lien expire dans <strong style="color:#e2e8f0;">24 heures</strong>.
-        Si vous n'avez pas créé de compte, ignorez cet email.
-      </p>
+
+      <!-- Features box -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0d1520;border-radius:12px;margin-bottom:24px;">
+        <tr>
+          <td style="padding:18px 20px;">
+            <p style="margin:0 0 12px;color:#00D4FF;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Ce qui vous attend</p>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">🎯&nbsp;&nbsp;<strong style="color:#c8ddf0;">Ticket IA du Jour</strong> · 3 picks sélectionnés par l'algorithme</td></tr>
+              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">⚡&nbsp;&nbsp;<strong style="color:#c8ddf0;">2 coupons combinés</strong> · 100% gratuit chaque jour</td></tr>
+              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">📊&nbsp;&nbsp;<strong style="color:#c8ddf0;">Analyse en temps réel</strong> · Probabilités & cotes optimisées</td></tr>
+              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">🏆&nbsp;&nbsp;<strong style="color:#c8ddf0;">Classement des paris</strong> · Suivez votre progression</td></tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Security note -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #1e3a5f;">
+        <tr>
+          <td style="padding-top:20px;">
+            <p style="margin:0;color:#3d5a7a;font-size:12px;line-height:1.7;">
+              🔒 Ce lien expire dans <strong style="color:#6b8cad;">24 heures</strong>.
+              Si vous n'avez pas créé ce compte, ignorez cet email — rien ne changera.
+            </p>
+          </td>
+        </tr>
+      </table>
+
     </div>
-  `);
+  `;
+
+  return baseLayout(body, `Confirmez votre email pour activer votre compte AlgoPronos AI`);
 }
 
+// ─── Template : Réinitialisation du mot de passe ─────────────────────────────
+
 function recoveryEmail(email: string, link: string): string {
-  return baseLayout(`
-    <!-- Header gradient -->
-    <div style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:32px 32px 24px;text-align:center;">
-      <span style="font-size:40px;display:block;margin-bottom:12px;">🔑</span>
-      <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">Réinitialisation du mot de passe</h1>
+  const body = `
+    <!-- Header accent bar -->
+    <div style="height:4px;background:linear-gradient(90deg,#6366f1,#00D4FF);"></div>
+
+    <!-- Header icon -->
+    <div style="padding:36px 40px 0;text-align:center;">
+      <div style="display:inline-block;background-color:#0d1c2e;border:1px solid #6366f130;border-radius:50%;width:72px;height:72px;line-height:72px;font-size:32px;">
+        🔑
+      </div>
+      <h1 style="margin:20px 0 8px;color:#FFFFFF;font-size:24px;font-weight:700;letter-spacing:-0.3px;">
+        Réinitialisation du mot de passe
+      </h1>
+      <p style="margin:0;color:#6b8cad;font-size:15px;line-height:1.6;">
+        Créez un nouveau mot de passe sécurisé
+      </p>
     </div>
+
     <!-- Body -->
-    <div style="padding:32px;">
-      <p style="margin:0 0 16px;color:#e2e8f0;font-size:15px;line-height:1.6;">
-        Une demande de réinitialisation de mot de passe a été effectuée pour <strong>${email}</strong>.
+    <div style="padding:28px 40px;">
+
+      <p style="margin:0 0 20px;color:#8aabcc;font-size:14px;line-height:1.7;">
+        Une demande de réinitialisation a été effectuée pour le compte associé à
+        <strong style="color:#00D4FF;">${email}</strong>.
       </p>
-      <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.7;">
-        Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe. Ce lien est valable pendant <strong style="color:#e2e8f0;">1 heure</strong>.
-      </p>
-      <!-- CTA Button -->
-      <table width="100%" cellpadding="0" cellspacing="0">
+
+      <!-- CTA -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td align="center" style="padding:8px 0 24px;">
-            <a href="${link}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-weight:700;font-size:15px;text-decoration:none;padding:14px 36px;border-radius:12px;">
-              🔐 Réinitialiser mon mot de passe
+          <td align="center" style="padding-bottom:28px;">
+            <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${link}" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="15%" fillcolor="#6366f1"><w:anchorlock/><center style="color:#ffffff;font-family:Arial;font-size:15px;font-weight:bold;">🔐 Réinitialiser mon mot de passe</center></v:roundrect><![endif]-->
+            <!--[if !mso]><!-->
+            <a href="${link}"
+               style="display:inline-block;background-color:#6366f1;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:15px 36px;border-radius:10px;letter-spacing:0.2px;">
+              🔐&nbsp;&nbsp;Réinitialiser mon mot de passe
             </a>
+            <!--<![endif]-->
           </td>
         </tr>
       </table>
-      <div style="background:#0f1623;border:1px solid #2d3a4d;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
-        <p style="margin:0;color:#f59e0b;font-size:13px;">
-          ⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez cet email. Votre mot de passe ne sera pas modifié.
-        </p>
-      </div>
+
+      <!-- Warning box -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#1a1200;border:1px solid #f59e0b40;border-radius:12px;margin-bottom:24px;">
+        <tr>
+          <td style="padding:16px 20px;">
+            <p style="margin:0;color:#f59e0b;font-size:13px;line-height:1.6;">
+              ⚠️&nbsp;&nbsp;<strong>Vous n'avez pas fait cette demande ?</strong><br/>
+              <span style="color:#8aabcc;">Ignorez cet email. Votre mot de passe actuel restera inchangé. Ce lien expire dans <strong style="color:#c8ddf0;">1 heure</strong>.</span>
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Security note -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #1e3a5f;">
+        <tr>
+          <td style="padding-top:20px;">
+            <p style="margin:0;color:#3d5a7a;font-size:12px;line-height:1.7;">
+              🔒 AlgoPronos AI ne vous demandera jamais votre mot de passe par email.
+              Si quelqu'un vous le demande, signalez-le sur <a href="${APP_URL}/support" style="color:#00D4FF;text-decoration:none;">notre support</a>.
+            </p>
+          </td>
+        </tr>
+      </table>
+
     </div>
-  `);
+  `;
+
+  return baseLayout(body, `Réinitialisez votre mot de passe AlgoPronos AI`);
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -166,11 +278,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'RESEND_API_KEY non configuré' }, { status: 500 });
     }
 
-    const resend = new Resend(apiKey);
+    const resend        = new Resend(apiKey);
     const adminSupabase = createAdminClient();
-
-    // ── Génération du lien Supabase Admin ──────────────────────────────────────
-    let actionLink: string | undefined;
 
     if (type === 'signup') {
       if (!password) return NextResponse.json({ error: 'password requis pour signup' }, { status: 400 });
@@ -187,8 +296,10 @@ export async function POST(req: Request) {
         },
       });
 
+      let actionLink: string;
+
       if (error || !data?.properties?.action_link) {
-        // L'utilisateur existe peut-être déjà → essayer magiclink
+        // Utilisateur déjà existant → magic link
         const ml = await adminSupabase.auth.admin.generateLink({
           type: 'magiclink',
           email,
@@ -202,7 +313,6 @@ export async function POST(req: Request) {
         actionLink = data.properties.action_link;
       }
 
-      // Envoi de l'email de vérification
       await resend.emails.send({
         from: FROM,
         to: email,
@@ -211,7 +321,6 @@ export async function POST(req: Request) {
       });
 
     } else if (type === 'resend') {
-      // Renvoi de l'email de confirmation pour un utilisateur existant non confirmé
       const confirmRedirect = redirectTo || `${APP_URL}/auth/callback?next=/dashboard`;
 
       const { data, error } = await adminSupabase.auth.admin.generateLink({
@@ -223,13 +332,12 @@ export async function POST(req: Request) {
       if (error || !data?.properties?.action_link) {
         return NextResponse.json({ error: 'Impossible de générer le lien' }, { status: 500 });
       }
-      actionLink = data.properties.action_link;
 
       await resend.emails.send({
         from: FROM,
         to: email,
-        subject: '🔁 Nouveau lien de connexion AlgoPronos AI',
-        html: verificationEmail('', actionLink),
+        subject: '🔁 Votre lien de connexion AlgoPronos AI',
+        html: verificationEmail('', data.properties.action_link),
       });
 
     } else if (type === 'recovery') {
@@ -244,13 +352,12 @@ export async function POST(req: Request) {
       if (error || !data?.properties?.action_link) {
         return NextResponse.json({ error: 'Impossible de générer le lien de récupération' }, { status: 500 });
       }
-      actionLink = data.properties.action_link;
 
       await resend.emails.send({
         from: FROM,
         to: email,
         subject: '🔑 Réinitialisation de votre mot de passe AlgoPronos AI',
-        html: recoveryEmail(email, actionLink),
+        html: recoveryEmail(email, data.properties.action_link),
       });
 
     } else {
