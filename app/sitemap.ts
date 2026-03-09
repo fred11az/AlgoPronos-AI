@@ -46,7 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .gte('match_date', today);
 
     if (leagues) {
-      const uniqueLeagueSlugs = [...new Set(leagues.map((l) => l.league_slug))];
+      const uniqueLeagueSlugs = Array.from(new Set(leagues.map((l) => l.league_slug)));
       leaguePages = uniqueLeagueSlugs.map((slug) => ({
         url: `${BASE_URL}/ligue/${slug}`,
         lastModified: new Date(),
@@ -71,7 +71,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ...homeTeams.map((t) => t.home_team_slug),
         ...awayTeams.map((t) => t.away_team_slug),
       ];
-      const uniqueTeamSlugs = [...new Set(allTeamSlugs)];
+      const uniqueTeamSlugs = Array.from(new Set(allTeamSlugs));
       teamPages = uniqueTeamSlugs.map((slug) => ({
         url: `${BASE_URL}/equipe/${slug}`,
         lastModified: new Date(),
