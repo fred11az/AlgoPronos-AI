@@ -73,7 +73,7 @@ const fallbackLeagues: Record<string, { name: string; country: string }> = {
   COPA: { name: 'Copa Libertadores', country: 'Amérique du Sud' },
 };
 
-const BASE_URL = 'https://www.thesportsdb.com/api/v1/json/3';
+const BASE_URL = 'https://www.thesportsdb.com/api/v1/json/1';
 
 interface TSDBEvent {
   idEvent: string;

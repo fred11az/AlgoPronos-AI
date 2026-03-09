@@ -162,12 +162,16 @@ export async function POST(req: NextRequest) {
     dateStrings.push(d.toISOString().split('T')[0]);
   }
 
+  const apiDebug: Record<string, number> = {};
+
   for (const dateStr of dateStrings) {
     let matches;
     try {
       matches = await matchService.getMatchesForDate(dateStr);
+      apiDebug[dateStr] = matches.length;
     } catch (err) {
       errors.push(`Fetch error for ${dateStr}: ${String(err)}`);
+      apiDebug[dateStr] = -1;
       continue;
     }
 
@@ -261,6 +265,7 @@ export async function POST(req: NextRequest) {
     skipped: skipped.length,
     errors,
     slugs: generated,
+    debug_matches_per_day: apiDebug,
   });
 }
 
