@@ -3,6 +3,10 @@
     {
       "path": "/api/pronostics/generate",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/weekly/generate",
+      "schedule": "0 20 * * 0"
     }
   ]
 }
