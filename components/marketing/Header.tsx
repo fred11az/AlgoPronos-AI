@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { label: 'Comment ça marche', href: '#how-it-works' },
-  { label: 'Données analysées', href: '#data' },
+  { label: 'Pronostics', href: '/pronostics' },
   { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
   { label: 'Bookmakers', href: '#bookmakers' },
 ];
