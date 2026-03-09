@@ -125,7 +125,7 @@ export default function CompteOptimiseIAPage() {
       <Header />
 
       {/* ─── HERO ────────────────────────────────────────────────────────────── */}
-      <section className="relative min-h-[90vh] flex items-center pt-20 overflow-hidden">
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden">
         {/* Blobs */}
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <div className="absolute top-20 left-10 w-96 h-96 bg-primary rounded-full mix-blend-multiply filter blur-[130px] animate-blob" />

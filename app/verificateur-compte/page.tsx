@@ -103,7 +103,7 @@ export default function VerificateurPage() {
     : step === 'result' ? 100 : 0;
 
   return (
-    <main className="min-h-screen bg-background flex flex-col items-center justify-start pt-16 pb-20 px-4">
+    <main className="min-h-screen bg-background flex flex-col items-center justify-start pb-20 px-4">
       {/* Header */}
       <div className="text-center mb-10 max-w-xl">
         <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-5">
@@ -347,8 +347,7 @@ export default function VerificateurPage() {
 
         {/* Note légale */}
         <p className="text-center text-xs text-text-muted mt-4 px-4">
-          Cet outil vérifie uniquement si votre compte a été validé sur la plateforme AlgoPronos AI.
-          Jouez responsable · 18+ uniquement.
+          18+ uniquement · Jouez responsable.
         </p>
       </div>
 

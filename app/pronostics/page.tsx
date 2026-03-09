@@ -91,7 +91,7 @@ export default async function PronosticsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pt-20">
+    <main className="min-h-screen bg-background">
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 py-10">
         <div className="text-center mb-8">

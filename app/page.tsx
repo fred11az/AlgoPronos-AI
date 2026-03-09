@@ -110,7 +110,7 @@ export default function LandingPage() {
       <Header />
 
       {/* ─── HERO ──────────────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+      <section className="relative min-h-screen flex items-center overflow-hidden">
         {/* Animated blobs */}
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <div className="absolute top-20 left-10 w-80 h-80 bg-primary rounded-full mix-blend-multiply filter blur-[120px] animate-blob" />

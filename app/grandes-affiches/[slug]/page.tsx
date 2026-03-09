@@ -89,7 +89,7 @@ export default async function SpotlightArchivePage({
   const s = spotlight as Spotlight;
 
   return (
-    <main className="min-h-screen bg-background pt-20">
+    <main className="min-h-screen bg-background">
       {/* Breadcrumb */}
       <div className="max-w-5xl mx-auto px-4 py-4">
         <nav className="flex items-center gap-2 text-sm text-text-muted">
