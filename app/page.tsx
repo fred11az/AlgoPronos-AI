@@ -267,55 +267,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── DONNÉES ANALYSÉES ────────────────────────────────────────────────── */}
-      <section id="data" className="py-24 bg-background">
-        <div className="max-w-7xl mx-auto px-4">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <Badge variant="outline" className="mb-4">Données analysées</Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-                6 signaux pour chaque ticket
-              </h2>
-              <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-                Notre algorithme combine données sportives et calcul statistique pour identifier
-                les meilleures opportunités.
-              </p>
-            </div>
-          </ScrollReveal>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {DATA_SIGNALS.map((signal, i) => (
-              <ScrollReveal key={i} delay={(i % 3) * 0.1}>
-                <div className="group bg-surface border border-surface-light rounded-2xl p-6 hover:border-primary/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5">
-                  <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                    <signal.icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-2">{signal.title}</h3>
-                  <p className="text-text-secondary text-sm leading-relaxed">{signal.description}</p>
-                </div>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── TICKET DU JOUR (LIVE) ────────────────────────────────────────────── */}
-      <LiveTicketSection />
-
-      {/* ─── HISTORIQUE / CLASSEMENT ──────────────────────────────────────────── */}
-      <ClassementPreview />
-
-      {/* ─── GRANDES AFFICHES ─────────────────────────────────────────────────── */}
-      <GrandesAffichesPreview />
-
-      {/* ─── BOOKMAKERS ───────────────────────────────────────────────────────── */}
-      <BookmakersSection />
-
       {/* ─── VÉRIFICATEUR COMPTE OPTIMISÉ IA ─────────────────────────────────── */}
       <section className="py-20 bg-surface border-t border-surface-light">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-gradient-to-br from-primary/10 via-surface-light to-surface rounded-2xl border border-primary/20 p-8 md:p-12 relative overflow-hidden">
-            {/* Déco */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
             <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
               <div className="flex-1">
@@ -350,7 +305,6 @@ export default function LandingPage() {
                   </Button>
                 </Link>
               </div>
-              {/* Visual */}
               <div className="shrink-0 text-center md:text-right">
                 <div className="inline-flex flex-col items-center gap-3">
                   <div className="w-24 h-24 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
@@ -360,6 +314,50 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── TICKET DU JOUR (LIVE) ────────────────────────────────────────────── */}
+      <LiveTicketSection />
+
+      {/* ─── HISTORIQUE / CLASSEMENT ──────────────────────────────────────────── */}
+      <ClassementPreview />
+
+      {/* ─── GRANDES AFFICHES ─────────────────────────────────────────────────── */}
+      <GrandesAffichesPreview />
+
+      {/* ─── BOOKMAKERS ───────────────────────────────────────────────────────── */}
+      <BookmakersSection />
+
+      {/* ─── DONNÉES ANALYSÉES ────────────────────────────────────────────────── */}
+      <section id="data" className="py-24 bg-background">
+        <div className="max-w-7xl mx-auto px-4">
+          <ScrollReveal>
+            <div className="text-center mb-16">
+              <Badge variant="outline" className="mb-4">Données analysées</Badge>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+                6 signaux pour chaque ticket
+              </h2>
+              <p className="text-text-secondary text-lg max-w-2xl mx-auto">
+                Notre algorithme combine données sportives et calcul statistique pour identifier
+                les meilleures opportunités.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {DATA_SIGNALS.map((signal, i) => (
+              <ScrollReveal key={i} delay={(i % 3) * 0.1}>
+                <div className="group bg-surface border border-surface-light rounded-2xl p-6 hover:border-primary/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5">
+                  <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                    <signal.icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-base font-bold text-white mb-2">{signal.title}</h3>
+                  <p className="text-text-secondary text-sm leading-relaxed">{signal.description}</p>
+                </div>
+              </ScrollReveal>
+            ))}
           </div>
         </div>
       </section>
