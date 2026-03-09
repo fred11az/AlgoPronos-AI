@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Shield, ShieldCheck, ShieldX, ChevronDown,
-  Loader2, CheckCircle2, XCircle, ArrowRight,
+  Shield, ShieldCheck, ShieldX, ChevronDown, ChevronRight,
+  Loader2, CheckCircle2, XCircle, ArrowRight, ArrowLeft,
   Lock, Wifi, Server, Database, Zap, ExternalLink,
 } from 'lucide-react';
 
@@ -104,6 +104,18 @@ export default function VerificateurPage() {
 
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-start pb-20 px-4">
+      {/* Breadcrumb */}
+      <div className="w-full max-w-md pt-4 mb-2">
+        <nav className="flex items-center gap-2 text-sm text-text-muted">
+          <Link href="/" className="hover:text-white transition-colors flex items-center gap-1">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Accueil
+          </Link>
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-white">Vérificateur</span>
+        </nav>
+      </div>
+
       {/* Header */}
       <div className="text-center mb-10 max-w-xl">
         <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-5">

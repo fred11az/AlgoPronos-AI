@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { BarChart2, TrendingUp, ArrowRight, Search } from 'lucide-react';
+import { BarChart2, TrendingUp, ArrowRight, Search, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
@@ -92,6 +92,15 @@ export default async function PronosticsPage() {
 
   return (
     <main className="min-h-screen bg-background">
+      {/* Breadcrumb */}
+      <div className="max-w-5xl mx-auto px-4 py-4">
+        <nav className="flex items-center gap-2 text-sm text-text-muted">
+          <Link href="/" className="hover:text-white transition-colors">Accueil</Link>
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-white">Pronostics</span>
+        </nav>
+      </div>
+
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 py-10">
         <div className="text-center mb-8">
