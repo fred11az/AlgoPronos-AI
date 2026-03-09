@@ -37,8 +37,8 @@ interface CombineParameters {
 // ─── Quota config ─────────────────────────────────────────────────────────────
 
 const WEEKLY_LIMITS = {
-  visitor: 1,    // anonymous session
-  registered: 2, // has AlgoPronos account but no 1xBet verification
+  visitor: 2,    // anonymous session
+  registered: 3, // has AlgoPronos account but no 1xBet verification
   verified: 999, // 1xBet account verified → effectively unlimited
 } as const;
 
@@ -149,6 +149,13 @@ interface PickCandidate {
   valueEdge: number | null;
 }
 
+// Odds min/max réels selon le niveau de risque (complète la plage choisie par l'user)
+const RISK_ODDS_PROFILE = {
+  safe:     { minOdds: 1.20, maxOdds: 2.00, targetOdds: 1.55 },
+  balanced: { minOdds: 1.55, maxOdds: 3.50, targetOdds: 2.00 },
+  risky:    { minOdds: 2.00, maxOdds: 8.00, targetOdds: 3.00 },
+} as const;
+
 function pickForMatch(
   match: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds: { home: number; draw: number; away: number } },
   riskLevel: 'safe' | 'balanced' | 'risky',
@@ -176,29 +183,44 @@ function pickForMatch(
   addCandidate('Double Chance', '1X', dc1X, stats ? stats.homePct + stats.drawPct : null);
   addCandidate('Double Chance', 'X2', dcX2, stats ? stats.drawPct + stats.awayPct : null);
 
-  // Filter by odds range — always keep at least 1 candidate
-  const inRange = candidates.filter(c => c.odds >= oddsRange.min && c.odds <= oddsRange.max);
-  const pool = inRange.length > 0 ? inRange : candidates;
+  // Merge user odds range with risk profile: prend le range le plus restrictif
+  const riskProfile = RISK_ODDS_PROFILE[riskLevel];
+  const effectiveMin = Math.max(oddsRange.min, riskProfile.minOdds);
+  const effectiveMax = Math.min(oddsRange.max, riskProfile.maxOdds);
+
+  // Filtre par plage effective; si vide, fallback sur plage user, puis sur tout
+  let pool = candidates.filter(c => c.odds >= effectiveMin && c.odds <= effectiveMax);
+  if (pool.length === 0) pool = candidates.filter(c => c.odds >= oddsRange.min && c.odds <= oddsRange.max);
+  if (pool.length === 0) pool = candidates;
 
   let best = pool[0];
 
   if (riskLevel === 'safe') {
-    // Prefer lowest odds (highest probability), bonus for Double Chance and positive value
+    // Préférer les cotes basses (prob. haute), bonus Double Chance et value positive
     best = pool.reduce((a, b) => {
       const score = (c: PickCandidate) =>
-        -c.odds + (c.type === 'Double Chance' ? 0.3 : 0) + ((c.valueEdge ?? 0) > 0 ? 0.2 : 0);
+        -c.odds
+        + (c.type === 'Double Chance' ? 0.5 : 0)        // forte préférence DC
+        + ((c.valueEdge ?? 0) > 0 ? 0.3 : 0)
+        - (c.odds > riskProfile.targetOdds ? 0.4 : 0);  // pénalise cotes trop hautes
       return score(b) > score(a) ? b : a;
     });
   } else if (riskLevel === 'balanced') {
-    // Prefer positive value edge, then closest to 2.0 odds
+    // Value edge positif prioritaire, puis cotes proches de 2.0
     best = pool.reduce((a, b) => {
-      const score = (c: PickCandidate) => (c.valueEdge ?? 0) * 3 - Math.abs(c.odds - 2.0);
+      const score = (c: PickCandidate) =>
+        (c.valueEdge ?? 0) * 4
+        - Math.abs(c.odds - riskProfile.targetOdds) * 0.8
+        + (c.type === '1X2' ? 0.2 : 0);  // léger bonus 1X2 (plus lisible pour l'user)
       return score(b) > score(a) ? b : a;
     });
   } else {
-    // risky: prefer highest value edge then highest odds
+    // Risky: maximiser value edge puis cotes hautes, exclure Double Chance (trop prudent)
     best = pool.reduce((a, b) => {
-      const score = (c: PickCandidate) => (c.valueEdge ?? 0) * 2 + c.odds * 0.3;
+      const score = (c: PickCandidate) =>
+        (c.valueEdge ?? 0) * 3
+        + (c.odds > riskProfile.targetOdds ? c.odds * 0.5 : 0)
+        - (c.type === 'Double Chance' ? 2.0 : 0);  // pénalise DC en mode risky
       return score(b) > score(a) ? b : a;
     });
   }
@@ -269,62 +291,73 @@ function buildExplainPrompt(
   picks: AlgoPick[],
   statsMap: Map<string, MatchStats>,
   isOptimized: boolean,
+  riskLevel?: 'safe' | 'balanced' | 'risky',
 ): { system: string; user: string } {
-  const system = `Tu es AlgoPronos AI, analyste sportif professionnel.
-Les sélections ont DÉJÀ été choisies par l'algorithme AlgoPronos. TON RÔLE UNIQUEMENT: les expliquer.
+  const riskContext = riskLevel === 'safe'
+    ? 'COUPON SÉCURISÉ — insiste sur la solidité des favoris et la faible exposition.'
+    : riskLevel === 'risky'
+    ? 'COUPON RISQUÉ — insiste sur le potentiel de gain élevé et les opportunités value bet.'
+    : 'COUPON ÉQUILIBRÉ — mets en avant le rapport risque/rendement optimal.';
+
+  const system = `Tu es AlgoPronos AI, analyste sportif pro spécialisé Paris sportifs Afrique de l'Ouest.
+Les sélections ont DÉJÀ été choisies par l'algorithme AlgoPronos. TON RÔLE: les expliquer avec conviction et expertise.
+
 RÈGLES ABSOLUES:
 - Ne JAMAIS modifier ni contredire les sélections fournies
-- Ne JAMAIS inventer des probabilités absentes des données
-- Langage journalistique naturel — jamais robotique
-- Maximum 2-3 phrases par match${isOptimized ? ', mentionne les value bets clairement identifiés' : ''}
-- Cite la forme récente, le style de jeu ou la motivation — pas juste les cotes
-- Évite les tournures génériques: "les cotes suggèrent", "les statistiques indiquent"
-- Tu réponds EXCLUSIVEMENT en JSON valide. Zéro texte, zéro markdown.`;
+- Langage journalistique naturel — jamais robotique ni générique
+- 2-3 phrases par match MAXIMUM — concis, précis, percutant
+- Cite la forme, le contexte (derby, enjeux, fatigue, avantage terrain), les statistiques fournies
+- ${isOptimized ? '⚡ Mets en avant les VALUE BETS identifiés (avantage modèle vs bookmaker)' : 'Explique la logique algorithmique de façon accessible'}
+- INTERDITS: "les statistiques indiquent", "les cotes suggèrent", "il est difficile de prédire"
+- ${riskContext}
+- Tu réponds EXCLUSIVEMENT en JSON valide. Zéro texte avant ou après.`;
 
   const matchesText = picks.map((p, i) => {
     const stats = statsMap.get(p.matchId);
     const lines = [
       `Match ${i + 1}: ${p.homeTeam} vs ${p.awayTeam} (${p.league})`,
-      `  Sélection DÉCIDÉE: ${p.selection.value} @ ${p.selection.odds} (${p.selection.type})`,
+      `  ► Sélection CONFIRMÉE: "${p.selection.value}" @ ${p.selection.odds} [${p.selection.type}]`,
       `  Prob. implicite bookmaker: ${p.selection.impliedPct}%`,
     ];
     if (p.selection.modelPct !== null) {
-      lines.push(`  Prob. modèle AlgoPronos: ${p.selection.modelPct}%`);
-      if (p.selection.valueEdge !== null && p.selection.valueEdge > 0) {
-        lines.push(`  ⚡ VALUE BET: avantage +${p.selection.valueEdge}% vs bookmaker`);
+      lines.push(`  Prob. modèle AlgoPronos: ${p.selection.modelPct}% ${p.selection.modelPct > p.selection.impliedPct ? '(supérieure au marché ✓)' : ''}`);
+      if ((p.selection.valueEdge ?? 0) > 0) {
+        lines.push(`  ⚡ VALUE BET DÉTECTÉ: +${p.selection.valueEdge}% d'avantage vs bookmaker`);
       }
     }
     if (stats?.homeForm) {
-      lines.push(`  Forme ${p.homeTeam} (5 matches): ${stats.homeForm.form} | Buts moy: ${stats.homeForm.goalsFor}/m`);
+      const homeGoalDiff = (stats.homeForm.goalsFor - stats.homeForm.goalsAgainst).toFixed(1);
+      lines.push(`  ${p.homeTeam}: forme ${stats.homeForm.form} | ${stats.homeForm.goalsFor} buts/m | diff ${homeGoalDiff}`);
     }
     if (stats?.awayForm) {
-      lines.push(`  Forme ${p.awayTeam} (5 matches): ${stats.awayForm.form} | Buts moy: ${stats.awayForm.goalsFor}/m`);
+      const awayGoalDiff = (stats.awayForm.goalsFor - stats.awayForm.goalsAgainst).toFixed(1);
+      lines.push(`  ${p.awayTeam}: forme ${stats.awayForm.form} | ${stats.awayForm.goalsFor} buts/m | diff ${awayGoalDiff}`);
     }
     if (stats?.advice) {
-      lines.push(`  Conseil API-Football: "${stats.advice}"`);
+      lines.push(`  Analyse API-Football: "${stats.advice}"`);
     }
     return lines.join('\n');
   }).join('\n\n');
 
   const totalOdds = Math.round(picks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
+  const riskLabel = riskLevel === 'safe' ? 'SÉCURISÉ' : riskLevel === 'risky' ? 'RISQUÉ' : 'ÉQUILIBRÉ';
 
   const analysesSchema = picks.map(p =>
-    `{"matchId": "${p.matchId}", "reasoning": "ÉCRIRE 2-3 phrases naturelles ici"}`
+    `{"matchId": "${p.matchId}", "reasoning": "2-3 phrases percutantes, journalistiques, spécifiques à CE match"}`
   ).join(',\n    ');
 
-  const user = `Explique en 2-3 phrases naturelles chaque sélection de ce coupon (cotes totales: ${totalOdds}).
+  const user = `Analyse ce coupon ${riskLabel} de ${picks.length} sélections (cote totale: ${totalOdds}).
 
-SÉLECTIONS ALGORITHMIQUES:
 ${matchesText}
 
-RÉPONDS uniquement avec ce JSON valide:
+RÉPONDS UNIQUEMENT avec ce JSON valide:
 {
   "analyses": [
     ${analysesSchema}
   ],
-  "summary": "1-2 phrases sur la logique globale du coupon",
-  "keyFactors": ["facteur clé 1", "facteur clé 2", "facteur clé 3"],
-  "riskAssessment": "Identifie le match le plus risqué et explique pourquoi"
+  "summary": "2 phrases max: logique globale du coupon + angle ${riskLabel}",
+  "keyFactors": ["facteur décisif 1", "facteur décisif 2", "facteur décisif 3"],
+  "riskAssessment": "Nomme le match le plus incertain et explique le risque en 1 phrase"
 }`;
 
   return { system, user };
@@ -515,7 +548,7 @@ export async function POST(request: Request) {
       const useOptimized = isVerified;
       const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
       const maxTokens = Math.min(600 + algorithmPicks.length * (useOptimized ? 350 : 180), useOptimized ? 4000 : 2000);
-      const { system, user: userMsg } = buildExplainPrompt(algorithmPicks, statsMap, useOptimized);
+      const { system, user: userMsg } = buildExplainPrompt(algorithmPicks, statsMap, useOptimized, params.riskLevel);
 
       const responseText = await callGroq(system, userMsg, groqModel, maxTokens);
       const stripped = responseText.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();

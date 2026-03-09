@@ -11,6 +11,7 @@ import {
   Twitter,
   Check,
   ExternalLink,
+  Download,
 } from 'lucide-react';
 
 interface ShareTicketButtonProps {
@@ -39,12 +40,13 @@ export default function ShareTicketButton({
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai');
   const publicUrl = `${appUrl}/ticket/${ticketId}`;
   const imageUrl = `${appUrl}/api/ticket-image/${ticketId}`;
   const label_ = type === 'daily' ? 'Ticket IA du Jour' : 'Mon Combiné IA';
 
-  const shareText = `🤖 ${label_} — AlgoPronos AI\n\n${matchCount} sélections · Cote totale: ${totalOdds.toFixed(2)} · Confiance IA: ${confidencePct}%\n\n👉 ${publicUrl}`;
+  const shareTitle = `${label_} — AlgoPronos AI`;
+  const shareBody  = `🤖 ${matchCount} sélections · Cote ×${totalOdds.toFixed(2)} · Confiance ${confidencePct}%`;
 
   const enc = (s: string) => encodeURIComponent(s);
 
@@ -53,25 +55,25 @@ export default function ShareTicketButton({
       name: 'WhatsApp',
       icon: MessageCircle,
       color: 'bg-[#25D366]/10 text-[#25D366] border-[#25D366]/30 hover:bg-[#25D366]/20',
-      href: `https://wa.me/?text=${enc(shareText)}`,
+      href: `https://wa.me/?text=${enc(shareBody + '\n\n' + publicUrl)}`,
     },
     {
       name: 'Telegram',
       icon: Send,
       color: 'bg-[#229ED9]/10 text-[#229ED9] border-[#229ED9]/30 hover:bg-[#229ED9]/20',
-      href: `https://t.me/share/url?url=${enc(publicUrl)}&text=${enc(shareText)}`,
+      href: `https://t.me/share/url?url=${enc(publicUrl)}&text=${enc(shareBody)}`,
     },
     {
       name: 'Facebook',
       icon: Facebook,
       color: 'bg-[#1877F2]/10 text-[#1877F2] border-[#1877F2]/30 hover:bg-[#1877F2]/20',
-      href: `https://www.facebook.com/sharer/sharer.php?u=${enc(publicUrl)}`,
+      href: `https://www.facebook.com/sharer/sharer.php?u=${enc(publicUrl)}&quote=${enc(shareBody)}`,
     },
     {
       name: 'X / Twitter',
       icon: Twitter,
       color: 'bg-[#1DA1F2]/10 text-[#1DA1F2] border-[#1DA1F2]/30 hover:bg-[#1DA1F2]/20',
-      href: `https://twitter.com/intent/tweet?text=${enc(shareText)}`,
+      href: `https://twitter.com/intent/tweet?url=${enc(publicUrl)}&text=${enc(shareBody)}`,
     },
   ];
 
@@ -82,9 +84,23 @@ export default function ShareTicketButton({
     });
   }
 
+  async function downloadImage() {
+    try {
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `ticket-algopronos-${ticketId.slice(0, 8)}.png`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      window.open(imageUrl, '_blank');
+    }
+  }
+
   function nativeShare() {
     if (navigator.share) {
-      navigator.share({ title: label_, text: shareText, url: publicUrl });
+      navigator.share({ title: shareTitle, text: shareBody, url: publicUrl });
     } else {
       setOpen(true);
     }
@@ -139,14 +155,24 @@ export default function ShareTicketButton({
                 })}
               </div>
 
-              {/* Copy link */}
-              <button
-                onClick={copyLink}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:text-white hover:border-primary/40 transition-all"
-              >
-                {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
-                {copied ? 'Lien copié !' : 'Copier le lien'}
-              </button>
+              {/* Copy link + Download */}
+              <div className="flex gap-2">
+                <button
+                  onClick={copyLink}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:text-white hover:border-primary/40 transition-all"
+                >
+                  {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                  {copied ? 'Copié !' : 'Copier lien'}
+                </button>
+                <button
+                  onClick={downloadImage}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:text-white hover:border-primary/40 transition-all"
+                  title="Télécharger l'image du ticket"
+                >
+                  <Download className="h-4 w-4" />
+                  Image
+                </button>
+              </div>
 
               {/* View public page */}
               <a

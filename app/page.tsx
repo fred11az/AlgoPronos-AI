@@ -311,6 +311,59 @@ export default function LandingPage() {
       {/* ─── BOOKMAKERS ───────────────────────────────────────────────────────── */}
       <BookmakersSection />
 
+      {/* ─── VÉRIFICATEUR COMPTE OPTIMISÉ IA ─────────────────────────────────── */}
+      <section className="py-20 bg-surface border-t border-surface-light">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="bg-gradient-to-br from-primary/10 via-surface-light to-surface rounded-2xl border border-primary/20 p-8 md:p-12 relative overflow-hidden">
+            {/* Déco */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-4">
+                  <Shield className="h-5 w-5 text-primary" />
+                  <span className="text-primary text-xs font-semibold uppercase tracking-widest">Important</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
+                  Votre compte actuel<br />
+                  <span className="bg-gradient-to-r from-primary to-[#00D4FF] bg-clip-text text-transparent">
+                    est-il Optimisé IA ?
+                  </span>
+                </h2>
+                <p className="text-text-secondary leading-relaxed mb-4 text-sm sm:text-base">
+                  Si vous avez déjà un compte chez un bookmaker partenaire, il est <strong className="text-white">probablement non optimisé IA</strong>.
+                  Les comptes non créés via AlgoPronos ne bénéficient pas de la configuration
+                  nécessaire pour exploiter pleinement l&apos;algorithme.
+                </p>
+                <ul className="space-y-1.5 text-sm text-text-secondary mb-6">
+                  {['Vérification instantanée de votre compte actuel', 'Diagnostic personnalisé en quelques secondes', 'Création guidée si votre compte n\'est pas éligible'].map(t => (
+                    <li key={t} className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/verificateur-compte">
+                  <Button variant="gradient" size="lg">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Vérifier mon compte
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+              {/* Visual */}
+              <div className="shrink-0 text-center md:text-right">
+                <div className="inline-flex flex-col items-center gap-3">
+                  <div className="w-24 h-24 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                    <span className="text-4xl">🛡️</span>
+                  </div>
+                  <div className="text-xs text-text-muted">→ Vérification sécurisée</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ─── FAQ ──────────────────────────────────────────────────────────────── */}
       <section id="faq" className="py-24 bg-background">
         <div className="max-w-3xl mx-auto px-4">

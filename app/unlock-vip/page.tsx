@@ -241,6 +241,28 @@ export default function ActivatePage() {
           </p>
         </div>
 
+        {/* ⚠️ Avertissement compte existant */}
+        <div className="bg-warning/5 border border-warning/25 rounded-2xl p-5 mb-8 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="text-3xl shrink-0">⚠️</div>
+          <div className="flex-1">
+            <p className="text-warning font-semibold text-sm mb-1">
+              Vous avez déjà un compte chez un bookmaker partenaire ?
+            </p>
+            <p className="text-text-secondary text-sm leading-relaxed">
+              Les comptes existants sont généralement <strong className="text-white">non optimisés IA</strong>.
+              Pour en bénéficier pleinement, il faut probablement créer un nouveau compte
+              en suivant les étapes ci-dessous. Vérifiez d&apos;abord si le vôtre est éligible.
+            </p>
+          </div>
+          <Link
+            href="/verificateur-compte"
+            className="shrink-0 flex items-center gap-1.5 text-sm font-semibold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-xl px-4 py-2 transition-colors whitespace-nowrap"
+          >
+            <HelpCircle className="h-4 w-4" />
+            Vérifier mon compte
+          </Link>
+        </div>
+
         {/* What you get */}
         <div className="grid md:grid-cols-3 gap-4 mb-12">
           <div className="bg-surface rounded-xl p-6 border border-surface-light text-center">
