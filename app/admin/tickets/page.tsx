@@ -5,6 +5,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   CheckCircle,
   XCircle,
   MinusCircle,
@@ -50,6 +58,22 @@ const STATUS_CONFIG = {
   void:    { label: 'Annulé',     variant: 'outline' as const, icon: MinusCircle },
 };
 
+// ─── Dialog states ───────────────────────────────────────────────────────────
+
+interface ConfirmDialog {
+  open: boolean;
+  title: string;
+  description: string;
+  onConfirm: () => void;
+}
+
+interface NotesDialog {
+  open: boolean;
+  title: string;
+  placeholder: string;
+  onConfirm: (notes: string) => void;
+}
+
 export default function AdminTicketsPage() {
   const [tickets, setTickets]   = useState<DailyTicket[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -58,6 +82,15 @@ export default function AdminTicketsPage() {
   const [notifyUsers, setNotifyUsers] = useState(true);
   const [autoResolving, setAutoResolving] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  // Dialogs
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog>({
+    open: false, title: '', description: '', onConfirm: () => {},
+  });
+  const [notesDialog, setNotesDialog] = useState<NotesDialog>({
+    open: false, title: '', placeholder: '', onConfirm: () => {},
+  });
+  const [notesValue, setNotesValue] = useState('');
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -76,13 +109,8 @@ export default function AdminTicketsPage() {
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
-  async function resolve(id: string, status: 'won' | 'lost' | 'void') {
-    const notes = status === 'void'
-      ? prompt('Raison de l\'annulation (optionnel) :')
-      : status === 'lost'
-      ? prompt('Notes sur le résultat (optionnel) :')
-      : null;
-
+  // Exécute la résolution avec les notes
+  async function resolveWithNotes(id: string, status: 'won' | 'lost' | 'void', notes: string | null) {
     setProcessing(id);
     try {
       const res = await fetch('/api/admin/tickets', {
@@ -105,20 +133,41 @@ export default function AdminTicketsPage() {
     }
   }
 
-  async function generateToday() {
-    if (!confirm('Supprimer le ticket du jour existant et le régénérer depuis API-Football ?')) return;
-    setGenerating(true);
-    try {
-      const res = await fetch('/api/admin/generate-ticket', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || JSON.stringify(data.details));
-      toast.success('Ticket du jour généré ✅');
-      fetchTickets();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erreur de génération');
-    } finally {
-      setGenerating(false);
+  // Ouvre le dialog de notes puis résout
+  function resolve(id: string, status: 'won' | 'lost' | 'void') {
+    if (status === 'won') {
+      resolveWithNotes(id, status, null);
+      return;
     }
+    setNotesValue('');
+    setNotesDialog({
+      open: true,
+      title: status === 'void' ? "Raison de l'annulation" : "Notes sur le résultat",
+      placeholder: status === 'void' ? 'Raison (optionnel)...' : 'Notes (optionnel)...',
+      onConfirm: (notes) => resolveWithNotes(id, status, notes || null),
+    });
+  }
+
+  async function generateToday() {
+    setConfirmDialog({
+      open: true,
+      title: 'Régénérer le ticket du jour',
+      description: 'Le ticket du jour existant sera supprimé et régénéré depuis API-Football. Cette action est irréversible.',
+      onConfirm: async () => {
+        setGenerating(true);
+        try {
+          const res = await fetch('/api/admin/generate-ticket', { method: 'POST' });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || JSON.stringify(data.details));
+          toast.success('Ticket du jour généré ✅');
+          fetchTickets();
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : 'Erreur de génération');
+        } finally {
+          setGenerating(false);
+        }
+      },
+    });
   }
 
   async function autoResolve() {
@@ -144,6 +193,59 @@ export default function AdminTicketsPage() {
 
   return (
     <div className="p-8">
+      {/* ── Confirm Dialog ── */}
+      <Dialog open={confirmDialog.open} onOpenChange={(o) => setConfirmDialog(d => ({ ...d, open: o }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirmDialog.title}</DialogTitle>
+            <DialogDescription>{confirmDialog.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setConfirmDialog(d => ({ ...d, open: false }))}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmDialog(d => ({ ...d, open: false }));
+                confirmDialog.onConfirm();
+              }}
+            >
+              Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Notes Dialog ── */}
+      <Dialog open={notesDialog.open} onOpenChange={(o) => setNotesDialog(d => ({ ...d, open: o }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{notesDialog.title}</DialogTitle>
+          </DialogHeader>
+          <textarea
+            className="w-full rounded-lg bg-surface-light border border-surface-light text-white placeholder:text-text-muted text-sm px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+            rows={3}
+            placeholder={notesDialog.placeholder}
+            value={notesValue}
+            onChange={(e) => setNotesValue(e.target.value)}
+          />
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setNotesDialog(d => ({ ...d, open: false }))}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                setNotesDialog(d => ({ ...d, open: false }));
+                notesDialog.onConfirm(notesValue);
+              }}
+            >
+              Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -277,7 +379,7 @@ export default function AdminTicketsPage() {
                         ))}
                       </div>
 
-                      {/* Notes si résoldu */}
+                      {/* Notes si résolu */}
                       {ticket.result_notes && (
                         <p className="mt-3 text-xs text-text-muted bg-surface-light rounded-lg px-3 py-2">
                           {ticket.result_notes}

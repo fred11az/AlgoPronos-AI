@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status') || 'all';
   const limit  = parseInt(searchParams.get('limit') || '30');
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from('daily_ticket')
@@ -57,7 +57,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'id et status (won|lost|void) requis' }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Récupérer le ticket avant mise à jour
   const { data: ticket, error: fetchErr } = await supabase
