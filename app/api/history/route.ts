@@ -9,7 +9,13 @@ export async function GET() {
     const adminSupabase = createAdminClient();
     const today = new Date().toISOString().split('T')[0];
 
-    // Récupère tous les tickets (jusqu'à 60) sans filtre complexe imbriqué
+    // Compte réel (sans limite) — pour le compteur homepage
+    const { count: totalCount } = await adminSupabase
+      .from('daily_ticket')
+      .select('*', { count: 'exact', head: true })
+      .lte('date', today);
+
+    // Récupère les 60 derniers tickets pour l'affichage + calcul des stats
     const { data: allTickets, error } = await adminSupabase
       .from('daily_ticket')
       .select('*')
@@ -55,7 +61,7 @@ export async function GET() {
       win_rate_pct:   winRate,
       avg_odds:       avgOdds,
       best_win_odds:  bestWinOdds,
-      total_tickets:  (allTickets || []).length,
+      total_tickets:  totalCount ?? (allTickets || []).length,
     };
 
     return NextResponse.json({ tickets, stats });
