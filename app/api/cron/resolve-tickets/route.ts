@@ -151,27 +151,34 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Evaluate each pick
+      // Evaluate each pick and enrich matches with per-match result + score
       let allWon = true;
       let anyLost = false;
 
-      for (let i = 0; i < matches.length; i++) {
-        const m = matches[i];
+      const enrichedMatches = matches.map((m, i) => {
         const fid = fixtureIds[i];
         const result = fixtureResults.get(fid);
-        if (!result) { allWon = false; break; }
-
+        if (!result) {
+          allWon = false;
+          return { ...m, result: 'void', score: null };
+        }
         const won = evaluatePick(m.selection.type, m.selection.value, result.homeGoals, result.awayGoals);
         if (!won) anyLost = true;
-      }
+        return {
+          ...m,
+          result: won ? 'won' : 'lost',
+          score: { home: result.homeGoals, away: result.awayGoals },
+        };
+      });
 
       const newStatus = anyLost ? 'lost' : (allWon ? 'won' : 'void');
 
-      // Update ticket in DB
+      // Update ticket in DB with enriched matches + global status
       const { error: updateErr } = await adminSupabase
         .from('daily_ticket')
         .update({
           status: newStatus,
+          matches: enrichedMatches,
           result_notes: `Résolu automatiquement via API-Football`,
           resolved_at: new Date().toISOString(),
         })
