@@ -15,6 +15,7 @@ import {
   Trophy,
   TrendingUp,
   Zap,
+  PlusCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -22,13 +23,16 @@ interface DailyTicket {
   id: string;
   date: string;
   matches: Array<{
-    home_team: string;
-    away_team: string;
+    homeTeam?: string;
+    awayTeam?: string;
+    home_team?: string;
+    away_team?: string;
     league?: string;
     prediction?: string;
     recommended_bet?: string;
     total_odds?: number;
     odds?: number;
+    selection?: { type?: string; value?: string; odds?: number };
   }>;
   total_odds: number;
   confidence_pct: number;
@@ -53,6 +57,7 @@ export default function AdminTicketsPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [notifyUsers, setNotifyUsers] = useState(true);
   const [autoResolving, setAutoResolving] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -100,6 +105,22 @@ export default function AdminTicketsPage() {
     }
   }
 
+  async function generateToday() {
+    if (!confirm('Supprimer le ticket du jour existant et le régénérer depuis API-Football ?')) return;
+    setGenerating(true);
+    try {
+      const res = await fetch('/api/admin/generate-ticket', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || JSON.stringify(data.details));
+      toast.success('Ticket du jour généré ✅');
+      fetchTickets();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erreur de génération');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function autoResolve() {
     setAutoResolving(true);
     try {
@@ -144,6 +165,21 @@ export default function AdminTicketsPage() {
             <Bell className="h-4 w-4" />
             Notifier les users
           </button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={generateToday}
+            disabled={generating}
+            className="border-secondary/40 text-secondary hover:bg-secondary/10"
+            title="Supprime le ticket du jour et le régénère depuis API-Football"
+          >
+            {generating ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <PlusCircle className="h-4 w-4 mr-1" />
+            )}
+            Générer aujourd&apos;hui
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -228,14 +264,14 @@ export default function AdminTicketsPage() {
                         {(ticket.matches || []).map((m, i) => (
                           <div key={i} className="flex items-center gap-2 text-sm">
                             <span className="text-white font-medium">
-                              {m.home_team} vs {m.away_team}
+                              {m.homeTeam || m.home_team} vs {m.awayTeam || m.away_team}
                             </span>
                             {m.league && (
                               <span className="text-text-muted text-xs">· {m.league}</span>
                             )}
                             <span className="text-primary text-xs ml-auto">
-                              {m.prediction || m.recommended_bet}
-                              {(m.total_odds || m.odds) && ` @ ${(m.total_odds || m.odds)?.toFixed(2)}`}
+                              {m.selection?.value || m.prediction || m.recommended_bet}
+                              {(m.selection?.odds || m.total_odds || m.odds) && ` @ ${(m.selection?.odds || m.total_odds || m.odds)?.toFixed(2)}`}
                             </span>
                           </div>
                         ))}

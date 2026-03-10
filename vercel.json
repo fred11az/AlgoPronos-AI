@@ -2,15 +2,19 @@
   "crons": [
     {
       "path": "/api/pronostics/generate",
-      "schedule": "0 6 * * *"
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/ticket-du-jour",
+      "schedule": "30 5 * * *"
     },
     {
       "path": "/api/weekly/generate",
-      "schedule": "0 20 * * 0"
+      "schedule": "0 19 * * 0"
     },
     {
       "path": "/api/cron/resolve-tickets",
-      "schedule": "30 23 * * *"
+      "schedule": "30 22 * * *"
     }
   ]
 }

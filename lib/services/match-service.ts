@@ -2,7 +2,7 @@
 // Docs: https://www.api-football.com/documentation-v3
 // Set FOOTBALL_API_KEY in your environment variables
 
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export interface RealMatch {
   id: string;
@@ -157,7 +157,7 @@ class MatchService {
 
   private async getCachedMatches(date: string): Promise<RealMatch[] | null> {
     try {
-      const supabase = await createClient();
+      const supabase = createAdminClient();
 
       const { data, error } = await supabase
         .from('matches_cache')
@@ -177,7 +177,7 @@ class MatchService {
 
   private async cacheMatches(date: string, matches: RealMatch[]): Promise<void> {
     try {
-      const supabase = await createClient();
+      const supabase = createAdminClient();
       const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(); // 12 hours
 
       await supabase.from('matches_cache').delete().eq('date', date);
