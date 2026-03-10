@@ -30,6 +30,8 @@ interface DailyTicket {
     league: string;
     kickoffTime: string;
     selection: { type: string; value: string; odds: number; impliedPct: number };
+    result?: 'won' | 'lost' | 'void';
+    score?: { home: number; away: number } | null;
   }[];
   total_odds: number;
   confidence_pct: number;
@@ -214,8 +216,8 @@ export default function HistoryPage() {
         </Card>
       </div>
 
-      {/* Ticket du Jour */}
-      {todayTicket && (
+      {/* Ticket du Jour — uniquement si encore en cours (pending) */}
+      {todayTicket && todayTicket.status === 'pending' && (
         <div>
           <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
             <Calendar className="h-5 w-5 text-accent" />
@@ -296,27 +298,44 @@ function TicketCard({ ticket, highlight = false }: { ticket: DailyTicket; highli
       </CardHeader>
 
       <CardContent className="space-y-2">
-        {ticket.matches.map((m, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between p-3 rounded-lg bg-surface-light/50 text-sm"
-          >
-            <div>
-              <p className="font-medium text-white">{m.homeTeam} vs {m.awayTeam}</p>
-              <p className="text-xs text-text-muted">{m.league}</p>
-            </div>
-            <div className="flex items-center gap-3 text-right">
-              <div>
-                <p className="text-xs text-text-muted">{m.selection.type}</p>
-                <p className="font-bold text-white">{m.selection.value}</p>
+        {ticket.matches.map((m, i) => {
+          const matchBg =
+            m.result === 'won' ? 'bg-green-500/10 border border-green-500/20' :
+            m.result === 'lost' ? 'bg-red-500/10 border border-red-500/20' :
+            'bg-surface-light/50';
+          return (
+            <div
+              key={i}
+              className={`flex items-center justify-between p-3 rounded-lg text-sm ${matchBg}`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {m.result === 'won' && <CheckCircle className="h-4 w-4 text-green-400 shrink-0" />}
+                {m.result === 'lost' && <XCircle className="h-4 w-4 text-red-400 shrink-0" />}
+                <div className="min-w-0">
+                  <p className="font-medium text-white truncate">{m.homeTeam} vs {m.awayTeam}</p>
+                  <p className="text-xs text-text-muted">
+                    {m.league}
+                    {m.score != null && (
+                      <span className="ml-2 font-semibold text-white/70">
+                        {m.score.home} – {m.score.away}
+                      </span>
+                    )}
+                  </p>
+                </div>
               </div>
-              <div className="px-2 py-1 rounded bg-primary/10 border border-primary/20 min-w-[50px] text-center">
-                <p className="text-xs text-text-muted">Cote</p>
-                <p className="font-bold text-primary text-sm">{m.selection.odds.toFixed(2)}</p>
+              <div className="flex items-center gap-3 text-right shrink-0">
+                <div>
+                  <p className="text-xs text-text-muted">{m.selection.type}</p>
+                  <p className="font-bold text-white">{m.selection.value}</p>
+                </div>
+                <div className="px-2 py-1 rounded bg-primary/10 border border-primary/20 min-w-[50px] text-center">
+                  <p className="text-xs text-text-muted">Cote</p>
+                  <p className="font-bold text-primary text-sm">{m.selection.odds.toFixed(2)}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {ticket.analysis?.summary && (
           <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20">

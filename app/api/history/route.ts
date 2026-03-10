@@ -7,11 +7,11 @@ export async function GET() {
     const adminSupabase = createAdminClient();
     const today = new Date().toISOString().split('T')[0];
 
-    // Tickets passés (excluant aujourd'hui)
+    // Tickets passés + aujourd'hui si déjà résolu
     const { data: tickets, error } = await adminSupabase
       .from('daily_ticket')
       .select('*')
-      .lt('date', today)
+      .or(`date.lt.${today},and(date.eq.${today},status.in.(won,lost,void))`)
       .order('date', { ascending: false })
       .limit(30);
 

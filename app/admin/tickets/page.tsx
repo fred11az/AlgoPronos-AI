@@ -14,6 +14,7 @@ import {
   Calendar,
   Trophy,
   TrendingUp,
+  Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -51,6 +52,7 @@ export default function AdminTicketsPage() {
   const [filter, setFilter]     = useState<'all' | 'pending' | 'won' | 'lost' | 'void'>('all');
   const [processing, setProcessing] = useState<string | null>(null);
   const [notifyUsers, setNotifyUsers] = useState(true);
+  const [autoResolving, setAutoResolving] = useState(false);
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -98,6 +100,25 @@ export default function AdminTicketsPage() {
     }
   }
 
+  async function autoResolve() {
+    setAutoResolving(true);
+    try {
+      const res = await fetch('/api/admin/resolve-tickets', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (data.resolved === 0) {
+        toast.success(data.message || 'Aucun ticket à résoudre pour l\'instant');
+      } else {
+        toast.success(`${data.resolved} ticket${data.resolved > 1 ? 's' : ''} résolu${data.resolved > 1 ? 's' : ''} automatiquement ✅`);
+        fetchTickets();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erreur lors de la résolution automatique');
+    } finally {
+      setAutoResolving(false);
+    }
+  }
+
   const pending = tickets.filter(t => t.status === 'pending').length;
 
   return (
@@ -123,6 +144,21 @@ export default function AdminTicketsPage() {
             <Bell className="h-4 w-4" />
             Notifier les users
           </button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={autoResolve}
+            disabled={autoResolving}
+            className="border-accent/40 text-accent hover:bg-accent/10"
+            title="Vérifie les résultats via API-Football et résout les tickets automatiquement"
+          >
+            {autoResolving ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4 mr-1" />
+            )}
+            Résoudre auto
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchTickets}>
             <RefreshCw className="h-4 w-4 mr-1" />
             Actualiser
