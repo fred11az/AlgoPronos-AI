@@ -214,8 +214,8 @@ export default function HistoryPage() {
         </Card>
       </div>
 
-      {/* Ticket du Jour */}
-      {todayTicket && (
+      {/* Ticket du Jour — uniquement si encore en cours (pending) */}
+      {todayTicket && todayTicket.status === 'pending' && (
         <div>
           <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
             <Calendar className="h-5 w-5 text-accent" />
