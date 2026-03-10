@@ -9,32 +9,31 @@ export async function GET() {
     const adminSupabase = createAdminClient();
     const today = new Date().toISOString().split('T')[0];
 
-    // Compte total réel (sans limit)
-    const { count: totalCount } = await adminSupabase
-      .from('daily_ticket')
-      .select('*', { count: 'exact', head: true })
-      .or(`date.lt.${today},and(date.eq.${today},status.in.(won,lost,void))`);
-
-    // Tickets passés + aujourd'hui si déjà résolu (30 derniers pour l'affichage)
-    const { data: tickets, error } = await adminSupabase
+    // Récupère tous les tickets (jusqu'à 60) sans filtre complexe imbriqué
+    const { data: allTickets, error } = await adminSupabase
       .from('daily_ticket')
       .select('*')
-      .or(`date.lt.${today},and(date.eq.${today},status.in.(won,lost,void))`)
+      .lte('date', today)
       .order('date', { ascending: false })
-      .limit(30);
+      .limit(60);
 
     if (error) {
       console.error('[history] Error fetching tickets:', error);
       return NextResponse.json({ tickets: [], stats: null });
     }
 
+    // Exclut le ticket du jour s'il est encore "pending" (affiché séparément en haut de page)
+    const tickets = (allTickets || []).filter(
+      t => t.date < today || t.status !== 'pending'
+    );
+
     type Ticket = { status: string; total_odds: number | string };
 
-    // Compute stats from tickets
-    const resolved = (tickets || [] as Ticket[]).filter((t: Ticket) => t.status === 'won' || t.status === 'lost');
-    const won = resolved.filter((t: Ticket) => t.status === 'won');
-    const lost = resolved.filter((t: Ticket) => t.status === 'lost');
-    const voided = (tickets || [] as Ticket[]).filter((t: Ticket) => t.status === 'void');
+    // Stats sur TOUS les tickets (pas seulement les 30 affichés)
+    const resolved = (allTickets || [] as Ticket[]).filter((t: Ticket) => t.status === 'won' || t.status === 'lost');
+    const won      = resolved.filter((t: Ticket) => t.status === 'won');
+    const lost     = resolved.filter((t: Ticket) => t.status === 'lost');
+    const voided   = (allTickets || [] as Ticket[]).filter((t: Ticket) => t.status === 'void');
 
     const winRate = resolved.length > 0
       ? Math.round((won.length / resolved.length) * 1000) / 10
@@ -49,17 +48,17 @@ export async function GET() {
       : null;
 
     const stats = {
-      total_won: won.length,
-      total_lost: lost.length,
-      total_void: voided.length,
+      total_won:      won.length,
+      total_lost:     lost.length,
+      total_void:     voided.length,
       total_resolved: resolved.length,
-      win_rate_pct: winRate,
-      avg_odds: avgOdds,
-      best_win_odds: bestWinOdds,
-      total_tickets: totalCount ?? (tickets || []).length,
+      win_rate_pct:   winRate,
+      avg_odds:       avgOdds,
+      best_win_odds:  bestWinOdds,
+      total_tickets:  (allTickets || []).length,
     };
 
-    return NextResponse.json({ tickets: tickets || [], stats });
+    return NextResponse.json({ tickets, stats });
   } catch (error) {
     console.error('[history] Unexpected error:', error);
     return NextResponse.json({ tickets: [], stats: null });
