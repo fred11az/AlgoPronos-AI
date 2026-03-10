@@ -218,8 +218,9 @@ class MatchService {
       // Other Europe
       94: 'PT1',   // Primeira Liga
       88: 'NL1',   // Eredivisie
-      144: 'BE1',  // Pro League
+      144: 'BE1',  // Pro League Belgium
       203: 'TR1',  // Süper Lig
+      235: 'RU1',  // Russian Premier League
       179: 'SC1',  // Scottish Premiership
       197: 'GR1',  // Super League Greece
       207: 'CH1',  // Super League Switzerland
@@ -230,9 +231,21 @@ class MatchService {
       262: 'MX1',  // Liga MX
       253: 'US1',  // MLS
       11: 'COPA',  // Copa Libertadores
-      // Africa
-      233: 'EG1',  // Egyptian Premier
-      200: 'MA1',  // Botola Pro
+      // Africa — continental
+      6: 'CAN',       // AFCON (CAN)
+      12: 'CAF_CL',   // CAF Champions League
+      20: 'CAF_CC',   // CAF Confederation Cup
+      // Africa — national leagues
+      233: 'EG1',  // Egyptian Premier League
+      200: 'MA1',  // Botola Pro Maroc
+      248: 'TN1',  // Ligue Professionnelle 1 Tunisie
+      187: 'DZ1',  // Ligue Professionnelle 1 Algérie
+      329: 'NG1',  // NPFL Nigeria
+      414: 'GH1',  // Ghana Premier League
+      480: 'CI1',  // Ligue 1 Côte d'Ivoire
+      453: 'CM1',  // Elite One Cameroun
+      576: 'SN1',  // Ligue 1 Sénégal
+      669: 'BJ1',  // Championnat National Bénin
       // Asia
       307: 'SA1',  // Saudi Pro League
       98: 'JP1',   // J-League
