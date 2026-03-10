@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { matchService } from '@/lib/services/match-service';
 import { fetchStatsForMatches, type MatchStats } from '@/lib/services/stats-service';
 
+export const dynamic = 'force-dynamic';
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 // Ligues prioritaires pour le Ticket du Jour (top européennes + Africa)

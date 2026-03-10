@@ -90,19 +90,34 @@ function StatusBanner({ status }: { status: string }) {
 
 export function LiveTicketSection() {
   const [ticket, setTicket] = useState<DailyTicket | null>(null);
+  const [isToday, setIsToday] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+
     fetch('/api/ticket-du-jour')
       .then((r) => r.json())
       .then((data) => {
-        if (data?.ticket) setTicket(data.ticket);
+        if (data?.ticket) {
+          setTicket(data.ticket);
+          setIsToday(data.ticket.date === today);
+        } else {
+          // Fallback : afficher le dernier ticket connu depuis l'historique
+          return fetch('/api/history')
+            .then((r) => r.json())
+            .then((hist) => {
+              const last = hist?.tickets?.[0];
+              if (last) { setTicket(last); setIsToday(false); }
+            });
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   const isResolved = ticket && ticket.status !== 'pending';
+  const showingPast = ticket && !isToday;
 
   return (
     <section className="py-24 bg-background relative overflow-hidden">
@@ -124,14 +139,16 @@ export function LiveTicketSection() {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
             </span>
             <span className="text-primary text-sm font-semibold">
-              {isResolved ? 'Résultats du jour' : 'En direct'}
+              {showingPast ? 'Dernier ticket disponible' : isResolved ? 'Résultats du jour' : 'En direct'}
             </span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
             🎯 Ticket IA du Jour
           </h2>
           <p className="text-text-secondary text-lg max-w-xl mx-auto">
-            {isResolved
+            {showingPast
+              ? 'Le ticket d\'aujourd\'hui sera disponible ce matin. Voici le dernier ticket généré par notre IA.'
+              : isResolved
               ? 'Les résultats de ce ticket sont maintenant disponibles.'
               : 'Notre IA analyse des centaines de matchs chaque matin et sélectionne les 3 meilleures opportunités'}
           </p>

@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/history — historique des tickets IA du jour + stats globales
 export async function GET() {
   try {
     const adminSupabase = createAdminClient();
     const today = new Date().toISOString().split('T')[0];
 
-    // Tickets passés + aujourd'hui si déjà résolu
+    // Compte total réel (sans limit)
+    const { count: totalCount } = await adminSupabase
+      .from('daily_ticket')
+      .select('*', { count: 'exact', head: true })
+      .or(`date.lt.${today},and(date.eq.${today},status.in.(won,lost,void))`);
+
+    // Tickets passés + aujourd'hui si déjà résolu (30 derniers pour l'affichage)
     const { data: tickets, error } = await adminSupabase
       .from('daily_ticket')
       .select('*')
@@ -48,7 +56,7 @@ export async function GET() {
       win_rate_pct: winRate,
       avg_odds: avgOdds,
       best_win_odds: bestWinOdds,
-      total_tickets: (tickets || []).length,
+      total_tickets: totalCount ?? (tickets || []).length,
     };
 
     return NextResponse.json({ tickets: tickets || [], stats });
