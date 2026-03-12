@@ -463,34 +463,40 @@ export async function POST(request: Request) {
     if (redisCached) {
       console.log(`[generate] Redis cache HIT ${cacheKey}`);
 
-      // Update Supabase usage_count asynchronously (fire-and-forget, no await)
-      supabase
-        .from('generated_combines')
-        .update({ usage_count: ((redisCached.usage_count as number) ?? 0) + 1 })
-        .eq('cache_key', cacheKey)
-        .then(() => {})
-        .catch(() => {});
+      // Update Supabase usage_count asynchronously (fire-and-forget)
+      void Promise.resolve(
+        supabase
+          .from('generated_combines')
+          .update({ usage_count: ((redisCached.usage_count as number) ?? 0) + 1 })
+          .eq('cache_key', cacheKey)
+      ).catch(() => {});
 
       if (isVisitor && anonymousSession) {
         const meta = anonymousSession.metadata || {};
         const currentCount = isNewWeek(meta.weeklyAiResetAt) ? 0 : (meta.weeklyAiCount ?? 0);
-        adminSupabase.from('anonymous_sessions').update({
-          metadata: { ...meta, weeklyAiCount: currentCount + 1, weeklyAiResetAt: weekStart },
-        }).eq('id', anonymousSession.id).then(() => {}).catch(() => {});
+        void Promise.resolve(
+          adminSupabase.from('anonymous_sessions').update({
+            metadata: { ...meta, weeklyAiCount: currentCount + 1, weeklyAiResetAt: weekStart },
+          }).eq('id', anonymousSession.id)
+        ).catch(() => {});
         logAnonymousEvent(anonymousSession.id, 'generation_attempted', { fromCache: true, cacheLayer: 'redis' });
       } else if (user) {
         const { data: profile } = await supabase
           .from('profiles').select('weekly_ai_count, weekly_ai_reset_at').eq('id', user.id).single();
         const currentCount = isNewWeek(profile?.weekly_ai_reset_at) ? 0 : (profile?.weekly_ai_count ?? 0);
         if (!isVerified) {
-          supabase.from('profiles').update({
-            weekly_ai_count: currentCount + 1, weekly_ai_reset_at: weekStart,
-          }).eq('id', user.id).then(() => {}).catch(() => {});
+          void Promise.resolve(
+            supabase.from('profiles').update({
+              weekly_ai_count: currentCount + 1, weekly_ai_reset_at: weekStart,
+            }).eq('id', user.id)
+          ).catch(() => {});
         }
-        adminSupabase.from('combine_usage_log').insert({
-          user_id: user.id, combine_id: redisCached.id,
-          usage_type: 'from_cache', user_tier: user.tier,
-        }).then(() => {}).catch(() => {});
+        void Promise.resolve(
+          adminSupabase.from('combine_usage_log').insert({
+            user_id: user.id, combine_id: redisCached.id,
+            usage_type: 'from_cache', user_tier: user.tier,
+          })
+        ).catch(() => {});
       }
 
       const weeklyUsage = buildWeeklyUsage(limit, 1);
