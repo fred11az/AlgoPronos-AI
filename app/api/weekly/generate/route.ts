@@ -158,7 +158,9 @@ function getWeekBounds(): { weekStart: string; weekEnd: string; weekLabel: strin
 // ─── Route Handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
+  const bearerSecret = req.headers.get('authorization')?.replace('Bearer ', '');
+  const legacySecret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
+  const secret = bearerSecret || legacySecret;
   if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

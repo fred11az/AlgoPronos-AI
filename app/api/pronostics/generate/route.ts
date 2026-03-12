@@ -142,8 +142,11 @@ Rédige en français, ton neutre et professionnel, sans mentionner d'IA ou d'alg
 // ─── Route Handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  // Security: require CRON_SECRET header or query param
-  const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
+  // Security: accept Vercel's injected Authorization: Bearer {CRON_SECRET}
+  // or legacy x-cron-secret header or ?secret= query param
+  const bearerSecret = req.headers.get('authorization')?.replace('Bearer ', '');
+  const legacySecret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
+  const secret = bearerSecret || legacySecret;
   if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
