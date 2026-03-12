@@ -71,18 +71,6 @@ const jsonLd = {
     '@type': 'Organization',
     name: 'AlgoPronos AI',
     url: 'https://algopronos.ai',
-    email: 'contact@algopronos.ai',
-    telephone: '+22997000000',
-    address: {
-      '@type': 'PostalAddress',
-      addressLocality: 'Cotonou',
-      addressCountry: 'BJ',
-    },
-    contactPoint: {
-      '@type': 'ContactPoint',
-      contactType: 'customer support',
-      availableLanguage: 'French',
-    },
   },
   aggregateRating: {
     '@type': 'AggregateRating',

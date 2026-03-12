@@ -19,7 +19,9 @@ import { Resend } from 'resend';
 import { createAdminClient } from '@/lib/supabase/server';
 
 const FROM    = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com').replace(/\/$/, '');
+// Use server-only SITE_URL (never the public Vercel URL) for redirect links in emails.
+// NEXT_PUBLIC_APP_URL may point to *.vercel.app — SITE_URL must be the production domain.
+const APP_URL = (process.env.SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com').replace(/\/$/, '');
 
 // Logo SVG inline (compatible Gmail / Outlook / Apple Mail)
 const LOGO_SVG = `<svg viewBox="0 0 220 56" fill="none" xmlns="http://www.w3.org/2000/svg" width="220" height="56">
@@ -316,7 +318,9 @@ export async function POST(req: Request) {
       await resend.emails.send({
         from: FROM,
         to: email,
-        subject: '✅ Confirmez votre compte AlgoPronos AI',
+        subject: 'Confirmez votre compte AlgoPronos AI',
+        reply_to: 'support@algopronos.com',
+        headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
         html: verificationEmail(fullName || email.split('@')[0], actionLink),
       });
 
@@ -336,7 +340,9 @@ export async function POST(req: Request) {
       await resend.emails.send({
         from: FROM,
         to: email,
-        subject: '🔁 Votre lien de connexion AlgoPronos AI',
+        subject: 'Votre lien de connexion AlgoPronos AI',
+        reply_to: 'support@algopronos.com',
+        headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
         html: verificationEmail('', data.properties.action_link),
       });
 
@@ -356,7 +362,9 @@ export async function POST(req: Request) {
       await resend.emails.send({
         from: FROM,
         to: email,
-        subject: '🔑 Réinitialisation de votre mot de passe AlgoPronos AI',
+        subject: 'Réinitialisation de votre mot de passe AlgoPronos AI',
+        reply_to: 'support@algopronos.com',
+        headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
         html: recoveryEmail(email, data.properties.action_link),
       });
 

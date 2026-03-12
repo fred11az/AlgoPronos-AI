@@ -44,7 +44,8 @@ class MatchService {
   ): Promise<Record<string, RealMatch[]>> {
     const apiKey = process.env.FOOTBALL_API_KEY;
     if (!apiKey) {
-      throw new Error('FOOTBALL_API_KEY is not set. Add it to your Vercel environment variables.');
+      console.warn('[MatchService] FOOTBALL_API_KEY not set — returning empty matches. Add it to your Vercel environment variables.');
+      return {};
     }
 
     console.log(`[API-Football] Fetching fixtures ${from} → ${to} (1 request)`);
@@ -139,7 +140,8 @@ class MatchService {
   async getMatchesForDate(date: string, leagueCodes?: string[]): Promise<RealMatch[]> {
     const apiKey = process.env.FOOTBALL_API_KEY;
     if (!apiKey) {
-      throw new Error('FOOTBALL_API_KEY is not set. Add it to your Vercel environment variables.');
+      console.warn('[MatchService] FOOTBALL_API_KEY not set — returning empty matches.');
+      return [];
     }
 
     const cached = await this.getCachedMatches(date);
