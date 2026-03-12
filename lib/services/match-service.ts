@@ -57,13 +57,15 @@ class MatchService {
     );
 
     if (!fixturesRes.ok) {
-      throw new Error(`API-Football fixtures error: ${fixturesRes.status}`);
+      console.warn(`[API-Football] HTTP error ${fixturesRes.status} — returning empty matches`);
+      return {};
     }
 
     const fixturesData = await fixturesRes.json();
 
     if (fixturesData.errors && Object.keys(fixturesData.errors).length > 0) {
-      throw new Error(`API-Football error: ${JSON.stringify(fixturesData.errors)}`);
+      console.warn('[API-Football] API error:', JSON.stringify(fixturesData.errors), '— returning empty matches');
+      return {};
     }
 
     const fixtures: RawFixture[] = fixturesData.response ?? [];
