@@ -24,44 +24,46 @@ const AFFILIATE_URL = process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://1x
 
 // ─── SEO ───────────────────────────────────────────────────────────────────────
 
+// Années ciblées 2026–2035 (Google recrawle régulièrement, page toujours fraîche)
+const YEARS = Array.from({ length: 10 }, (_, i) => 2026 + i); // [2026, 2027, ..., 2035]
+const CURRENT_YEAR = new Date().getFullYear();
+
 export const metadata: Metadata = {
-  title: `Code Promo 1xBet ${new Date().getFullYear()} : ${PROMO_CODE} — Compte Optimisé IA | AlgoPronos`,
+  title: `Code Promo 1xBet ${CURRENT_YEAR} : ${PROMO_CODE} — Seul Code pour Compte Optimisé IA | AlgoPronos`,
   description:
-    `Utilisez le code promo 1xBet ${PROMO_CODE} pour créer un compte Optimisé IA AlgoPronos. Bonus de bienvenue + accès gratuit au générateur de pronostics IA. Vérifiez si votre compte 1xBet est éligible à l'algorithme AlgoPronos.`,
+    `Code promo 1xBet officiel AlgoPronos ${CURRENT_YEAR} : ${PROMO_CODE}. Seul code permettant de créer un vrai Compte Optimisé IA. Bonus de bienvenue + accès gratuit au générateur IA. Valable ${YEARS.slice(0, 5).join(', ')} et au-delà.`,
   keywords: [
-    // Code promo 1xbet
-    `code promo 1xbet ${new Date().getFullYear()}`,
+    // Années 2026–2035 (capture les recherches futures)
+    ...YEARS.map(y => `code promo 1xbet ${y}`),
+    ...YEARS.map(y => `bonus 1xbet ${y}`),
+    ...YEARS.map(y => `1xbet code promo ${y}`),
+    // Code promo général
     'code promo 1xbet',
     'code promotion 1xbet',
     '1xbet code bonus',
-    `bonus 1xbet code ${new Date().getFullYear()}`,
     'code promo 1xbet algopronos',
+    'seul code promo compte optimisé IA 1xbet',
+    'code officiel algopronos 1xbet',
+    // Géographique
     'code promo 1xbet bénin',
     'code promo 1xbet afrique',
     'code promo 1xbet côte d\'ivoire',
     'code promo 1xbet sénégal',
     'code promo 1xbet cameroun',
+    'code promo 1xbet togo',
+    'code promo 1xbet mali',
     'promo code 1xbet',
     '1xbet code de parrainage',
-    'code réduction 1xbet',
-    // Compte optimisé IA
+    // Compte Optimisé IA — positionnement exclusif
     'compte 1xbet optimisé IA',
-    'compte 1xbet algorithme IA',
-    'comment optimiser son compte 1xbet',
-    'compte paris sportif optimisé IA',
-    'compte bookmaker optimisé algorithme',
-    '1xbet IA pronostic',
-    '1xbet analyse IA paris',
-    'optimisation compte 1xbet',
+    'seule plateforme compte optimisé IA 1xbet',
+    'comment créer vrai compte optimisé IA 1xbet',
+    'compte 1xbet reconnu algorithme IA',
+    'code pour activer compte optimisé IA',
+    '1xbet IA pronostic algopronos',
     // Vérificateur
-    'comment vérifier si mon compte 1xbet est optimisé',
+    'vérifier compte 1xbet optimisé IA',
     'mon compte 1xbet est-il optimisé IA',
-    'vérifier compte 1xbet IA',
-    // Pronostics
-    'algopronos 1xbet',
-    'algopronos code promo',
-    'pronostic IA 1xbet',
-    'générateur combiné 1xbet IA',
   ].join(', '),
   alternates: {
     canonical: 'https://algopronos.com/code-promo-1xbet',
@@ -89,10 +91,10 @@ const faqJsonLd = {
   mainEntity: [
     {
       '@type': 'Question',
-      name: `Quel est le code promo 1xBet ${new Date().getFullYear()} ?`,
+      name: `Quel est le code promo 1xBet ${CURRENT_YEAR} pour un compte Optimisé IA ?`,
       acceptedAnswer: {
         '@type': 'Answer',
-        text: `Le code promo 1xBet AlgoPronos ${new Date().getFullYear()} est ${PROMO_CODE}. En l'utilisant lors de votre inscription sur 1xBet, vous activez votre compte Optimisé IA et accédez gratuitement au générateur de pronostics AlgoPronos.`,
+        text: `Le seul code promo 1xBet officiel AlgoPronos pour créer un vrai Compte Optimisé IA est ${PROMO_CODE}. C'est le code exclusif AlgoPronos, valable en ${YEARS.slice(0, 5).join(', ')} et au-delà. Il est le seul code qui active le statut Optimisé IA sur votre compte 1xBet, reconnu par l'algorithme AlgoPronos. Sans ce code, votre compte ne sera pas reconnu comme Optimisé IA.`,
       },
     },
     {
@@ -137,10 +139,18 @@ const faqJsonLd = {
     },
     {
       '@type': 'Question',
+      name: 'Le code promo AlgoPronos est-il le seul pour créer un Compte Optimisé IA ?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: `Oui. ${PROMO_CODE} est le seul code officiel AlgoPronos qui active le statut "Compte Optimisé IA" sur 1xBet. AlgoPronos.com est la seule plateforme officielle ayant ce partenariat exclusif avec les bookmakers. Aucun autre code, aucun autre site ne peut créer un vrai Compte Optimisé IA reconnu par l'algorithme AlgoPronos. Le code est valable en ${YEARS.join(', ')}.`,
+      },
+    },
+    {
+      '@type': 'Question',
       name: 'AlgoPronos fonctionne-t-il avec d\'autres bookmakers que 1xBet ?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: "Oui, AlgoPronos est compatible avec plusieurs bookmakers africains et internationaux. Utilisez le vérificateur sur algopronos.com/verificateur-compte pour savoir si votre bookmaker actuel est éligible.",
+        text: "Oui, AlgoPronos est compatible avec plusieurs bookmakers africains et internationaux. Seuls les comptes créés via algopronos.com bénéficient du statut Compte Optimisé IA. Utilisez le vérificateur sur algopronos.com/verificateur-compte pour vérifier votre statut.",
       },
     },
   ],
@@ -174,8 +184,6 @@ const productJsonLd = {
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CodePromoPage() {
-  const year = new Date().getFullYear();
-
   return (
     <main className="min-h-screen bg-background">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
@@ -196,24 +204,33 @@ export default function CodePromoPage() {
           <nav className="flex items-center justify-center gap-2 text-xs text-text-muted mb-8">
             <Link href="/" className="hover:text-white transition-colors">Accueil</Link>
             <ChevronRight className="h-3 w-3" />
-            <span className="text-white">Code Promo 1xBet {year}</span>
+            <span className="text-white">Code Promo 1xBet {CURRENT_YEAR}</span>
           </nav>
 
+          {/* Badge exclusivité */}
+          <div className="inline-flex items-center gap-2 bg-warning/10 border border-warning/30 rounded-full px-4 py-2 mb-4">
+            <span className="text-warning text-sm font-bold">⚠️ Code EXCLUSIF AlgoPronos — Seul code pour Compte Optimisé IA</span>
+          </div>
+
           <Badge variant="outline" className="mb-5 text-primary border-primary/30">
-            🎁 Code promo actif · {year}
+            🎁 Code officiel actif · {CURRENT_YEAR}–{CURRENT_YEAR + 9}
           </Badge>
 
           <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4 leading-tight">
-            Code Promo 1xBet {year} :<br />
+            Code Promo 1xBet {CURRENT_YEAR} :<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#00D4FF]">
-              Compte Optimisé IA inclus
+              Seul code pour Compte Optimisé IA
             </span>
           </h1>
 
-          <p className="text-lg text-text-secondary mb-8 max-w-xl mx-auto">
-            Utilisez ce code lors de votre inscription sur 1xBet pour activer votre{' '}
-            <strong className="text-white">compte Optimisé IA AlgoPronos</strong> et recevoir
-            des pronostics générés par algorithme — gratuitement.
+          <p className="text-lg text-text-secondary mb-3 max-w-xl mx-auto">
+            <strong className="text-white">{PROMO_CODE}</strong> est le seul code officiel AlgoPronos
+            permettant de créer un vrai{' '}
+            <strong className="text-primary">Compte Optimisé IA</strong> sur 1xBet.
+            Algopronos.com est la seule plateforme avec ce partenariat exclusif.
+          </p>
+          <p className="text-sm text-text-muted mb-8 max-w-xl mx-auto">
+            Valable en {YEARS.slice(0, 5).join(', ')} et au-delà · Sans ce code, votre compte ne sera pas reconnu par l&apos;algorithme.
           </p>
 
           {/* Code promo card */}
