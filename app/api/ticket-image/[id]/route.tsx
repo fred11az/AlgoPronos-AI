@@ -226,7 +226,7 @@ export async function GET(
               display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
               color: '#334155', fontSize: 12,
             }}>
-              <span style={{ color: '#10B981', fontWeight: 700, fontSize: 14 }}>algopronos.ai</span>
+              <span style={{ color: '#10B981', fontWeight: 700, fontSize: 14 }}>algopronos.com</span>
               <span>Jouer responsable · 18+</span>
             </div>
           </div>
