@@ -139,7 +139,7 @@ export default async function DashboardPage() {
           ) : isAnonymous ? (
             <div className="flex gap-3">
               <Button size="lg" variant="gradient" asChild>
-                <Link href="/register">
+                <Link href="/onboarding">
                   <UserPlus className="mr-2 h-5 w-5" />
                   Créer un Compte
                 </Link>
@@ -437,7 +437,7 @@ export default async function DashboardPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button variant="gradient" asChild>
-                  <Link href="/register">
+                  <Link href="/onboarding">
                     <UserPlus className="mr-2 h-4 w-4" />
                     Créer un Compte
                   </Link>

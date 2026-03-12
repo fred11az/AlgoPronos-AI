@@ -115,7 +115,8 @@ export async function updateSession(request: NextRequest) {
   // Redirect authenticated users from auth pages (except verify-email and auth callbacks)
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
                      request.nextUrl.pathname.startsWith('/register') ||
-                     request.nextUrl.pathname.startsWith('/forgot-password');
+                     request.nextUrl.pathname.startsWith('/forgot-password') ||
+                     request.nextUrl.pathname.startsWith('/onboarding');
   const isAuthFlow = request.nextUrl.pathname.startsWith('/verify-email') ||
                      request.nextUrl.pathname.startsWith('/reset-password') ||
                      request.nextUrl.pathname.startsWith('/auth/callback') ||

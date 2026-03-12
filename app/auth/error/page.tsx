@@ -139,7 +139,7 @@ function AuthErrorContent() {
           </Link>
           <span className="hidden sm:inline text-text-muted">•</span>
           <Link
-            href="/register"
+            href="/onboarding"
             className="text-text-secondary hover:text-white transition-colors flex items-center justify-center gap-2"
           >
             <Mail className="w-4 h-4" />
