@@ -15,6 +15,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PronosPaywall } from '@/components/pronostics/PronosPaywall';
+import { PageBottomCTA } from '@/components/pronostics/PageBottomCTA';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -154,6 +156,10 @@ export default async function MatchPredictionPage({
 
   const p = pred as MatchPrediction;
 
+  // Check auth — guests see blurred paywall on sensitive sections
+  const { data: { user } } = await supabase.auth.getUser();
+  const isGuest = !user;
+
   // Fetch related matches in same league
   const { data: related } = await supabase
     .from('match_predictions')
@@ -260,50 +266,96 @@ export default async function MatchPredictionPage({
         <div className="grid md:grid-cols-3 gap-6">
           {/* Left — Analysis + Stats */}
           <div className="md:col-span-2 space-y-6">
-            {/* AI Prediction Card */}
-            <div className="bg-surface rounded-2xl border border-surface-light p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Target className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-bold text-white">Pronostic IA</h2>
-              </div>
+            {/* AI Prediction Card — blurred for guests */}
+            {isGuest ? (
+              <PronosPaywall>
+                <div className="bg-surface rounded-2xl border border-surface-light p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Target className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-bold text-white">Pronostic IA</h2>
+                  </div>
+                  <div className="bg-gradient-to-r from-primary/10 to-[#00D4FF]/10 rounded-xl p-5 border border-primary/20 mb-4">
+                    <div className="text-2xl font-bold text-white mb-1">{p.prediction}</div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-primary font-semibold">Cote : {p.recommended_odds?.toFixed(2)}</span>
+                      <span className="text-text-muted">·</span>
+                      <span className="text-text-secondary">Probabilité modèle : <span className="text-white font-semibold">{p.probability}%</span></span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-surface-light rounded-xl p-3 text-center">
+                      <div className="text-xs text-text-muted mb-1">Prob. implicite</div>
+                      <div className="text-lg font-bold text-white">{p.implied_probability}%</div>
+                    </div>
+                    <div className="bg-surface-light rounded-xl p-3 text-center">
+                      <div className="text-xs text-text-muted mb-1">Prob. modèle</div>
+                      <div className="text-lg font-bold text-white">{p.probability}%</div>
+                    </div>
+                    <div className={`rounded-xl p-3 text-center ${valueEdgePositive ? 'bg-green-500/10 border border-green-500/30' : 'bg-surface-light'}`}>
+                      <div className="text-xs text-text-muted mb-1">Value Edge</div>
+                      <div className={`text-lg font-bold ${valueEdgePositive ? 'text-green-400' : 'text-red-400'}`}>
+                        {valueEdgePositive ? '+' : ''}{p.value_edge}%
+                      </div>
+                    </div>
+                  </div>
+                  {p.ai_analysis && (
+                    <div className="mt-6 pt-6 border-t border-surface-light">
+                      <div className="flex items-center gap-3 mb-4">
+                        <BarChart2 className="h-5 w-5 text-primary" />
+                        <h2 className="text-lg font-bold text-white">Analyse du match</h2>
+                      </div>
+                      <p className="text-text-secondary leading-relaxed">{p.ai_analysis}</p>
+                    </div>
+                  )}
+                </div>
+              </PronosPaywall>
+            ) : (
+              <>
+                <div className="bg-surface rounded-2xl border border-surface-light p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Target className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-bold text-white">Pronostic IA</h2>
+                  </div>
 
-              <div className="bg-gradient-to-r from-primary/10 to-[#00D4FF]/10 rounded-xl p-5 border border-primary/20 mb-4">
-                <div className="text-2xl font-bold text-white mb-1">{p.prediction}</div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-primary font-semibold">Cote : {p.recommended_odds?.toFixed(2)}</span>
-                  <span className="text-text-muted">·</span>
-                  <span className="text-text-secondary">Probabilité modèle : <span className="text-white font-semibold">{p.probability}%</span></span>
-                </div>
-              </div>
+                  <div className="bg-gradient-to-r from-primary/10 to-[#00D4FF]/10 rounded-xl p-5 border border-primary/20 mb-4">
+                    <div className="text-2xl font-bold text-white mb-1">{p.prediction}</div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-primary font-semibold">Cote : {p.recommended_odds?.toFixed(2)}</span>
+                      <span className="text-text-muted">·</span>
+                      <span className="text-text-secondary">Probabilité modèle : <span className="text-white font-semibold">{p.probability}%</span></span>
+                    </div>
+                  </div>
 
-              {/* Value stats */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-surface-light rounded-xl p-3 text-center">
-                  <div className="text-xs text-text-muted mb-1">Prob. implicite</div>
-                  <div className="text-lg font-bold text-white">{p.implied_probability}%</div>
-                </div>
-                <div className="bg-surface-light rounded-xl p-3 text-center">
-                  <div className="text-xs text-text-muted mb-1">Prob. modèle</div>
-                  <div className="text-lg font-bold text-white">{p.probability}%</div>
-                </div>
-                <div className={`rounded-xl p-3 text-center ${valueEdgePositive ? 'bg-green-500/10 border border-green-500/30' : 'bg-surface-light'}`}>
-                  <div className="text-xs text-text-muted mb-1">Value Edge</div>
-                  <div className={`text-lg font-bold ${valueEdgePositive ? 'text-green-400' : 'text-red-400'}`}>
-                    {valueEdgePositive ? '+' : ''}{p.value_edge}%
+                  {/* Value stats */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-surface-light rounded-xl p-3 text-center">
+                      <div className="text-xs text-text-muted mb-1">Prob. implicite</div>
+                      <div className="text-lg font-bold text-white">{p.implied_probability}%</div>
+                    </div>
+                    <div className="bg-surface-light rounded-xl p-3 text-center">
+                      <div className="text-xs text-text-muted mb-1">Prob. modèle</div>
+                      <div className="text-lg font-bold text-white">{p.probability}%</div>
+                    </div>
+                    <div className={`rounded-xl p-3 text-center ${valueEdgePositive ? 'bg-green-500/10 border border-green-500/30' : 'bg-surface-light'}`}>
+                      <div className="text-xs text-text-muted mb-1">Value Edge</div>
+                      <div className={`text-lg font-bold ${valueEdgePositive ? 'text-green-400' : 'text-red-400'}`}>
+                        {valueEdgePositive ? '+' : ''}{p.value_edge}%
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* AI Analysis */}
-            {p.ai_analysis && (
-              <div className="bg-surface rounded-2xl border border-surface-light p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <BarChart2 className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-bold text-white">Analyse du match</h2>
-                </div>
-                <p className="text-text-secondary leading-relaxed">{p.ai_analysis}</p>
-              </div>
+                {/* AI Analysis */}
+                {p.ai_analysis && (
+                  <div className="bg-surface rounded-2xl border border-surface-light p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <BarChart2 className="h-5 w-5 text-primary" />
+                      <h2 className="text-lg font-bold text-white">Analyse du match</h2>
+                    </div>
+                    <p className="text-text-secondary leading-relaxed">{p.ai_analysis}</p>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Form */}
@@ -397,30 +449,7 @@ export default async function MatchPredictionPage({
         </div>
       </section>
 
-      {/* Bottom CTA */}
-      <section className="bg-gradient-to-r from-primary/10 to-[#00D4FF]/10 border-t border-primary/20">
-        <div className="max-w-3xl mx-auto px-4 py-12 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
-            Accédez à tous les pronostics IA
-          </h2>
-          <p className="text-text-secondary mb-6">
-            Ouvrez un compte bookmaker optimisé et recevez le ticket du jour généré par notre algorithme.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/compte-optimise-ia">
-              <Button size="lg" variant="gradient">
-                Créer mon compte optimisé IA
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/dashboard/generate">
-              <Button size="lg" variant="outline">
-                Générer un ticket maintenant
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+      <PageBottomCTA />
     </main>
   );
 }
