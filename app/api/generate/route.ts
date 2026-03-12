@@ -5,6 +5,7 @@ import { getCurrentAnonymousSession, getAnonymousSessionId, logAnonymousEvent } 
 import { fetchStatsForMatches, type MatchStats } from '@/lib/services/stats-service';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
+import { cacheGet, cacheSet, cacheDel, buildCombineCacheKey, CACHE_TTL } from '@/lib/services/redis-cache';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -453,9 +454,56 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── Cache lookup ───────────────────────────────────────────────────────────
-    const cacheKey = generateCacheKey(params);
+    // ── Cache lookup (Redis L1 → Supabase L2) ─────────────────────────────────
+    const cacheKey    = generateCacheKey(params);
+    const redisCacheKey = buildCombineCacheKey(cacheKey);
 
+    // L1: Redis (sub-millisecond, zero DB round-trip)
+    const redisCached = await cacheGet<Record<string, unknown>>(redisCacheKey);
+    if (redisCached) {
+      console.log(`[generate] Redis cache HIT ${cacheKey}`);
+
+      // Update Supabase usage_count asynchronously (fire-and-forget)
+      void Promise.resolve(
+        supabase
+          .from('generated_combines')
+          .update({ usage_count: ((redisCached.usage_count as number) ?? 0) + 1 })
+          .eq('cache_key', cacheKey)
+      ).catch(() => {});
+
+      if (isVisitor && anonymousSession) {
+        const meta = anonymousSession.metadata || {};
+        const currentCount = isNewWeek(meta.weeklyAiResetAt) ? 0 : (meta.weeklyAiCount ?? 0);
+        void Promise.resolve(
+          adminSupabase.from('anonymous_sessions').update({
+            metadata: { ...meta, weeklyAiCount: currentCount + 1, weeklyAiResetAt: weekStart },
+          }).eq('id', anonymousSession.id)
+        ).catch(() => {});
+        logAnonymousEvent(anonymousSession.id, 'generation_attempted', { fromCache: true, cacheLayer: 'redis' });
+      } else if (user) {
+        const { data: profile } = await supabase
+          .from('profiles').select('weekly_ai_count, weekly_ai_reset_at').eq('id', user.id).single();
+        const currentCount = isNewWeek(profile?.weekly_ai_reset_at) ? 0 : (profile?.weekly_ai_count ?? 0);
+        if (!isVerified) {
+          void Promise.resolve(
+            supabase.from('profiles').update({
+              weekly_ai_count: currentCount + 1, weekly_ai_reset_at: weekStart,
+            }).eq('id', user.id)
+          ).catch(() => {});
+        }
+        void Promise.resolve(
+          adminSupabase.from('combine_usage_log').insert({
+            user_id: user.id, combine_id: redisCached.id,
+            usage_type: 'from_cache', user_tier: user.tier,
+          })
+        ).catch(() => {});
+      }
+
+      const weeklyUsage = buildWeeklyUsage(limit, 1);
+      return NextResponse.json({ combine: redisCached, fromCache: true, cacheLayer: 'redis', weeklyUsage });
+    }
+
+    // L2: Supabase (warm cache, handles concurrent cold-starts)
     const { data: cachedCombine } = await supabase
       .from('generated_combines')
       .select('*')
@@ -464,6 +512,9 @@ export async function POST(request: Request) {
       .single();
 
     if (cachedCombine) {
+      // Backfill Redis so the next request is served at L1
+      cacheSet(redisCacheKey, cachedCombine, CACHE_TTL.COMBINE).catch(() => {});
+
       // Increment usage count
       await supabase
         .from('generated_combines')
@@ -610,11 +661,17 @@ export async function POST(request: Request) {
       .eq('cache_key', cacheKey)
       .lt('expires_at', new Date().toISOString());
 
+    // Also evict stale Redis entry for this key (if any)
+    cacheDel(redisCacheKey).catch(() => {});
+
     const { error: insertError } = await adminSupabase.from('generated_combines').insert(generatedCombine);
     if (insertError) {
       console.error('Failed to save combine to DB:', insertError);
       return NextResponse.json({ error: 'Erreur lors de la sauvegarde du combiné. Veuillez réessayer.' }, { status: 500 });
     }
+
+    // Populate Redis L1 cache immediately after successful DB write
+    cacheSet(redisCacheKey, generatedCombine, CACHE_TTL.COMBINE).catch(() => {});
 
     // ── Update weekly count ────────────────────────────────────────────────────
     let usedThisWeek = 1;
