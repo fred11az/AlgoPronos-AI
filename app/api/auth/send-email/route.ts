@@ -319,7 +319,7 @@ export async function POST(req: Request) {
         from: FROM,
         to: email,
         subject: 'Confirmez votre compte AlgoPronos AI',
-        reply_to: 'support@algopronos.com',
+        replyTo: 'support@algopronos.com',
         headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
         html: verificationEmail(fullName || email.split('@')[0], actionLink),
       });
@@ -341,7 +341,7 @@ export async function POST(req: Request) {
         from: FROM,
         to: email,
         subject: 'Votre lien de connexion AlgoPronos AI',
-        reply_to: 'support@algopronos.com',
+        replyTo: 'support@algopronos.com',
         headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
         html: verificationEmail('', data.properties.action_link),
       });
@@ -363,7 +363,7 @@ export async function POST(req: Request) {
         from: FROM,
         to: email,
         subject: 'Réinitialisation de votre mot de passe AlgoPronos AI',
-        reply_to: 'support@algopronos.com',
+        replyTo: 'support@algopronos.com',
         headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
         html: recoveryEmail(email, data.properties.action_link),
       });
