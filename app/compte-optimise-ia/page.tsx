@@ -32,26 +32,51 @@ import { VerificateurWidget } from '@/components/landing/VerificateurWidget';
 // ─── SEO Metadata ──────────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
-  title: 'Compte optimisé IA pour paris sportifs | AlgoPronos',
+  title: 'Compte Optimisé IA Paris Sportifs — Comment ça marche ? | AlgoPronos',
   description:
-    "Créez votre compte bookmaker optimisé par IA. Notre algorithme analyse les statistiques, cotes et forme des équipes pour générer des combinés gagnants. Gratuit, sans abonnement.",
+    "Créez un compte bookmaker Optimisé IA avec AlgoPronos. L'algorithme analyse les statistiques, détecte les value bets et génère vos combinés automatiquement. Gratuit, sans abonnement. Compatible 1xBet, et autres bookmakers africains.",
   keywords: [
-    'compte optimisé paris sportifs',
-    'IA paris sportifs',
-    'algorithme pronostics football',
-    'générateur combiné IA',
-    'value betting Afrique',
-    'pronostics football IA',
-    'compte 1xBet optimisé',
-    'paris sportifs algorithme',
-    'combiné optimisé bookmaker',
-    'analyse cotes IA',
+    // Compte optimisé IA
+    'compte optimisé IA paris sportifs',
+    'compte bookmaker optimisé algorithme IA',
+    'comment créer compte paris sportif optimisé IA',
+    'compte 1xbet optimisé IA algopronos',
+    'compte 1xBet optimisé algorithme',
+    'paris sportif algorithme IA',
+    'compte bookmaker pour algorithme IA',
+    'optimiser compte paris sportif avec IA',
+    // Vérificateur
+    'comment vérifier si mon compte de paris est optimisé IA',
+    'mon compte bookmaker est-il optimisé IA',
+    'vérifier statut compte paris sportif IA',
+    // Pronostics IA
+    'générateur combiné IA gratuit',
+    'pronostics football algorithme IA',
+    'value betting Afrique IA',
+    'combiné optimisé IA bookmaker',
+    'analyse cotes intelligente IA',
+    'ticket paris IA algopronos',
+    // Géographique
+    'paris sportif IA Bénin',
+    'paris sportif IA Afrique de l\'Ouest',
+    'pronostic IA Côte d\'Ivoire',
+    'compte 1xbet Bénin optimisé',
   ].join(', '),
+  alternates: {
+    canonical: 'https://algopronos.com/compte-optimise-ia',
+  },
   openGraph: {
-    title: 'Compte optimisé IA pour paris sportifs | AlgoPronos',
+    title: 'Compte Optimisé IA Paris Sportifs | AlgoPronos',
     description:
-      "Notre algorithme IA analyse les statistiques, les cotes et la forme des équipes pour générer des combinés optimisés directement sur votre bookmaker.",
+      "L'algorithme AlgoPronos analyse les statistiques, les cotes et la forme des équipes pour générer des combinés optimisés directement sur votre bookmaker. Gratuit, sans abonnement.",
+    url: 'https://algopronos.com/compte-optimise-ia',
+    siteName: 'AlgoPronos AI',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Compte Optimisé IA Paris Sportifs — AlgoPronos',
+    description: "Créez un compte bookmaker reconnu par l'algorithme AlgoPronos AI. Combinés optimisés, value bets détectés, accès gratuit.",
   },
 };
 
