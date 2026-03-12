@@ -261,6 +261,42 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── Auto-indexing: ping Google + IndexNow after generating new pages ─────
+  if (generated.length > 0) {
+    const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://algopronos.com';
+    const newUrls = generated.map((s) => `${BASE_URL}/pronostic/${s}`);
+
+    // 1. Ping Google sitemap (tells Googlebot the sitemap has been updated)
+    try {
+      await fetch(
+        `https://www.google.com/ping?sitemap=${encodeURIComponent(`${BASE_URL}/sitemap.xml`)}`,
+        { method: 'GET', signal: AbortSignal.timeout(5000) },
+      );
+    } catch {
+      // Non-blocking — ignore network errors
+    }
+
+    // 2. IndexNow — instant indexing for Bing/Yandex/others
+    //    Requires: /public/indexnow-key.txt containing INDEXNOW_KEY value
+    if (process.env.INDEXNOW_KEY) {
+      try {
+        await fetch('https://api.indexnow.org/indexnow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({
+            host: new URL(BASE_URL).hostname,
+            key: process.env.INDEXNOW_KEY,
+            keyLocation: `${BASE_URL}/${process.env.INDEXNOW_KEY}.txt`,
+            urlList: newUrls,
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+      } catch {
+        // Non-blocking
+      }
+    }
+  }
+
   return NextResponse.json({
     success: true,
     generated: generated.length,

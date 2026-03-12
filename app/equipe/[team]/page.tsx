@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { slugToTitle } from '@/lib/utils/slugify';
 import { Users, ChevronRight, ArrowRight, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageBottomCTA } from '@/components/pronostics/PageBottomCTA';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -216,25 +217,7 @@ export default async function TeamPage({
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="bg-gradient-to-r from-primary/10 to-[#00D4FF]/10 border-t border-primary/20">
-        <div className="max-w-3xl mx-auto px-4 py-10 text-center">
-          <h2 className="text-xl md:text-2xl font-bold text-white mb-3">
-            Générez votre ticket combiné IA
-          </h2>
-          <p className="text-text-secondary mb-6 text-sm">
-            Sélectionnez vos matchs préférés et laissez l'algorithme optimiser votre combiné.
-          </p>
-          <div className="flex gap-3 justify-center flex-wrap">
-            <Link href="/dashboard/generate">
-              <Button variant="gradient" size="lg">
-                Générer mon ticket
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+      <PageBottomCTA />
     </main>
   );
 }
