@@ -48,34 +48,46 @@ class MatchService {
       return {};
     }
 
-    console.log(`[API-Football] Fetching fixtures ${from} → ${to} (1 request)`);
-
-    // ── 1. Fixtures for the full range ────────────────────────────────────────
-    const fixturesRes = await fetch(
-      `https://v3.football.api-sports.io/fixtures?from=${from}&to=${to}`,
-      { headers: { 'x-apisports-key': apiKey } }
-    );
-
-    if (!fixturesRes.ok) {
-      console.warn(`[API-Football] HTTP error ${fixturesRes.status} — returning empty matches`);
-      return {};
+    // Build list of dates in range
+    const dates: string[] = [];
+    const cursor = new Date(from);
+    const end = new Date(to);
+    while (cursor <= end) {
+      dates.push(cursor.toISOString().split('T')[0]);
+      cursor.setDate(cursor.getDate() + 1);
     }
 
-    const fixturesData = await fixturesRes.json();
+    console.log(`[API-Football] Fetching fixtures for ${dates.length} days (free plan: 1 req/day)`);
 
-    if (fixturesData.errors && Object.keys(fixturesData.errors).length > 0) {
-      console.warn('[API-Football] API error:', JSON.stringify(fixturesData.errors), '— returning empty matches');
-      return {};
+    // ── 1. Fixtures day by day (free plan doesn't support from/to range) ──────
+    const allFixtures: RawFixture[] = [];
+    for (const date of dates) {
+      try {
+        const res = await fetch(
+          `https://v3.football.api-sports.io/fixtures?date=${date}`,
+          { headers: { 'x-apisports-key': apiKey } }
+        );
+        if (!res.ok) { console.warn(`[API-Football] HTTP ${res.status} for ${date}`); continue; }
+        const data = await res.json();
+        if (data.errors && Object.keys(data.errors).length > 0) {
+          console.warn(`[API-Football] API error for ${date}:`, JSON.stringify(data.errors));
+          continue;
+        }
+        allFixtures.push(...(data.response ?? []));
+        console.log(`[API-Football] ${date}: ${(data.response ?? []).length} fixtures`);
+      } catch (e) {
+        console.warn(`[API-Football] fetch error for ${date}:`, e);
+      }
     }
 
-    const fixtures: RawFixture[] = fixturesData.response ?? [];
-    console.log(`[API-Football] Got ${fixtures.length} total fixtures`);
+    const fixtures: RawFixture[] = allFixtures;
+    console.log(`[API-Football] Got ${fixtures.length} total fixtures across ${dates.length} days`);
 
-    // ── 2. Odds for the full range (1 request) ────────────────────────────────
+    // ── 2. Odds pour aujourd'hui (best effort — plan gratuit limité) ──────────
     const oddsMap: Record<number, { home: number; draw: number; away: number }> = {};
     try {
       const oddsRes = await fetch(
-        `https://v3.football.api-sports.io/odds?from=${from}&to=${to}&bookmaker=8&bet=1`,
+        `https://v3.football.api-sports.io/odds?date=${from}&bookmaker=8&bet=1`,
         { headers: { 'x-apisports-key': apiKey } }
       );
       if (oddsRes.ok) {
