@@ -19,9 +19,11 @@ import { Resend } from 'resend';
 import { createAdminClient } from '@/lib/supabase/server';
 
 const FROM    = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-// Use server-only SITE_URL (never the public Vercel URL) for redirect links in emails.
-// NEXT_PUBLIC_APP_URL may point to *.vercel.app — SITE_URL must be the production domain.
-const APP_URL = (process.env.SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com').replace(/\/$/, '');
+// Use server-only SITE_URL for redirect links in emails.
+// NEVER fall back to NEXT_PUBLIC_APP_URL: it may point to *.vercel.app preview deployments.
+// SITE_URL MUST be set to https://algopronos.com in the Vercel production environment variables.
+const RAW_URL = process.env.SITE_URL || 'https://algopronos.com';
+const APP_URL = RAW_URL.replace(/\/$/, '');
 
 // Logo SVG inline (compatible Gmail / Outlook / Apple Mail)
 const LOGO_SVG = `<svg viewBox="0 0 220 56" fill="none" xmlns="http://www.w3.org/2000/svg" width="220" height="56">
@@ -315,13 +317,15 @@ export async function POST(req: Request) {
         actionLink = data.properties.action_link;
       }
 
+      const displayName = fullName || email.split('@')[0];
       await resend.emails.send({
         from: FROM,
         to: email,
         subject: 'Confirmez votre compte AlgoPronos AI',
         replyTo: 'support@algopronos.com',
         headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
-        html: verificationEmail(fullName || email.split('@')[0], actionLink),
+        html: verificationEmail(displayName, actionLink),
+        text: `Bonjour ${displayName},\n\nConfirmez votre email AlgoPronos AI en cliquant sur ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas créé ce compte, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
 
     } else if (type === 'resend') {
@@ -344,6 +348,7 @@ export async function POST(req: Request) {
         replyTo: 'support@algopronos.com',
         headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
         html: verificationEmail('', data.properties.action_link),
+        text: `Bonjour,\n\nConnectez-vous à AlgoPronos AI avec ce lien :\n${data.properties.action_link}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas fait cette demande, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
 
     } else if (type === 'recovery') {
@@ -366,6 +371,7 @@ export async function POST(req: Request) {
         replyTo: 'support@algopronos.com',
         headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
         html: recoveryEmail(email, data.properties.action_link),
+        text: `Bonjour,\n\nUne demande de réinitialisation a été effectuée pour le compte ${email}.\n\nCliquez sur ce lien pour créer un nouveau mot de passe :\n${data.properties.action_link}\n\nCe lien expire dans 1 heure.\n\nSi vous n'avez pas fait cette demande, ignorez cet email — votre mot de passe restera inchangé.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
 
     } else {

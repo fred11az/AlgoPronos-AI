@@ -135,7 +135,7 @@ export async function getPromoCode(): Promise<string> {
     .eq('key', 'promo_code_1xbet')
     .single();
 
-  return data?.value || process.env.NEXT_PUBLIC_1XBET_PROMO_CODE || 'ALGOPRONO2025';
+  return data?.value || process.env.NEXT_PUBLIC_1XBET_PROMO_CODE || 'AlgoPronos';
 }
 
 export interface UserStats {
