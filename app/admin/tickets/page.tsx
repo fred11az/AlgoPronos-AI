@@ -24,6 +24,9 @@ import {
   TrendingUp,
   Zap,
   PlusCircle,
+  Pencil,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -50,6 +53,16 @@ interface DailyTicket {
   resolved_at: string | null;
   created_at: string;
 }
+
+interface MatchRow {
+  home_team: string;
+  away_team: string;
+  league: string;
+  prediction: string;
+  odds: string;
+}
+
+const EMPTY_MATCH: MatchRow = { home_team: '', away_team: '', league: '', prediction: '', odds: '' };
 
 const STATUS_CONFIG = {
   pending: { label: 'En attente', variant: 'warning' as const, icon: null },
@@ -91,6 +104,14 @@ export default function AdminTicketsPage() {
     open: false, title: '', placeholder: '', onConfirm: () => {},
   });
   const [notesValue, setNotesValue] = useState('');
+
+  // ── Manual creation dialog ──────────────────────────────────────────────
+  const [createDialog, setCreateDialog] = useState(false);
+  const [createDate, setCreateDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [createMatches, setCreateMatches] = useState<MatchRow[]>([{ ...EMPTY_MATCH }]);
+  const [createConfidence, setCreateConfidence] = useState('75');
+  const [createRisk, setCreateRisk] = useState<'low' | 'balanced' | 'high'>('balanced');
+  const [creating, setCreating] = useState(false);
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -189,6 +210,90 @@ export default function AdminTicketsPage() {
     }
   }
 
+  // ── Manual creation helpers ─────────────────────────────────────────────
+
+  function openCreateDialog() {
+    setCreateDate(new Date().toISOString().split('T')[0]);
+    setCreateMatches([{ ...EMPTY_MATCH }]);
+    setCreateConfidence('75');
+    setCreateRisk('balanced');
+    setCreateDialog(true);
+  }
+
+  function updateMatch(idx: number, field: keyof MatchRow, value: string) {
+    setCreateMatches(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m));
+  }
+
+  function addMatch() {
+    setCreateMatches(prev => [...prev, { ...EMPTY_MATCH }]);
+  }
+
+  function removeMatch(idx: number) {
+    setCreateMatches(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  // Cote totale calculée à la volée
+  const computedTotalOdds = createMatches.reduce((acc, m) => {
+    const o = parseFloat(m.odds);
+    return isNaN(o) || o <= 0 ? acc : acc * o;
+  }, 1).toFixed(2);
+
+  async function submitCreate(replace: boolean) {
+    const validMatches = createMatches.filter(m =>
+      m.home_team.trim() && m.away_team.trim() && m.prediction.trim() && parseFloat(m.odds) > 0
+    );
+    if (validMatches.length === 0) {
+      toast.error('Ajoutez au moins un match complet (équipes, pronostic, cote)');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const res = await fetch('/api/admin/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: createDate,
+          matches: validMatches.map(m => ({
+            home_team: m.home_team.trim(),
+            away_team: m.away_team.trim(),
+            league: m.league.trim(),
+            prediction: m.prediction.trim(),
+            odds: parseFloat(m.odds),
+          })),
+          confidence_pct: parseInt(createConfidence) || 75,
+          risk_level: createRisk,
+          replace,
+        }),
+      });
+      const data = await res.json();
+
+      if (res.status === 409 && !replace) {
+        // Ticket déjà existant — demander confirmation de remplacement
+        setCreateDialog(false);
+        setConfirmDialog({
+          open: true,
+          title: 'Ticket déjà existant',
+          description: `Un ticket existe déjà pour le ${createDate}. Voulez-vous le remplacer ?`,
+          onConfirm: () => {
+            setCreateDialog(true);
+            submitCreate(true);
+          },
+        });
+        return;
+      }
+
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Coupon du ${createDate} publié ✅`);
+      setCreateDialog(false);
+      fetchTickets();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erreur lors de la création');
+    } finally {
+      setCreating(false);
+    }
+  }
+
   const pending = tickets.filter(t => t.status === 'pending').length;
 
   return (
@@ -246,6 +351,173 @@ export default function AdminTicketsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Manual Creation Dialog ── */}
+      <Dialog open={createDialog} onOpenChange={setCreateDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" />
+              Poster le coupon du jour manuellement
+            </DialogTitle>
+            <DialogDescription>
+              Renseignez les matchs et pronostics. La cote totale est calculée automatiquement.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Date + meta */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Date du coupon</label>
+                <input
+                  type="date"
+                  value={createDate}
+                  onChange={(e) => setCreateDate(e.target.value)}
+                  className="w-full rounded-lg bg-surface-light border border-surface-light text-white text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Confiance (%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={createConfidence}
+                  onChange={(e) => setCreateConfidence(e.target.value)}
+                  className="w-full rounded-lg bg-surface-light border border-surface-light text-white text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  placeholder="75"
+                />
+              </div>
+            </div>
+
+            {/* Risk level */}
+            <div>
+              <label className="block text-xs text-text-muted mb-2">Niveau de risque</label>
+              <div className="flex gap-2">
+                {(['low', 'balanced', 'high'] as const).map(r => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setCreateRisk(r)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-all ${
+                      createRisk === r
+                        ? r === 'low'
+                          ? 'bg-success/20 border-success/40 text-success'
+                          : r === 'balanced'
+                          ? 'bg-primary/20 border-primary/40 text-primary'
+                          : 'bg-destructive/20 border-destructive/40 text-destructive'
+                        : 'bg-surface-light border-surface-light text-text-muted'
+                    }`}
+                  >
+                    {r === 'low' ? 'Faible' : r === 'balanced' ? 'Équilibré' : 'Élevé'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Matches */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs text-text-muted">Matchs ({createMatches.length})</label>
+                <div className="flex items-center gap-2 text-xs text-primary font-semibold">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Cote totale : ×{computedTotalOdds}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {createMatches.map((m, idx) => (
+                  <div key={idx} className="bg-surface-light rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-text-muted font-medium">Match {idx + 1}</span>
+                      {createMatches.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeMatch(idx)}
+                          className="text-text-muted hover:text-destructive transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Équipe domicile"
+                        value={m.home_team}
+                        onChange={(e) => updateMatch(idx, 'home_team', e.target.value)}
+                        className="rounded-lg bg-background border border-surface-light text-white text-sm px-3 py-1.5 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Équipe extérieure"
+                        value={m.away_team}
+                        onChange={(e) => updateMatch(idx, 'away_team', e.target.value)}
+                        className="rounded-lg bg-background border border-surface-light text-white text-sm px-3 py-1.5 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Compétition"
+                        value={m.league}
+                        onChange={(e) => updateMatch(idx, 'league', e.target.value)}
+                        className="rounded-lg bg-background border border-surface-light text-white text-sm px-3 py-1.5 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Pronostic (ex: 1, 1X, +2.5)"
+                        value={m.prediction}
+                        onChange={(e) => updateMatch(idx, 'prediction', e.target.value)}
+                        className="rounded-lg bg-background border border-surface-light text-white text-sm px-3 py-1.5 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="1"
+                        placeholder="Cote"
+                        value={m.odds}
+                        onChange={(e) => updateMatch(idx, 'odds', e.target.value)}
+                        className="rounded-lg bg-background border border-surface-light text-white text-sm px-3 py-1.5 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={addMatch}
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-primary/30 text-primary text-sm hover:bg-primary/5 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Ajouter un match
+              </button>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setCreateDialog(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => submitCreate(false)}
+              disabled={creating}
+              className="bg-primary text-white"
+            >
+              {creating ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Pencil className="h-4 w-4 mr-1" />
+              )}
+              Publier le coupon
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -254,7 +526,7 @@ export default function AdminTicketsPage() {
             Marquez les tickets quotidiens comme gagnés, perdus ou annulés.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {/* Notification toggle */}
           <button
             onClick={() => setNotifyUsers(v => !v)}
@@ -268,6 +540,16 @@ export default function AdminTicketsPage() {
             Notifier les users
           </button>
           <Button
+            variant="default"
+            size="sm"
+            onClick={openCreateDialog}
+            className="bg-primary text-white hover:bg-primary/90"
+            title="Poster le coupon du jour manuellement"
+          >
+            <Pencil className="h-4 w-4 mr-1" />
+            Poster le coupon
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={generateToday}
@@ -280,7 +562,7 @@ export default function AdminTicketsPage() {
             ) : (
               <PlusCircle className="h-4 w-4 mr-1" />
             )}
-            Générer aujourd&apos;hui
+            Générer (IA)
           </Button>
           <Button
             variant="outline"

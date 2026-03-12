@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
+import { getCurrentUser, checkIsAdmin, createAdminClient } from '@/lib/supabase/server';
 import { notifyTicketResult, TicketMatch } from '@/lib/services/notification-service';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +35,104 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ tickets: data || [] });
+}
+
+// ─── POST — créer un ticket manuellement ────────────────────────────────────
+export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const isAdmin = await checkIsAdmin(user.id);
+  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const body = await req.json();
+  const { date, matches, confidence_pct, risk_level, replace } = body as {
+    date: string;
+    matches: Array<{
+      home_team: string;
+      away_team: string;
+      league?: string;
+      prediction: string;
+      odds: number;
+    }>;
+    confidence_pct?: number;
+    risk_level?: string;
+    replace?: boolean;
+  };
+
+  if (!date || !matches || matches.length === 0) {
+    return NextResponse.json({ error: 'date et matches (min 1) requis' }, { status: 400 });
+  }
+
+  // Valider les matchs
+  for (const m of matches) {
+    if (!m.home_team || !m.away_team || !m.prediction || !m.odds) {
+      return NextResponse.json(
+        { error: 'Chaque match doit avoir home_team, away_team, prediction et odds' },
+        { status: 400 }
+      );
+    }
+    if (m.odds <= 0) {
+      return NextResponse.json({ error: 'Les cotes doivent être > 0' }, { status: 400 });
+    }
+  }
+
+  // Calculer la cote totale
+  const total_odds = parseFloat(
+    matches.reduce((acc, m) => acc * m.odds, 1).toFixed(2)
+  );
+
+  const supabase = createAdminClient();
+
+  // Vérifier si un ticket existe déjà pour cette date
+  const { data: existing } = await supabase
+    .from('daily_ticket')
+    .select('id')
+    .eq('date', date)
+    .maybeSingle();
+
+  if (existing && !replace) {
+    return NextResponse.json(
+      { error: `Un ticket existe déjà pour le ${date}. Utilisez replace:true pour le remplacer.`, existing_id: existing.id },
+      { status: 409 }
+    );
+  }
+
+  if (existing && replace) {
+    await supabase.from('daily_ticket').delete().eq('date', date);
+  }
+
+  // Formater les matchs pour le stockage
+  const formattedMatches = matches.map(m => ({
+    home_team: m.home_team,
+    away_team: m.away_team,
+    league: m.league || '',
+    prediction: m.prediction,
+    odds: m.odds,
+    // Compatibilité avec l'affichage côté client
+    homeTeam: m.home_team,
+    awayTeam: m.away_team,
+    selection: { value: m.prediction, odds: m.odds },
+  }));
+
+  const { data: ticket, error } = await supabase
+    .from('daily_ticket')
+    .insert({
+      date,
+      matches: formattedMatches,
+      total_odds,
+      confidence_pct: confidence_pct ?? 75,
+      risk_level: risk_level || 'balanced',
+      status: 'pending',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, ticket }, { status: 201 });
 }
 
 // ─── PATCH — résoudre un ticket + notifier les users ───────────────────────
