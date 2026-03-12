@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import toast from 'react-hot-toast';
 import {
   TrendingUp,
   Trophy,
@@ -88,7 +89,7 @@ function shareTicket(ticket: DailyTicket) {
     navigator.share({ title: 'Ticket IA du Jour', text });
   } else {
     navigator.clipboard.writeText(text);
-    alert('Ticket copié dans le presse-papier !');
+    toast.success('Ticket copié dans le presse-papier !');
   }
 }
 
