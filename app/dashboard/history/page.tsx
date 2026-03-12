@@ -93,6 +93,32 @@ function shareTicket(ticket: DailyTicket) {
   }
 }
 
+function shareVictory(ticket: DailyTicket) {
+  const picks = ticket.matches
+    .map(m => `✅ ${m.homeTeam} vs ${m.awayTeam} — ${m.selection.value} @ ${m.selection.odds}`)
+    .join('\n');
+  const text = [
+    `🏆 VICTOIRE CONFIRMÉE — Ticket du ${formatDate(ticket.date)}`,
+    ``,
+    picks,
+    ``,
+    `💰 Cote totale: ×${ticket.total_odds.toFixed(2)}`,
+    `🤖 Analysé par AlgoPronos AI`,
+    ``,
+    `Rejoignez l'élite gratuitement 👇`,
+    `https://algopronos.ai`,
+  ].join('\n');
+
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+  if (navigator.share) {
+    navigator.share({ title: 'Ma Victoire AlgoPronos AI', text })
+      .catch(() => window.open(waUrl, '_blank'));
+  } else {
+    window.open(waUrl, '_blank');
+  }
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function HistoryPage() {
@@ -286,11 +312,22 @@ function TicketCard({ ticket, highlight = false }: { ticket: DailyTicket; highli
               {ticket.matches.length} sélections · Cote: {ticket.total_odds.toFixed(2)} · Confiance: {ticket.confidence_pct}%
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <Badge variant="outline" className={sc.color}>
               <StatusIcon className="h-3 w-3 mr-1" />
               {sc.label}
             </Badge>
+            {ticket.status === 'won' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/10 hover:border-[#25D366] text-xs px-2 py-1 h-auto"
+                onClick={() => shareVictory(ticket)}
+              >
+                <Trophy className="h-3 w-3 mr-1" />
+                Partager ma victoire
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={() => shareTicket(ticket)} title="Partager">
               <Share2 className="h-4 w-4" />
             </Button>

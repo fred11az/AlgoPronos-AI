@@ -81,6 +81,21 @@ export default function ForgotPasswordPage() {
         <h1 className="text-3xl font-bold text-white">Mot de passe oublié ?</h1>
         <p className="text-text-secondary">Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.</p>
       </div>
+
+      {/* Avertissement anti-doublon */}
+      <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
+        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-white mb-0.5">
+            Vous avez déjà un compte ?
+          </p>
+          <p className="text-xs text-text-secondary leading-relaxed">
+            Utilisez uniquement cet email pour récupérer votre accès.
+            Ne créez <strong className="text-white">pas un second compte</strong> — cela effacerait votre historique de tickets et fausserait vos statistiques d&apos;affiliation.
+          </p>
+        </div>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>

@@ -34,6 +34,8 @@ import {
   CheckCircle,
   KeyRound,
   Loader2,
+  AlertCircle,
+  MessageCircle,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -51,6 +53,7 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
   const [showSubmitId, setShowSubmitId] = useState(false);
   const [bookmarkerId, setBookmarkerId] = useState('');
   const [submittingId, setSubmittingId] = useState(false);
+  const [idNotRecognized, setIdNotRecognized] = useState(false);
 
   // Fetch pending verifications count for admins
   useEffect(() => {
@@ -99,9 +102,8 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
         toast.success('Votre demande est en cours de vérification. Vous serez notifié sous 24h.');
         setShowSubmitId(false);
       } else {
-        // Not found → redirect to full activation flow
-        toast('Identifiant non trouvé. Redirigé vers la page d\'activation.', { icon: 'ℹ️' });
-        router.push(`/unlock-vip?id=${encodeURIComponent(bookmarkerId.trim())}`);
+        // Not recognized → show pedagogical error inside dialog
+        setIdNotRecognized(true);
       }
     } catch {
       toast.error('Erreur lors de la vérification. Réessayez.');
@@ -250,7 +252,7 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
     </header>
 
     {/* ── Submit bookmaker ID dialog ──────────────────────────────────────────── */}
-    <Dialog open={showSubmitId} onOpenChange={setShowSubmitId}>
+    <Dialog open={showSubmitId} onOpenChange={(v) => { setShowSubmitId(v); if (!v) setIdNotRecognized(false); }}>
       <DialogContent className="sm:max-w-md bg-surface border-surface-light">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -289,6 +291,42 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
             </button>
             .
           </p>
+
+          {idNotRecognized && (
+            <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-white mb-1">
+                    ID non reconnu comme compte Algo-Optimisé
+                  </p>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    Cet ID n&apos;est pas reconnu par nos serveurs comme un compte Algo-Optimisé.
+                    Assurez-vous d&apos;avoir suivi les étapes de création guidée via notre lien
+                    partenaire, ou contactez notre support WhatsApp.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  className="flex-1 flex items-center justify-center gap-2 text-xs py-2 px-3 rounded-lg bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                  onClick={() => {
+                    window.open('https://wa.me/22997000000?text=Bonjour%2C%20mon%20ID%20bookmaker%20n\'est%20pas%20reconnu%20sur%20AlgoPronos%20AI.%20Pouvez-vous%20m\'aider%20%3F', '_blank');
+                  }}
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Contacter le support WhatsApp
+                </button>
+                <button
+                  className="flex-1 flex items-center justify-center gap-2 text-xs py-2 px-3 rounded-lg bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors"
+                  onClick={() => { setShowSubmitId(false); setIdNotRecognized(false); router.push('/unlock-vip'); }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Créer un compte guidé
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 pt-1">
             <Button

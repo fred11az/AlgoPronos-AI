@@ -1,0 +1,24 @@
+{
+  "name": "AlgoPronos AI",
+  "short_name": "AlgoPronos",
+  "description": "+15 000 utilisateurs actifs. L'IA qui analyse 6 signaux (xG, Value Betting) pour vos paris sportifs.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0F1E",
+  "theme_color": "#00D4FF",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["sports", "utilities"]
+}

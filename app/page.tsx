@@ -32,6 +32,7 @@ import { ClassementPreview } from '@/components/landing/ClassementPreview';
 import { GrandesAffichesPreview } from '@/components/landing/GrandesAffichesPreview';
 import { BookmakersSection } from '@/components/landing/BookmakersSection';
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
+import { SocialProofTicker } from '@/components/landing/SocialProofTicker';
 
 // ─── FAQ ──────────────────────────────────────────────────────────────────────
 
@@ -73,33 +74,39 @@ const faqItems = [
 const DATA_SIGNALS = [
   {
     icon: Activity,
+    label: 'Signal 1',
     title: 'Forme des équipes',
     description: 'Analyse des 5 derniers matchs : résultats, buts marqués/encaissés, dynamique de série.',
   },
   {
     icon: LineChart,
-    title: 'Statistiques avancées',
-    description: 'Expected Goals (xG) pour mesurer la qualité réelle des occasions, indépendamment du score.',
+    label: 'Signal 2',
+    title: 'Expected Goals (xG)',
+    description: 'Mesure la qualité réelle des occasions créées, indépendamment du score affiché.',
   },
   {
     icon: Star,
-    title: 'Cotes bookmakers',
-    description: 'Cotes en temps réel converties en probabilité implicite pour chaque marché disponible.',
+    label: 'Signal 3',
+    title: 'Cotes en temps réel',
+    description: 'Cotes bookmakers converties en probabilité implicite pour chaque marché disponible.',
   },
   {
     icon: TrendingUp,
-    title: 'Value betting',
-    description: 'Détection des marchés sous-côtés : écart entre probabilité estimée et cote bookmaker.',
+    label: 'Signal 4',
+    title: 'Value Betting',
+    description: 'Détection des marchés sous-côtés : écart positif entre probabilité estimée et cote bookmaker.',
   },
   {
     icon: BarChart3,
+    label: 'Signal 5',
     title: 'Probabilités du modèle',
-    description: 'Probabilités de victoire/nul/défaite issues de notre modèle prédictif statistique.',
+    description: 'Probabilités de victoire/nul/défaite issues de notre modèle prédictif statistique propriétaire.',
   },
   {
     icon: Target,
-    title: 'Sélection par niveau de risque',
-    description: 'Prudent, Équilibré ou Risqué : l\'algorithme adapte les marchés à votre profil.',
+    label: 'Signal 6',
+    title: 'Niveau de risque',
+    description: 'Prudent, Équilibré ou Risqué : l\'algorithme calibre chaque sélection selon votre profil.',
   },
 ];
 
@@ -364,8 +371,13 @@ export default function LandingPage() {
             {DATA_SIGNALS.map((signal, i) => (
               <ScrollReveal key={i} delay={(i % 3) * 0.1}>
                 <div className="group bg-surface border border-surface-light rounded-2xl p-6 hover:border-primary/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5">
-                  <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                    <signal.icon className="h-5 w-5" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                      <signal.icon className="h-5 w-5" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/60 bg-primary/5 border border-primary/15 px-2 py-0.5 rounded-full">
+                      {signal.label}
+                    </span>
                   </div>
                   <h3 className="text-base font-bold text-white mb-2">{signal.title}</h3>
                   <p className="text-text-secondary text-sm leading-relaxed">{signal.description}</p>
@@ -373,6 +385,32 @@ export default function LandingPage() {
               </ScrollReveal>
             ))}
           </div>
+
+          {/* Crédibilité algorithmique */}
+          <ScrollReveal delay={0.3}>
+            <div className="mt-12 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 via-surface to-secondary/5 p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="text-center sm:text-left">
+                <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-1">Algorithme ≠ Devin</p>
+                <p className="text-white font-bold text-lg">L&apos;IA ne &quot;devine&quot; pas — elle calcule.</p>
+                <p className="text-text-secondary text-sm mt-1 max-w-lg">
+                  Chaque ticket est le résultat de 6 signaux croisés et d&apos;un modèle statistique propriétaire.
+                  L&apos;historique complet est public et vérifiable.
+                </p>
+              </div>
+              <div className="flex items-center gap-6 shrink-0">
+                {[
+                  { val: '6', sub: 'Signaux croisés' },
+                  { val: '15s', sub: 'Génération IA' },
+                  { val: '100%', sub: 'Historique public' },
+                ].map(({ val, sub }) => (
+                  <div key={sub} className="text-center">
+                    <p className="text-2xl font-bold text-primary">{val}</p>
+                    <p className="text-xs text-text-muted">{sub}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
@@ -436,6 +474,7 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <SocialProofTicker />
       <Footer />
     </main>
   );
