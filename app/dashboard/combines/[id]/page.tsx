@@ -305,11 +305,17 @@ export default function CombineDetailPage() {
                 Probabilité AlgoPronos AI : <span className="text-primary font-bold">{combine.estimated_probability}%</span>
               </p>
               <p className="text-sm text-text-muted mt-2">
-                Crée un compte pour débloquer l&apos;analyse complète — facteurs clés, forme des équipes, évaluation des risques.
+                Connecte-toi ou crée un compte pour débloquer l&apos;analyse complète — facteurs clés, forme des équipes, évaluation des risques.
               </p>
             </div>
-            <Button variant="gradient" asChild>
-              <Link href="/onboarding">Débloquer l&apos;analyse complète →</Link>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Button variant="gradient" asChild>
+                <Link href="/login">Se connecter →</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/onboarding">Créer un compte</Link>
+              </Button>
+            </div>
             </Button>
           </CardContent>
         </Card>
