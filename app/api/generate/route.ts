@@ -142,11 +142,11 @@ interface PickCandidate {
   valueEdge: number | null;
 }
 
-// Odds min/max réels selon le niveau de risque (complète la plage choisie par l'user)
+// Odds min/max réels selon le niveau de risque — alignés avec les descriptions UI
 const RISK_ODDS_PROFILE = {
-  safe:     { minOdds: 1.20, maxOdds: 2.00, targetOdds: 1.55 },
-  balanced: { minOdds: 1.55, maxOdds: 3.50, targetOdds: 2.00 },
-  risky:    { minOdds: 2.00, maxOdds: 8.00, targetOdds: 3.00 },
+  safe:     { minOdds: 1.10, maxOdds: 2.10, targetOdds: 1.55 },
+  balanced: { minOdds: 1.80, maxOdds: 4.00, targetOdds: 2.30 },
+  risky:    { minOdds: 3.00, maxOdds: 20.0, targetOdds: 5.00 },
 } as const;
 
 function pickForMatch(
@@ -176,44 +176,42 @@ function pickForMatch(
   addCandidate('Double Chance', '1X', dc1X, stats ? stats.homePct + stats.drawPct : null);
   addCandidate('Double Chance', 'X2', dcX2, stats ? stats.drawPct + stats.awayPct : null);
 
-  // Merge user odds range with risk profile: prend le range le plus restrictif
+  // Filtre basé uniquement sur le profil de risque backend (source de vérité)
+  // On n'utilise plus oddsRange du front pour le filtrage afin d'éviter des plages trop restrictives
   const riskProfile = RISK_ODDS_PROFILE[riskLevel];
-  const effectiveMin = Math.max(oddsRange.min, riskProfile.minOdds);
-  const effectiveMax = Math.min(oddsRange.max, riskProfile.maxOdds);
 
-  // Filtre par plage effective; si vide, fallback sur plage user, puis sur tout
-  let pool = candidates.filter(c => c.odds >= effectiveMin && c.odds <= effectiveMax);
-  if (pool.length === 0) pool = candidates.filter(c => c.odds >= oddsRange.min && c.odds <= oddsRange.max);
+  let pool = candidates.filter(c => c.odds >= riskProfile.minOdds && c.odds <= riskProfile.maxOdds);
+  // Fallback : si aucun candidat dans la plage, on prend tout (le scoring reste fidèle au niveau)
   if (pool.length === 0) pool = candidates;
 
   let best = pool[0];
 
   if (riskLevel === 'safe') {
-    // Préférer les cotes basses (prob. haute), bonus Double Chance et value positive
+    // Sécurisé : préférer les cotes basses (haute prob.), bonus Double Chance
     best = pool.reduce((a, b) => {
       const score = (c: PickCandidate) =>
-        -c.odds
-        + (c.type === 'Double Chance' ? 0.5 : 0)        // forte préférence DC
+        -c.odds * 2                                     // cotes basses fortement favorisées
+        + (c.type === 'Double Chance' ? 1.0 : 0)        // forte préférence DC
         + ((c.valueEdge ?? 0) > 0 ? 0.3 : 0)
-        - (c.odds > riskProfile.targetOdds ? 0.4 : 0);  // pénalise cotes trop hautes
+        - (c.odds > riskProfile.targetOdds ? 1.0 : 0);  // pénalise cotes > cible
       return score(b) > score(a) ? b : a;
     });
   } else if (riskLevel === 'balanced') {
-    // Value edge positif prioritaire, puis cotes proches de 2.0
-    best = pool.reduce((a, b) => {
-      const score = (c: PickCandidate) =>
-        (c.valueEdge ?? 0) * 4
-        - Math.abs(c.odds - riskProfile.targetOdds) * 0.8
-        + (c.type === '1X2' ? 0.2 : 0);  // léger bonus 1X2 (plus lisible pour l'user)
-      return score(b) > score(a) ? b : a;
-    });
-  } else {
-    // Risky: maximiser value edge puis cotes hautes, exclure Double Chance (trop prudent)
+    // Équilibré : value edge positif + cotes proches de la cible
     best = pool.reduce((a, b) => {
       const score = (c: PickCandidate) =>
         (c.valueEdge ?? 0) * 3
-        + (c.odds > riskProfile.targetOdds ? c.odds * 0.5 : 0)
-        - (c.type === 'Double Chance' ? 2.0 : 0);  // pénalise DC en mode risky
+        - Math.abs(c.odds - riskProfile.targetOdds) * 1.2
+        + (c.type === '1X2' ? 0.2 : 0);  // léger bonus 1X2 (plus lisible)
+      return score(b) > score(a) ? b : a;
+    });
+  } else {
+    // Risqué : cotes élevées en priorité absolue, value edge secondaire, Double Chance exclue
+    best = pool.reduce((a, b) => {
+      const score = (c: PickCandidate) =>
+        c.odds * 2.0                                    // priorité absolue : cotes hautes
+        + (c.valueEdge ?? 0) * 0.4                     // value edge secondaire (poids réduit)
+        - (c.type === 'Double Chance' ? 5.0 : 0);      // exclusion pratique du Double Chance
       return score(b) > score(a) ? b : a;
     });
   }
