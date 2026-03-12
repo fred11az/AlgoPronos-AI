@@ -316,7 +316,6 @@ export default function CombineDetailPage() {
                 <Link href="/onboarding">Créer un compte</Link>
               </Button>
             </div>
-            </Button>
           </CardContent>
         </Card>
       ) : combine.analysis?.summary ? (
