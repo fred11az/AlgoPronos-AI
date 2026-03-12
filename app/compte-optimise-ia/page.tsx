@@ -17,6 +17,12 @@ import {
   Star,
   Users,
   ChevronRight,
+  Lock,
+  RefreshCw,
+  RotateCcw,
+  Flame,
+  Award,
+  Clock,
 } from 'lucide-react';
 import { BookmakerSelector, BookmakerAffiliateButtons } from './BookmakerSelector';
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
@@ -83,6 +89,89 @@ const ADVANTAGES = [
       "Sélectionnez vos matchs, choisissez votre niveau de risque, et recevez votre combiné optimisé avec analyse complète en moins de 15 secondes.",
     color: 'text-success',
     bg: 'bg-success/10 group-hover:bg-success',
+  },
+];
+
+// ─── Garanties Exclusives Full Access ──────────────────────────────────────────
+
+const GARANTIES = [
+  {
+    icon: Shield,
+    emoji: '🛡️',
+    title: 'Bouclier 20 Matchs',
+    tag: 'Garantie phare',
+    tagColor: 'bg-primary/15 text-primary border-primary/30',
+    description:
+      '100% remboursé si une seule erreur apparaît dans un combiné de 20 sélections validées par AlgoPronos. La confiance maximale en notre algorithme, garantie contractuellement.',
+    highlight: true,
+    color: 'border-primary/40 shadow-primary/10',
+    iconColor: 'text-primary',
+    iconBg: 'bg-primary/10',
+  },
+  {
+    icon: RotateCcw,
+    emoji: '🤝',
+    title: 'Garantie Matchs Nuls',
+    tag: 'Anti-guigne',
+    tagColor: 'bg-secondary/15 text-secondary border-secondary/30',
+    description:
+      '100% remboursé si 2 paires de matchs nuls non prédits viennent perturber un combiné perdant. Parce que les nuls restent l\'ennemi numéro 1 du parieur, on vous protège.',
+    highlight: true,
+    color: 'border-secondary/40 shadow-secondary/10',
+    iconColor: 'text-secondary',
+    iconBg: 'bg-secondary/10',
+  },
+  {
+    icon: RefreshCw,
+    emoji: '⚡',
+    title: 'Cash-Back 1er Perdant',
+    tag: 'Chaque mois',
+    tagColor: 'bg-accent/15 text-accent border-accent/30',
+    description:
+      '50% remboursé sur votre premier ticket perdant de chaque mois calendaire. Repartez toujours avec un filet de sécurité, même en cas de mauvais départ mensuel.',
+    highlight: false,
+    color: 'border-accent/30 shadow-accent/5',
+    iconColor: 'text-accent',
+    iconBg: 'bg-accent/10',
+  },
+  {
+    icon: Flame,
+    emoji: '🎯',
+    title: 'Assurance Série Noire',
+    tag: 'Rebond garanti',
+    tagColor: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+    description:
+      '+30% de bonus injecté automatiquement sur votre ticket suivant après 3 combinés perdants consécutifs. L\'algorithme ne s\'arrête pas — et vous non plus.',
+    highlight: false,
+    color: 'border-orange-500/30 shadow-orange-500/5',
+    iconColor: 'text-orange-400',
+    iconBg: 'bg-orange-500/10',
+  },
+  {
+    icon: Award,
+    emoji: '💎',
+    title: 'Cote Boostée IA',
+    tag: 'Value bet exclusif',
+    tagColor: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+    description:
+      '+15% appliqué automatiquement sur la cote de chaque value bet fort (>10% d\'avantage) identifié par le moteur AlgoPronos. Vous pariez toujours à la valeur maximale.',
+    highlight: false,
+    color: 'border-purple-500/30 shadow-purple-500/5',
+    iconColor: 'text-purple-400',
+    iconBg: 'bg-purple-500/10',
+  },
+  {
+    icon: Clock,
+    emoji: '🌟',
+    title: 'Accès Cotes Prioritaires',
+    tag: 'Avant tout le monde',
+    tagColor: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+    description:
+      'Accès 24h en avance aux cotes spéciales négociées exclusivement pour les membres AlgoPronos Full Access. Saisissez la valeur avant que le marché s\'ajuste.',
+    highlight: false,
+    color: 'border-blue-500/30 shadow-blue-500/5',
+    iconColor: 'text-blue-400',
+    iconBg: 'bg-blue-500/10',
   },
 ];
 
@@ -382,8 +471,117 @@ export default function CompteOptimiseIAPage() {
         </div>
       </section>
 
+      {/* ─── GARANTIES EXCLUSIVES FULL ACCESS ────────────────────────────────── */}
+      <section id="garanties" className="py-24 bg-background relative overflow-hidden">
+        {/* Fond subtil */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 left-0 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-secondary/5 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative max-w-6xl mx-auto px-4">
+          <ScrollReveal>
+            <div className="text-center mb-6">
+              <Badge variant="outline" className="mb-4">Full Access · Exclusif</Badge>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+                Vos garanties{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#00D4FF]">
+                  exclusives
+                </span>
+              </h2>
+              <p className="text-text-secondary text-lg max-w-2xl mx-auto">
+                En ouvrant votre compte via AlgoPronos, vous débloquez des protections
+                négociées directement avec nos bookmakers partenaires — des avantages
+                introuvables ailleurs.
+              </p>
+            </div>
+
+            {/* Badge Full Access requis */}
+            <div className="flex justify-center mb-12">
+              <div className="inline-flex items-center gap-2 bg-surface border border-primary/20 rounded-full px-5 py-2.5 shadow-lg shadow-primary/10">
+                <Lock className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-white">
+                  Débloqué uniquement pour les comptes validés
+                </span>
+                <span className="bg-primary text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  Full Access
+                </span>
+              </div>
+            </div>
+          </ScrollReveal>
+
+          {/* Grille de garanties */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {GARANTIES.map((g, i) => (
+              <ScrollReveal key={i} delay={i * 0.08}>
+                <div
+                  className={`relative bg-surface border rounded-2xl p-6 h-full flex flex-col hover:-translate-y-1 transition-all duration-300 hover:shadow-xl ${g.color} ${
+                    g.highlight ? 'ring-1 ring-primary/30' : ''
+                  }`}
+                >
+                  {/* Tag */}
+                  <div className={`inline-flex items-center self-start border text-xs font-bold px-2.5 py-1 rounded-full mb-4 ${g.tagColor}`}>
+                    {g.tag}
+                  </div>
+
+                  {/* Icône + Titre */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`w-11 h-11 rounded-xl ${g.iconBg} flex items-center justify-center flex-shrink-0`}>
+                      <g.icon className={`h-5 w-5 ${g.iconColor}`} />
+                    </div>
+                    <h3 className="text-base font-bold text-white leading-tight">
+                      {g.emoji} {g.title}
+                    </h3>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-sm text-text-secondary leading-relaxed flex-1">
+                    {g.description}
+                  </p>
+
+                  {/* Badge "Phare" pour les 2 garanties principales */}
+                  {g.highlight && (
+                    <div className="mt-4 flex items-center gap-1.5 text-xs text-primary">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span className="font-semibold">Garantie contractuelle</span>
+                    </div>
+                  )}
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+
+          {/* Note légale */}
+          <ScrollReveal delay={0.3}>
+            <div className="mt-10 bg-surface border border-surface-light rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4">
+              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Shield className="h-6 w-6 text-primary" />
+              </div>
+              <div className="text-center sm:text-left">
+                <p className="text-sm font-semibold text-white mb-1">
+                  Ces avantages sont en cours de négociation avec nos partenaires bookmakers.
+                </p>
+                <p className="text-xs text-text-muted leading-relaxed">
+                  Les garanties seront activées progressivement pour chaque bookmaker partenaire.
+                  La validation de votre compte Full Access vous place automatiquement dans la
+                  liste prioritaire dès l&apos;activation. Aucune démarche supplémentaire requise.
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <a href="#bookmakers">
+                  <Button size="sm" variant="outline" className="whitespace-nowrap">
+                    Créer mon compte
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </a>
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
       {/* ─── VÉRIFICATEUR ────────────────────────────────────────────────────── */}
-      <section id="verificateur" className="py-20 bg-background">
+      <section id="verificateur" className="py-20 bg-surface">
         <div className="max-w-5xl mx-auto px-4">
           <ScrollReveal>
             <div className="text-center mb-10">
