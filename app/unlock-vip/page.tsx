@@ -55,7 +55,7 @@ export default function ActivatePage() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
 
       if (!authUser) {
-        router.push('/register?intent=activate');
+        router.push('/onboarding');
         return;
       }
 

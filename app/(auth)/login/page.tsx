@@ -155,7 +155,7 @@ export default function LoginPage() {
       {/* Register Link */}
       <div className="space-y-4">
         <Button variant="outline" size="lg" className="w-full" asChild>
-          <Link href="/register">
+          <Link href="/onboarding">
             Créer un compte
             <ArrowRight className="ml-2 h-5 w-5" />
           </Link>

@@ -309,7 +309,7 @@ export default function CombineDetailPage() {
               </p>
             </div>
             <Button variant="gradient" asChild>
-              <Link href="/register">Débloquer l&apos;analyse complète →</Link>
+              <Link href="/onboarding">Débloquer l&apos;analyse complète →</Link>
             </Button>
           </CardContent>
         </Card>
