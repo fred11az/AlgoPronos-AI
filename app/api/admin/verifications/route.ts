@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
+import { notifyActivation, notifyRejection } from '@/lib/services/notification-service';
 
 // GET - Fetch all verifications (admin only)
 export async function GET(request: NextRequest) {
@@ -145,6 +146,13 @@ export async function PATCH(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Fetch user profile for notifications
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, full_name, phone')
+      .eq('id', verification.user_id)
+      .single();
+
     // If approved, try to update user tier to 'verified'
     let profileUpdated = true;
     let profileError: string | null = null;
@@ -162,7 +170,21 @@ export async function PATCH(request: NextRequest) {
         console.error('Error updating profile tier:', tierError);
         profileUpdated = false;
         profileError = tierError.message;
-        // Don't fail - verification was already updated
+      }
+    }
+
+    // Send notification (fire-and-forget — don't block response)
+    let notifResult = { email: false, whatsapp: false };
+    if (profile?.email) {
+      const payload = {
+        userEmail: profile.email,
+        userName: profile.full_name || undefined,
+        userPhone: profile.phone || undefined,
+      };
+      if (status === 'approved') {
+        notifResult = await notifyActivation(payload);
+      } else if (status === 'rejected') {
+        notifResult = await notifyRejection({ ...payload, reason: admin_notes || undefined });
       }
     }
 
@@ -170,6 +192,7 @@ export async function PATCH(request: NextRequest) {
       success: true,
       profileUpdated,
       profileError,
+      notification: notifResult,
       message: status === 'approved'
         ? profileUpdated
           ? 'Compte activé avec succès !'
