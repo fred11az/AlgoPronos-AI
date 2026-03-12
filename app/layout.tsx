@@ -58,13 +58,13 @@ export const metadata: Metadata = {
     siteName: 'AlgoPronos AI',
     title: "AlgoPronos AI — N°1 Intelligence Artificielle Paris Sportifs",
     description: "Seule plateforme IA avec Compte Optimisé IA exclusif. Algorithme analyse xG, Value Betting & cotes en temps réel. +15 000 utilisateurs. 100% Gratuit.",
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'AlgoPronos AI - Intelligence Artificielle Paris Sportifs' }],
+    images: [{ url: 'https://algopronos.com/opengraph-image', width: 1200, height: 630, alt: 'AlgoPronos AI - Intelligence Artificielle Paris Sportifs' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: "AlgoPronos AI — N°1 Intelligence Artificielle Paris Sportifs",
     description: "Seule plateforme IA avec Compte Optimisé IA exclusif. Algorithme analyse xG, Value Betting & cotes. +15 000 utilisateurs. Gratuit.",
-    images: ['/og-image.png'],
+    images: ['https://algopronos.com/opengraph-image'],
   },
   icons: {
     icon: [

@@ -305,9 +305,14 @@ RÈGLES ABSOLUES:
 
   const matchesText = picks.map((p, i) => {
     const stats = statsMap.get(p.matchId);
+    // Determine the selected team name for clarity
+    const selectedTeam = p.selection.type === 'MATCH_WINNER'
+      ? (p.selection.value === '1' ? p.homeTeam : p.selection.value === '2' ? p.awayTeam : 'Match nul')
+      : p.selection.value;
     const lines = [
       `Match ${i + 1}: ${p.homeTeam} vs ${p.awayTeam} (${p.league})`,
-      `  ► Sélection CONFIRMÉE: "${p.selection.value}" @ ${p.selection.odds} [${p.selection.type}]`,
+      `  ► Sélection CONFIRMÉE: "${p.selection.value}" = ${selectedTeam} @ ${p.selection.odds} [${p.selection.type}]`,
+      `  ⚠️ Tu dois UNIQUEMENT justifier pourquoi "${selectedTeam}" est la bonne issue. N'explique JAMAIS pourquoi l'autre équipe gagnerait.`,
       `  Prob. implicite bookmaker: ${p.selection.impliedPct}%`,
     ];
     if (p.selection.modelPct !== null) {
@@ -324,8 +329,14 @@ RÈGLES ABSOLUES:
       const awayGoalDiff = (stats.awayForm.goalsFor - stats.awayForm.goalsAgainst).toFixed(1);
       lines.push(`  ${p.awayTeam}: forme ${stats.awayForm.form} | ${stats.awayForm.goalsFor} buts/m | diff ${awayGoalDiff}`);
     }
+    // Only include API advice if it supports the selected outcome — otherwise omit it to avoid contradiction
     if (stats?.advice) {
-      lines.push(`  Analyse API-Football: "${stats.advice}"`);
+      const adviceLower = stats.advice.toLowerCase();
+      const selectedLower = selectedTeam.toLowerCase();
+      const supportsSelection = adviceLower.includes(selectedLower.split(' ')[0]) || adviceLower.includes('draw') || adviceLower.includes('nul');
+      if (supportsSelection) {
+        lines.push(`  Contexte: "${stats.advice}"`);
+      }
     }
     return lines.join('\n');
   }).join('\n\n');
@@ -333,8 +344,19 @@ RÈGLES ABSOLUES:
   const totalOdds = Math.round(picks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
   const riskLabel = riskLevel === 'safe' ? 'SÉCURISÉ' : riskLevel === 'risky' ? 'RISQUÉ' : 'ÉQUILIBRÉ';
 
+  // Risk-specific summary instructions with concrete guidance
+  const summaryInstruction = riskLevel === 'safe'
+    ? `2 phrases: cite au moins 1 équipe ou ligue concrète. Insiste sur la FIABILITÉ des favoris et les cotes basses sécurisées (cote totale: ${totalOdds}).`
+    : riskLevel === 'risky'
+    ? `2 phrases: cite au moins 1 équipe ou ligue concrète. Insiste sur le POTENTIEL DE GAIN ÉLEVÉ et les cotes généreuses choisies (cote totale: ${totalOdds}). Mentionne l'aspect value bet.`
+    : `2 phrases: cite au moins 1 équipe ou ligue concrète. Mets en avant le RAPPORT RISQUE/RENDEMENT optimal et les value bets détectés (cote totale: ${totalOdds}).`;
+
+  const keyFactorsInstruction = picks.map((p, i) =>
+    `facteur spécifique au match ${i + 1} (${p.homeTeam} vs ${p.awayTeam})`
+  ).concat([`raison du profil ${riskLabel}`]).slice(0, 3);
+
   const analysesSchema = picks.map(p =>
-    `{"matchId": "${p.matchId}", "reasoning": "2-3 phrases percutantes, journalistiques, spécifiques à CE match"}`
+    `{"matchId": "${p.matchId}", "reasoning": "2-3 phrases SPÉCIFIQUES à ce match qui justifient la sélection CONFIRMÉE. Cite forme, stats ou contexte."}`
   ).join(',\n    ');
 
   const user = `Analyse ce coupon ${riskLabel} de ${picks.length} sélections (cote totale: ${totalOdds}).
@@ -346,9 +368,9 @@ RÉPONDS UNIQUEMENT avec ce JSON valide:
   "analyses": [
     ${analysesSchema}
   ],
-  "summary": "2 phrases max: logique globale du coupon + angle ${riskLabel}",
-  "keyFactors": ["facteur décisif 1", "facteur décisif 2", "facteur décisif 3"],
-  "riskAssessment": "Nomme le match le plus incertain et explique le risque en 1 phrase"
+  "summary": "${summaryInstruction}",
+  "keyFactors": ["${keyFactorsInstruction[0]}", "${keyFactorsInstruction[1] || 'facteur tactique déterminant'}", "${keyFactorsInstruction[2] || `profil ${riskLabel}`}"],
+  "riskAssessment": "Nomme le match le plus incertain parmi ${picks.map(p => p.homeTeam + ' vs ' + p.awayTeam).join(', ')} et explique le risque en 1 phrase"
 }`;
 
   return { system, user };
