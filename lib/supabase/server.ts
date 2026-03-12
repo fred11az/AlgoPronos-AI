@@ -99,17 +99,32 @@ export async function getCurrentUser() {
 }
 
 export async function checkIsAdmin(userId: string): Promise<boolean> {
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('email')
-    .eq('id', userId)
-    .single();
-
-  if (!profile) return false;
-
   const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase());
-  return adminEmails.includes(profile.email.toLowerCase());
+  if (adminEmails.length === 0 || (adminEmails.length === 1 && adminEmails[0] === '')) return false;
+
+  // Primary: check auth user email directly (source of truth, no RLS issues)
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.email && adminEmails.includes(user.email.toLowerCase())) {
+      return true;
+    }
+  } catch { /* fall through to profile check */ }
+
+  // Fallback: check profiles table
+  try {
+    const adminSupabase = createAdminClient();
+    const { data: profile } = await adminSupabase
+      .from('profiles')
+      .select('email')
+      .eq('id', userId)
+      .single();
+    if (profile?.email && adminEmails.includes(profile.email.toLowerCase())) {
+      return true;
+    }
+  } catch { /* ignore */ }
+
+  return false;
 }
 
 export async function getPromoCode(): Promise<string> {
