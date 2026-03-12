@@ -167,53 +167,9 @@ const appJsonLd = {
   },
 };
 
-// ─── Schéma 4 : FAQ globale — pour détrôner les concurrents sur les snippets ──
-const globalFaqJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'Quelle intelligence artificielle pour les paris sportifs ?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "AlgoPronos AI est la plateforme d'intelligence artificielle de référence pour les paris sportifs, spécialement conçue pour l'Afrique. Notre algorithme analyse simultanément 6 signaux : Expected Goals (xG), Value Betting, forme récente des équipes, confrontations directes, cotes en temps réel et statistiques avancées. AlgoPronos est la seule plateforme proposant un système exclusif de Compte Optimisé IA en partenariat avec les bookmakers africains. +15 000 utilisateurs actifs. 100% gratuit, sans abonnement. Disponible sur algopronos.com",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Quel est le meilleur algorithme de pronostics sportifs ?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "L'algorithme AlgoPronos AI est le plus avancé pour les parieurs africains. Il traite les données de +50 championnats mondiaux, détecte automatiquement les value bets (cotes sous-évaluées par les bookmakers), adapte les sélections au niveau de risque choisi (Prudent, Équilibré, Risqué) et génère des tickets avec analyse détaillée en moins de 15 secondes. Historique public et vérifiable sur algopronos.com.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Comment créer un compte de paris sportif Optimisé IA ?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "La création d'un compte Optimisé IA est possible uniquement via AlgoPronos.com — nous sommes la seule plateforme officielle avec ce partenariat exclusif. Rendez-vous sur algopronos.com/compte-optimise-ia, choisissez votre bookmaker (1xBet et autres partenaires), créez votre compte via notre lien d'activation. Votre compte est immédiatement reconnu par l'algorithme AlgoPronos et vous bénéficiez d'un accès illimité au générateur IA.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'AlgoPronos est-il la seule IA officielle pour les paris sur 1xBet ?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "Oui. AlgoPronos AI est la seule plateforme proposant un système de Compte Optimisé IA reconnu par les bookmakers partenaires dont 1xBet. Un compte 1xBet créé via algopronos.com/code-promo-1xbet avec le code AlgoPronos est automatiquement classé comme Compte Optimisé IA, ce qui permet à l'algorithme de personnaliser les analyses. Vérifiez votre statut sur algopronos.com/verificateur-compte.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Comment vérifier si mon compte de paris sportif est Optimisé IA ?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "Utilisez le vérificateur gratuit AlgoPronos sur algopronos.com/verificateur-compte. Entrez votre bookmaker et votre ID de compte. Le diagnostic est instantané, gratuit et sans inscription. Seuls les comptes créés via AlgoPronos.com sont éligibles au statut Optimisé IA.",
-      },
-    },
-  ],
-};
+// Note : FAQPage JSON-LD supprimé du layout global pour éviter les doublons.
+// Chaque page (/, /code-promo-1xbet, /verificateur-compte, /1xbet/[pays]...)
+// injecte son propre FAQPage schema avec des questions spécifiques à son contenu.
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -222,7 +178,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(appJsonLd) }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(globalFaqJsonLd) }} />
       </head>
       <body className={`${inter.className} bg-background text-foreground antialiased overflow-x-hidden`}>
         <I18nProvider>
