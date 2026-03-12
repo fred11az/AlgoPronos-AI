@@ -160,9 +160,9 @@ export default function LandingPage() {
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="xl" variant="gradient" asChild>
-                  <Link href="/dashboard/generate">
+                  <Link href="/onboarding">
                     <Rocket className="mr-2 h-5 w-5" />
-                    Générer mon ticket IA
+                    Commencer mon analyse IA
                   </Link>
                 </Button>
                 <Button size="xl" variant="outline" asChild>

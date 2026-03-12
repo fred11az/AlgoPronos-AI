@@ -1,432 +1,603 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from '@/components/shared/Logo';
 import {
+  ArrowLeft,
   ArrowRight,
+  BookOpen,
   Brain,
   CheckCircle2,
-  ExternalLink,
-  Flame,
-  Rocket,
+  ChartNoAxesCombined,
+  Lock,
+  Loader2,
+  Mail,
+  MessageCircle,
   Shield,
   Star,
-  TrendingUp,
+  User,
   Zap,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import toast from 'react-hot-toast';
 
-const AFFILIATE_URL =
-  process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
-  'https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599';
+// ─── Constants ───────────────────────────────────────────────────────────────
 
-// ─── Step data ────────────────────────────────────────────────────────────────
+const TOTAL_STEPS = 4;
 
-const steps = [
+const PROFILES = [
   {
-    id: 'budget',
-    question: 'Quel est ton budget mensuel pour les paris ?',
-    emoji: '💰',
-    options: [
-      { value: 'xs', label: 'Moins de 5 000 FCFA', sub: 'Paris prudents, coups sûrs' },
-      { value: 'sm', label: '5 000 – 20 000 FCFA', sub: 'Profil équilibré' },
-      { value: 'md', label: '20 000 – 50 000 FCFA', sub: 'Profil actif' },
-      { value: 'lg', label: '50 000 FCFA et +', sub: 'Profil expert – value betting' },
-    ],
+    value: 'beginner',
+    label: 'Débutant',
+    sub: 'Je débute, je veux apprendre en gagnant',
+    icon: BookOpen,
+    color: 'text-emerald-400',
+    bgColor: 'bg-emerald-400/10',
   },
   {
-    id: 'level',
-    question: 'Quel est ton niveau en paris sportifs ?',
-    emoji: '🎯',
-    options: [
-      { value: 'beginner', label: 'Débutant', sub: "Je commence, j'ai besoin de guides" },
-      { value: 'intermediate', label: 'Intermédiaire', sub: "Quelques mois d'expérience" },
-      { value: 'advanced', label: 'Confirmé', sub: 'Je connais les marchés et les cotes' },
-      { value: 'expert', label: 'Expert', sub: 'Value betting, bankroll management' },
-    ],
+    value: 'intermediate',
+    label: 'Intermédiaire',
+    sub: 'Je connais les bases, je veux progresser',
+    icon: ChartNoAxesCombined,
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-400/10',
   },
   {
-    id: 'sport',
-    question: 'Quel est ton sport préféré ?',
-    emoji: '⚽',
-    options: [
-      { value: 'football', label: 'Football', sub: 'Ligue 1, Premier League, CAN…' },
-      { value: 'basketball', label: 'Basketball', sub: 'NBA, EuroLeague, Pro A' },
-      { value: 'tennis', label: 'Tennis', sub: 'ATP, WTA, Grand Chelem' },
-      { value: 'multi', label: 'Multi-sports', sub: "J'aime tout analyser" },
-    ],
+    value: 'expert',
+    label: 'Expert',
+    sub: 'Données brutes xG, value betting, bankroll',
+    icon: Brain,
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-400/10',
   },
 ];
 
-// ─── Profile generator ────────────────────────────────────────────────────────
+// ─── Step Components ─────────────────────────────────────────────────────────
 
-function buildProfile(answers: Record<string, string>) {
-  const levelMap: Record<string, string> = {
-    beginner: 'Débutant',
-    intermediate: 'Intermédiaire',
-    advanced: 'Confirmé',
-    expert: 'Expert',
-  };
-  const stratMap: Record<string, string> = {
-    xs: 'Coups sûrs (côtes 1.3 – 1.8)',
-    sm: 'Équilibré (côtes 1.8 – 2.5)',
-    md: 'Rendement (côtes 2.5 – 4.0)',
-    lg: 'Value betting (côtes 2.0 – 10+)',
-  };
-  const sportMap: Record<string, string> = {
-    football: '⚽ Football',
-    basketball: '🏀 Basketball',
-    tennis: '🎾 Tennis',
-    multi: '🏆 Multi-sports',
-  };
-  const scoreMap: Record<string, number> = {
-    beginner: 61,
-    intermediate: 74,
-    advanced: 85,
-    expert: 92,
-  };
-
-  const level = answers.level || 'intermediate';
-  return {
-    score: scoreMap[level] ?? 74,
-    niveau: levelMap[level] ?? 'Intermédiaire',
-    strategie: stratMap[answers.budget ?? 'sm'],
-    sport: sportMap[answers.sport ?? 'football'],
-    miseReco:
-      answers.budget === 'xs'
-        ? '500 – 1 000 FCFA / mise'
-        : answers.budget === 'sm'
-        ? '1 000 – 3 000 FCFA / mise'
-        : answers.budget === 'md'
-        ? '3 000 – 8 000 FCFA / mise'
-        : '10 000 FCFA+ / mise',
-  };
-}
-
-// ─── Components ───────────────────────────────────────────────────────────────
-
-function OptionCard({
-  label,
-  sub,
+function StepProfile({
   selected,
-  onClick,
+  onSelect,
 }: {
-  label: string;
-  sub: string;
-  selected: boolean;
-  onClick: () => void;
+  selected: string | null;
+  onSelect: (v: string) => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'w-full text-left px-5 py-4 rounded-2xl border-2 transition-all duration-200',
-        selected
-          ? 'border-primary bg-primary/15 shadow-lg shadow-primary/20'
-          : 'border-surface-light bg-surface hover:border-primary/40 hover:bg-surface-light'
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-semibold text-white">{label}</p>
-          <p className="text-sm text-text-muted mt-0.5">{sub}</p>
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 px-4 py-1.5 rounded-full text-xs text-primary font-medium mb-2">
+          <Zap className="h-3.5 w-3.5" />
+          Analyse personnalisée
         </div>
-        <div
-          className={cn(
-            'w-5 h-5 rounded-full border-2 flex-shrink-0 transition-all',
-            selected ? 'border-primary bg-primary' : 'border-surface-light'
-          )}
-        >
-          {selected && <CheckCircle2 className="w-full h-full text-white p-0.5" />}
-        </div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white">
+          Pour une analyse sur mesure,
+          <br />
+          quel est votre profil ?
+        </h2>
+        <p className="text-text-secondary text-sm">
+          L&apos;IA adaptera ses recommandations à votre niveau
+        </p>
       </div>
-    </button>
-  );
-}
 
-function ProgressBar({ current, total }: { current: number; total: number }) {
-  return (
-    <div className="w-full h-1.5 bg-surface-light rounded-full overflow-hidden">
-      <motion.div
-        className="h-full bg-gradient-to-r from-primary to-[#00D4FF] rounded-full"
-        initial={{ width: 0 }}
-        animate={{ width: `${((current) / total) * 100}%` }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-      />
+      <div className="space-y-3">
+        {PROFILES.map((p) => {
+          const Icon = p.icon;
+          const isSelected = selected === p.value;
+          return (
+            <button
+              key={p.value}
+              onClick={() => onSelect(p.value)}
+              className={cn(
+                'w-full text-left px-5 py-4 rounded-2xl border-2 transition-all duration-200 group',
+                isSelected
+                  ? 'border-primary bg-primary/10 shadow-lg shadow-primary/10'
+                  : 'border-surface-light bg-surface hover:border-primary/40 hover:bg-surface-light'
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <div
+                  className={cn(
+                    'w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors',
+                    isSelected ? 'bg-primary/20' : p.bgColor
+                  )}
+                >
+                  <Icon className={cn('h-5 w-5', isSelected ? 'text-primary' : p.color)} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-white">{p.label}</p>
+                  <p className="text-sm text-text-muted mt-0.5">{p.sub}</p>
+                </div>
+                <div
+                  className={cn(
+                    'w-5 h-5 rounded-full border-2 flex-shrink-0 transition-all flex items-center justify-center',
+                    isSelected ? 'border-primary bg-primary' : 'border-surface-light'
+                  )}
+                >
+                  {isSelected && <CheckCircle2 className="w-full h-full text-white p-0.5" />}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+function StepIdentity({
+  firstName,
+  lastName,
+  onChangeFirst,
+  onChangeLast,
+}: {
+  firstName: string;
+  lastName: string;
+  onChangeFirst: (v: string) => void;
+  onChangeLast: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4">
+          <User className="h-8 w-8 text-primary" />
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white">
+          Ravi de vous accueillir !
+        </h2>
+        <p className="text-text-secondary text-sm">
+          Comment l&apos;IA doit-elle vous appeler ?
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="firstName" className="text-sm font-medium text-text-secondary">
+            Prénom
+          </label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
+            <Input
+              id="firstName"
+              type="text"
+              placeholder="Ex: Jean"
+              value={firstName}
+              onChange={(e) => onChangeFirst(e.target.value)}
+              className="pl-10 h-12 rounded-xl text-base"
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="lastName" className="text-sm font-medium text-text-secondary">
+            Nom
+          </label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
+            <Input
+              id="lastName"
+              type="text"
+              placeholder="Ex: Koffi"
+              value={lastName}
+              onChange={(e) => onChangeLast(e.target.value)}
+              className="pl-10 h-12 rounded-xl text-base"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepWhatsApp({
+  phone,
+  onChange,
+}: {
+  phone: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <div className="w-16 h-16 mx-auto rounded-full bg-green-500/15 flex items-center justify-center mb-4">
+          <MessageCircle className="h-8 w-8 text-green-400" />
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white">
+          Où devons-nous envoyer vos
+          <br />
+          alertes de tickets gagnants ?
+        </h2>
+        <p className="text-text-secondary text-sm">
+          Recevez vos pronostics directement sur WhatsApp
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="whatsapp" className="text-sm font-medium text-text-secondary">
+          Numéro WhatsApp
+        </label>
+        <div className="relative">
+          <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
+          <Input
+            id="whatsapp"
+            type="tel"
+            placeholder="+229 97 00 00 00"
+            value={phone}
+            onChange={(e) => onChange(e.target.value)}
+            className="pl-10 h-12 rounded-xl text-base"
+            autoFocus
+          />
+        </div>
+        <p className="text-xs text-text-muted">
+          Nous ne partagerons jamais votre numéro. Utilisé uniquement pour les alertes.
+        </p>
+      </div>
+
+      <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 space-y-2">
+        <p className="text-sm font-semibold text-green-400">Ce que vous recevrez :</p>
+        {[
+          'Ticket IA du jour avant 14h',
+          'Alertes de combinés à forte cote',
+          'Accès au groupe VIP WhatsApp',
+        ].map((item) => (
+          <div key={item} className="flex items-center gap-2">
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
+            <span className="text-sm text-text-secondary">{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StepAccount({
+  email,
+  password,
+  confirmPassword,
+  onChangeEmail,
+  onChangePassword,
+  onChangeConfirm,
+}: {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  onChangeEmail: (v: string) => void;
+  onChangePassword: (v: string) => void;
+  onChangeConfirm: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <div className="w-16 h-16 mx-auto rounded-full bg-secondary/15 flex items-center justify-center mb-4">
+          <Shield className="h-8 w-8 text-secondary" />
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white">
+          Sécurisez votre accès
+          <br />
+          <span className="text-primary">100% gratuit</span>
+        </h2>
+        <p className="text-text-secondary text-sm">
+          Dernière étape pour activer votre compte IA
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="email" className="text-sm font-medium text-text-secondary">
+            Email
+          </label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
+            <Input
+              id="email"
+              type="email"
+              placeholder="vous@exemple.com"
+              value={email}
+              onChange={(e) => onChangeEmail(e.target.value)}
+              className="pl-10 h-12 rounded-xl text-base"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="password" className="text-sm font-medium text-text-secondary">
+            Mot de passe
+          </label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
+            <Input
+              id="password"
+              type="password"
+              placeholder="Minimum 6 caractères"
+              value={password}
+              onChange={(e) => onChangePassword(e.target.value)}
+              className="pl-10 h-12 rounded-xl text-base"
+              minLength={6}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="confirmPassword" className="text-sm font-medium text-text-secondary">
+            Confirmer le mot de passe
+          </label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="Retapez votre mot de passe"
+              value={confirmPassword}
+              onChange={(e) => onChangeConfirm(e.target.value)}
+              className="pl-10 h-12 rounded-xl text-base"
+            />
+          </div>
+        </div>
+      </div>
+
+      <p className="text-xs text-text-muted text-center">
+        En continuant, vous acceptez nos{' '}
+        <a href="/terms" className="text-primary hover:underline">
+          conditions d&apos;utilisation
+        </a>{' '}
+        et notre{' '}
+        <a href="/privacy" className="text-primary hover:underline">
+          politique de confidentialité
+        </a>
+        .
+      </p>
+    </div>
+  );
+}
+
+// ─── Progress Bar ────────────────────────────────────────────────────────────
+
+function ProgressBar({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="flex gap-2">
+      {Array.from({ length: total }).map((_, i) => (
+        <div key={i} className="flex-1 h-1.5 rounded-full overflow-hidden bg-surface-light">
+          <motion.div
+            className="h-full rounded-full"
+            initial={false}
+            animate={{
+              width: i < current ? '100%' : i === current ? '50%' : '0%',
+              backgroundColor: i <= current ? '#10B981' : '#334155',
+            }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
-  const [stepIndex, setStepIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [selected, setSelected] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [done, setDone] = useState(false);
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  const currentStep = steps[stepIndex];
-  const isLast = stepIndex === steps.length - 1;
+  // Step 1
+  const [profile, setProfile] = useState<string | null>(null);
+  // Step 2
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  // Step 3
+  const [phone, setPhone] = useState('');
+  // Step 4
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  function handleSelect(value: string) {
-    setSelected(value);
-  }
+  const canProceed = useCallback(() => {
+    switch (step) {
+      case 0:
+        return !!profile;
+      case 1:
+        return firstName.trim().length >= 2;
+      case 2:
+        return phone.trim().length >= 8;
+      case 3:
+        return (
+          email.includes('@') &&
+          password.length >= 6 &&
+          password === confirmPassword
+        );
+      default:
+        return false;
+    }
+  }, [step, profile, firstName, phone, email, password, confirmPassword]);
 
-  function handleNext() {
-    if (!selected) return;
-    const newAnswers = { ...answers, [currentStep.id]: selected };
-    setAnswers(newAnswers);
-    setSelected(null);
+  async function handleNext() {
+    if (!canProceed()) return;
 
-    if (isLast) {
-      setAnalyzing(true);
-      setTimeout(() => {
-        setAnalyzing(false);
-        setDone(true);
-      }, 2800);
-    } else {
-      setStepIndex((i) => i + 1);
+    if (step < TOTAL_STEPS - 1) {
+      setStep((s) => s + 1);
+      return;
+    }
+
+    // Final step: submit registration
+    setLoading(true);
+    try {
+      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+      const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
+
+      const res = await fetch('/api/auth/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'signup',
+          email,
+          password,
+          fullName,
+          phone,
+          country: 'BJ',
+          redirectTo,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        const msg = result?.error || '';
+        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('déjà')) {
+          toast.error('Cet email est déjà utilisé. Veuillez vous connecter.');
+          router.push('/login');
+        } else {
+          toast.error(msg || 'Une erreur est survenue lors de la création du compte');
+        }
+        return;
+      }
+
+      localStorage.setItem('pendingVerificationEmail', email);
+      localStorage.setItem(
+        'algopronos_profile',
+        JSON.stringify({ profile, firstName, phone })
+      );
+      toast.success('Compte créé ! Vérifiez votre email.');
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+    } catch {
+      toast.error('Une erreur est survenue');
+    } finally {
+      setLoading(false);
     }
   }
 
-  const profile = buildProfile(answers);
+  function handleBack() {
+    if (step > 0) setStep((s) => s - 1);
+  }
+
+  const stepLabels = ['Profil', 'Identité', 'WhatsApp', 'Compte'];
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="py-5 px-6 border-b border-surface-light/50 flex items-center justify-center">
+      <header className="py-4 px-6 border-b border-surface-light/50 flex items-center justify-between">
         <Logo size="sm" />
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          <Shield className="h-3.5 w-3.5 text-primary" />
+          <span>100% Gratuit</span>
+          <span className="mx-1">·</span>
+          <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
+          <span>4.9/5</span>
+        </div>
       </header>
 
-      <div className="flex-1 flex items-center justify-center px-4 py-10">
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-lg">
-          <AnimatePresence mode="wait">
-            {/* ── Analyzing screen ──────────────────────────────────────── */}
-            {analyzing && (
+          {/* Progress */}
+          <div className="mb-2">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-text-muted">
+                Étape {step + 1} / {TOTAL_STEPS}
+                <span className="ml-2 text-text-secondary font-medium">{stepLabels[step]}</span>
+              </span>
+              <span className="text-sm text-primary font-medium">
+                {Math.round(((step + 1) / TOTAL_STEPS) * 100)}%
+              </span>
+            </div>
+            <ProgressBar current={step} total={TOTAL_STEPS} />
+          </div>
+
+          {/* Step Content */}
+          <div className="mt-8">
+            <AnimatePresence mode="wait">
               <motion.div
-                key="analyzing"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="text-center py-16"
-              >
-                <div className="relative w-24 h-24 mx-auto mb-8">
-                  <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                  <div className="relative w-24 h-24 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center">
-                    <Brain className="h-10 w-10 text-primary animate-pulse" />
-                  </div>
-                </div>
-                <h2 className="text-2xl font-bold text-white mb-3">
-                  Analyse de ton profil en cours…
-                </h2>
-                <p className="text-text-secondary mb-8">
-                  L&apos;IA calcule ta stratégie optimale
-                </p>
-                <div className="space-y-3 text-left max-w-xs mx-auto">
-                  {[
-                    'Calibrage du niveau de risque',
-                    'Sélection des marchés optimaux',
-                    'Génération du profil IA',
-                  ].map((step, i) => (
-                    <motion.div
-                      key={step}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.7 }}
-                      className="flex items-center gap-3 text-sm text-text-secondary"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0" />
-                      {step}
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* ── Result screen ──────────────────────────────────────────── */}
-            {done && (
-              <motion.div
-                key="result"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                {/* Score badge */}
-                <div className="text-center mb-8">
-                  <div className="inline-flex items-center gap-2 bg-success/10 border border-success/20 px-4 py-2 rounded-full mb-4">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    <span className="text-success text-sm font-medium">Profil IA créé avec succès</span>
-                  </div>
-                  <div className="relative w-32 h-32 mx-auto mb-4">
-                    <svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="42" fill="none" stroke="#1e2535" strokeWidth="8" />
-                      <motion.circle
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        fill="none"
-                        stroke="url(#scoreGrad)"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={`${2 * Math.PI * 42}`}
-                        initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-                        animate={{
-                          strokeDashoffset: 2 * Math.PI * 42 * (1 - profile.score / 100),
-                        }}
-                        transition={{ duration: 1.2, ease: 'easeOut' }}
-                      />
-                      <defs>
-                        <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#7C3AED" />
-                          <stop offset="100%" stopColor="#00D4FF" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold text-white">{profile.score}</span>
-                      <span className="text-xs text-text-muted">/100</span>
-                    </div>
-                  </div>
-                  <h2 className="text-2xl font-bold text-white">Score AlgoPronos AI</h2>
-                </div>
-
-                {/* Profile details */}
-                <div className="bg-surface rounded-2xl border border-surface-light p-5 mb-6 space-y-3">
-                  <ProfileRow icon={<Star className="h-4 w-4 text-yellow-400" />} label="Niveau" value={profile.niveau} />
-                  <ProfileRow icon={<TrendingUp className="h-4 w-4 text-primary" />} label="Stratégie IA" value={profile.strategie} />
-                  <ProfileRow icon={<Flame className="h-4 w-4 text-orange-400" />} label="Sport principal" value={profile.sport} />
-                  <ProfileRow icon={<Zap className="h-4 w-4 text-[#00D4FF]" />} label="Mise recommandée" value={profile.miseReco} />
-                </div>
-
-                {/* Benefits */}
-                <div className="bg-gradient-to-br from-primary/10 to-[#00D4FF]/10 border border-primary/30 rounded-2xl p-5 mb-6">
-                  <p className="text-sm font-semibold text-white mb-3">
-                    🎁 Ce que tu débloques avec ton compte optimisé :
-                  </p>
-                  {[
-                    'Analyses IA illimitées chaque semaine',
-                    'Pronostics calibrés pour ton profil',
-                    'Bonus jusqu\'à 250 000 FCFA sur ton compte',
-                    'Accès à tous les championnats',
-                  ].map((b) => (
-                    <div key={b} className="flex items-center gap-2 py-1">
-                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-sm text-text-secondary">{b}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* CTA principal */}
-                <a
-                  href={AFFILIATE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full bg-gradient-to-r from-primary to-[#00D4FF] text-white font-bold py-5 rounded-2xl hover:opacity-90 transition-opacity text-center text-lg shadow-xl shadow-primary/30"
-                >
-                  <Rocket className="inline-block mr-2 h-5 w-5" />
-                  Activer Mon Compte Gratuit
-                  <ExternalLink className="inline-block ml-2 h-4 w-4" />
-                </a>
-
-                {/* Trust */}
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-xs text-text-muted">
-                  <span className="flex items-center gap-1">
-                    <Shield className="h-3.5 w-3.5 text-primary" /> 100% Sécurisé
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" /> 4.9/5
-                  </span>
-                  <span>Sans carte bancaire · Sans engagement</span>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ── Question steps ─────────────────────────────────────────── */}
-            {!analyzing && !done && (
-              <motion.div
-                key={`step-${stepIndex}`}
-                initial={{ opacity: 0, x: 30 }}
+                key={`step-${step}`}
+                initial={{ opacity: 0, x: 40 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -30 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, x: -40 }}
+                transition={{ duration: 0.25 }}
               >
-                {/* Progress */}
-                <div className="mb-8">
-                  <div className="flex items-center justify-between mb-2 text-sm text-text-muted">
-                    <span>Étape {stepIndex + 1} / {steps.length}</span>
-                    <span>{Math.round(((stepIndex) / steps.length) * 100)}%</span>
-                  </div>
-                  <ProgressBar current={stepIndex} total={steps.length} />
-                </div>
-
-                {/* Question */}
-                <div className="text-center mb-8">
-                  <span className="text-4xl mb-4 block">{currentStep.emoji}</span>
-                  <h2 className="text-xl sm:text-2xl font-bold text-white">
-                    {currentStep.question}
-                  </h2>
-                </div>
-
-                {/* Options */}
-                <div className="space-y-3 mb-8">
-                  {currentStep.options.map((opt) => (
-                    <OptionCard
-                      key={opt.value}
-                      label={opt.label}
-                      sub={opt.sub}
-                      selected={selected === opt.value}
-                      onClick={() => handleSelect(opt.value)}
-                    />
-                  ))}
-                </div>
-
-                {/* Next button */}
-                <button
-                  onClick={handleNext}
-                  disabled={!selected}
-                  className={cn(
-                    'w-full py-4 rounded-2xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-2',
-                    selected
-                      ? 'bg-gradient-to-r from-primary to-[#00D4FF] shadow-lg shadow-primary/30 hover:opacity-90'
-                      : 'bg-surface-light text-text-muted cursor-not-allowed'
-                  )}
-                >
-                  {isLast ? 'Générer mon profil IA' : 'Continuer'}
-                  <ArrowRight className="h-5 w-5" />
-                </button>
-
-                {stepIndex === 0 && (
-                  <p className="text-center text-xs text-text-muted mt-4">
-                    Questionnaire rapide · 30 secondes · 100% gratuit
-                  </p>
+                {step === 0 && (
+                  <StepProfile selected={profile} onSelect={setProfile} />
+                )}
+                {step === 1 && (
+                  <StepIdentity
+                    firstName={firstName}
+                    lastName={lastName}
+                    onChangeFirst={setFirstName}
+                    onChangeLast={setLastName}
+                  />
+                )}
+                {step === 2 && (
+                  <StepWhatsApp phone={phone} onChange={setPhone} />
+                )}
+                {step === 3 && (
+                  <StepAccount
+                    email={email}
+                    password={password}
+                    confirmPassword={confirmPassword}
+                    onChangeEmail={setEmail}
+                    onChangePassword={setPassword}
+                    onChangeConfirm={setConfirmPassword}
+                  />
                 )}
               </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Navigation */}
+          <div className="mt-8 space-y-3">
+            <button
+              onClick={handleNext}
+              disabled={!canProceed() || loading}
+              className={cn(
+                'w-full py-4 rounded-2xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-2',
+                canProceed() && !loading
+                  ? 'bg-gradient-to-r from-primary to-[#00D4FF] shadow-lg shadow-primary/30 hover:opacity-90'
+                  : 'bg-surface-light text-text-muted cursor-not-allowed'
+              )}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Création du compte...
+                </>
+              ) : step === TOTAL_STEPS - 1 ? (
+                <>
+                  <CheckCircle2 className="h-5 w-5" />
+                  Créer mon compte gratuit
+                </>
+              ) : (
+                <>
+                  Continuer
+                  <ArrowRight className="h-5 w-5" />
+                </>
+              )}
+            </button>
+
+            {step > 0 && (
+              <button
+                onClick={handleBack}
+                className="w-full py-3 text-sm text-text-muted hover:text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Retour
+              </button>
             )}
-          </AnimatePresence>
+          </div>
+
+          {/* Footer hint */}
+          {step === 0 && (
+            <p className="text-center text-xs text-text-muted mt-6">
+              Questionnaire rapide · 30 secondes · 100% gratuit
+            </p>
+          )}
+          {step === 3 && (
+            <p className="text-center text-xs text-text-muted mt-4">
+              Déjà un compte ?{' '}
+              <a href="/login" className="text-primary hover:underline font-medium">
+                Se connecter
+              </a>
+            </p>
+          )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function ProfileRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-text-muted text-sm">
-        {icon}
-        {label}
-      </div>
-      <span className="text-white font-semibold text-sm">{value}</span>
     </div>
   );
 }
