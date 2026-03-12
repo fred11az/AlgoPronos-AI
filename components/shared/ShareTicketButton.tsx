@@ -98,12 +98,20 @@ export default function ShareTicketButton({
     }
   }
 
-  function nativeShare() {
-    if (navigator.share) {
-      navigator.share({ title: shareTitle, text: shareBody, url: publicUrl });
-    } else {
-      setOpen(true);
-    }
+  async function nativeShare() {
+    if (!navigator.share) { setOpen(true); return; }
+    // Try to share the image file directly (supported on mobile)
+    try {
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `ticket-algopronos.png`, { type: 'image/png' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: shareTitle, text: shareBody });
+        return;
+      }
+    } catch { /* fall through */ }
+    // Fallback: share link + text
+    navigator.share({ title: shareTitle, text: shareBody, url: publicUrl });
   }
 
   return (

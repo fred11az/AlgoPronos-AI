@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { formatDate, formatOdds } from '@/lib/utils';
+import ShareTicketButton from '@/components/shared/ShareTicketButton';
 
 interface Combine {
   id: string;
@@ -38,15 +39,11 @@ export default function CombinesPage() {
   useEffect(() => {
     async function fetchCombines() {
       const res = await fetch('/api/my-combines');
-      if (!res.ok) {
-        setLoading(false);
-        return;
-      }
+      if (!res.ok) { setLoading(false); return; }
       const { combines } = await res.json();
       setCombines(combines || []);
       setLoading(false);
     }
-
     fetchCombines();
   }, []);
 
@@ -86,7 +83,7 @@ export default function CombinesPage() {
         </Button>
       </div>
 
-      {/* Combines List */}
+      {/* List */}
       {combines.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -100,9 +97,7 @@ export default function CombinesPage() {
               {t('combines.empty.description')}
             </p>
             <Button variant="gradient" asChild>
-              <Link href="/dashboard/generate">
-                {t('generate.submit')}
-              </Link>
+              <Link href="/dashboard/generate">{t('generate.submit')}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -127,8 +122,6 @@ export default function CombinesPage() {
                         </p>
                       </div>
                     </div>
-
-                    {/* Matches preview */}
                     <div className="flex flex-wrap gap-2">
                       {combine.matches?.slice(0, 3).map((match, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
@@ -143,13 +136,11 @@ export default function CombinesPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4">
                     <div className="text-center">
                       <div className="flex items-center gap-1 text-primary">
                         <TrendingUp className="h-4 w-4" />
-                        <span className="text-xl font-bold">
-                          {formatOdds(combine.total_odds)}
-                        </span>
+                        <span className="text-xl font-bold">{formatOdds(combine.total_odds)}</span>
                       </div>
                       <p className="text-xs text-text-muted">{t('combines.card.totalOdds')}</p>
                     </div>
@@ -157,12 +148,20 @@ export default function CombinesPage() {
                     <div className="text-center">
                       <div className="flex items-center gap-1 text-secondary">
                         <Target className="h-4 w-4" />
-                        <span className="text-xl font-bold">
-                          {combine.estimated_probability}%
-                        </span>
+                        <span className="text-xl font-bold">{combine.estimated_probability}%</span>
                       </div>
                       <p className="text-xs text-text-muted">{t('combines.card.probability')}</p>
                     </div>
+
+                    <ShareTicketButton
+                      ticketId={combine.id}
+                      totalOdds={combine.total_odds}
+                      confidencePct={combine.estimated_probability}
+                      matchCount={combine.matches?.length || 0}
+                      type="combine"
+                      buttonVariant="outline"
+                      label="Partager"
+                    />
 
                     <Button variant="ghost" size="sm" asChild>
                       <Link href={`/dashboard/combines/${combine.id}`}>
