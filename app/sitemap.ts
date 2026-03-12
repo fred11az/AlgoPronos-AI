@@ -6,17 +6,23 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://algopronos.com';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
-    { url: BASE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
-    { url: `${BASE_URL}/compte-optimise-ia`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
-    { url: `${BASE_URL}/dashboard/generate`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.8 },
-    { url: `${BASE_URL}/classement`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
-    { url: `${BASE_URL}/login`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
+    { url: BASE_URL,                                  lastModified: new Date(), changeFrequency: 'daily',   priority: 1.0 },
+    { url: `${BASE_URL}/pronostics`,                  lastModified: new Date(), changeFrequency: 'daily',   priority: 0.95 },
+    { url: `${BASE_URL}/matchs`,                      lastModified: new Date(), changeFrequency: 'daily',   priority: 0.9 },
+    { url: `${BASE_URL}/grandes-affiches`,            lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9 },
+    { url: `${BASE_URL}/compte-optimise-ia`,          lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.85 },
+    { url: `${BASE_URL}/classement`,                  lastModified: new Date(), changeFrequency: 'daily',   priority: 0.75 },
+    { url: `${BASE_URL}/try-free`,                    lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/unlock-vip`,                  lastModified: new Date(), changeFrequency: 'monthly', priority: 0.65 },
+    { url: `${BASE_URL}/dashboard/generate`,          lastModified: new Date(), changeFrequency: 'daily',   priority: 0.6 },
+    { url: `${BASE_URL}/login`,                       lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
   ];
 
-  // Dynamic: match predictions
+  // Dynamic pages
   let matchPages: MetadataRoute.Sitemap = [];
   let leaguePages: MetadataRoute.Sitemap = [];
   let teamPages: MetadataRoute.Sitemap = [];
+  let spotlightPages: MetadataRoute.Sitemap = [];
 
   try {
     const supabase = await createClient();
@@ -79,9 +85,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       }));
     }
+    // Weekly spotlight pages (grandes-affiches/[slug])
+    const { data: spotlights } = await supabase
+      .from('weekly_spotlights')
+      .select('slug, updated_at, created_at')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (spotlights) {
+      spotlightPages = spotlights.map((s) => ({
+        url: `${BASE_URL}/grandes-affiches/${s.slug}`,
+        lastModified: new Date(s.updated_at || s.created_at || new Date()),
+        changeFrequency: 'weekly' as const,
+        priority: 0.85,
+      }));
+    }
   } catch {
     // Fail gracefully — return static pages only
   }
 
-  return [...staticPages, ...matchPages, ...leaguePages, ...teamPages];
+  return [...staticPages, ...matchPages, ...leaguePages, ...teamPages, ...spotlightPages];
 }
