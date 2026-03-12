@@ -18,13 +18,15 @@ import {
   CheckCircle,
   AlertTriangle,
   ChevronRight,
-  Share2,
   ExternalLink,
   DollarSign,
   Info,
+  Lock,
+  Award,
 } from 'lucide-react';
 import { formatDate, formatOdds } from '@/lib/utils';
 import ShareTicketButton from '@/components/shared/ShareTicketButton';
+import { supabase } from '@/lib/supabase/client';
 
 // ─── Bookmakers config ────────────────────────────────────────────────────────
 
@@ -171,6 +173,21 @@ export default function CombineDetailPage() {
   const [combine, setCombine] = useState<CombineDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [userTier, setUserTier] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchUserTier() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('tier')
+        .eq('id', user.id)
+        .single();
+      setUserTier(profile?.tier ?? null);
+    }
+    fetchUserTier();
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -403,13 +420,31 @@ export default function CombineDetailPage() {
                       {match.selection.modelPct !== null && match.selection.modelPct !== undefined && (
                         <div className="text-center px-2 py-1.5 rounded-lg bg-surface-light min-w-[56px]">
                           <p className="text-xs text-text-muted">Prob. modèle</p>
-                          <p className="text-sm font-semibold text-secondary">{match.selection.modelPct}%</p>
+                          {userTier === 'verified' ? (
+                            <p className="text-sm font-semibold text-secondary">{match.selection.modelPct}%</p>
+                          ) : (
+                            <div className="relative">
+                              <p className="text-sm font-semibold text-secondary blur-sm select-none">{match.selection.modelPct}%</p>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Lock className="h-3 w-3 text-primary" />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       {match.selection.valueEdge !== null && match.selection.valueEdge !== undefined && match.selection.valueEdge > 0 && (
                         <div className="text-center px-2 py-1.5 rounded-lg bg-success/10 border border-success/20 min-w-[56px]">
                           <p className="text-xs text-success/70">Value</p>
-                          <p className="text-sm font-bold text-success">+{match.selection.valueEdge}%</p>
+                          {userTier === 'verified' ? (
+                            <p className="text-sm font-bold text-success">+{match.selection.valueEdge}%</p>
+                          ) : (
+                            <div className="relative">
+                              <p className="text-sm font-bold text-success blur-sm select-none">+{match.selection.valueEdge}%</p>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Lock className="h-3 w-3 text-primary" />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -454,6 +489,37 @@ export default function CombineDetailPage() {
           totalOdds={combine.total_odds}
           riskLevel={combine.parameters?.riskLevel}
         />
+      )}
+
+      {/* Full Access Guarantee Badges (verified users only) */}
+      {userTier === 'verified' && (
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-secondary/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Award className="h-4 w-4 text-primary" />
+              Garanties Full Access actives
+              <Badge variant="success" className="ml-auto text-xs">Actif</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { emoji: '🛡️', title: 'Bouclier 20 Matchs', desc: 'Remboursement si 1 erreur sur 20' },
+                { emoji: '⚽', title: 'Garantie Matchs Nuls', desc: '100% remboursé si 2 nuls perdants' },
+                { emoji: '💰', title: 'Cash-Back 1er Perdant', desc: 'Mise remboursée automatiquement' },
+                { emoji: '⚡', title: 'Cote Boostée IA', desc: 'Accès aux cotes prioritaires' },
+              ].map((g, i) => (
+                <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-surface-light">
+                  <span className="text-base">{g.emoji}</span>
+                  <div>
+                    <p className="text-xs font-semibold text-white">{g.title}</p>
+                    <p className="text-xs text-text-muted">{g.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Bookmakers */}

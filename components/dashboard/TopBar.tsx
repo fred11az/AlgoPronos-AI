@@ -13,6 +13,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase/client';
 import {
@@ -23,6 +32,8 @@ import {
   Sparkles,
   ShieldCheck,
   CheckCircle,
+  KeyRound,
+  Loader2,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -37,6 +48,9 @@ interface TopBarProps {
 export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
   const router = useRouter();
   const [pendingVerifications, setPendingVerifications] = useState(0);
+  const [showSubmitId, setShowSubmitId] = useState(false);
+  const [bookmarkerId, setBookmarkerId] = useState('');
+  const [submittingId, setSubmittingId] = useState(false);
 
   // Fetch pending verifications count for admins
   useEffect(() => {
@@ -65,9 +79,41 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
     }
   }
 
+  async function handleSubmitId() {
+    if (!bookmarkerId.trim()) {
+      toast.error('Veuillez entrer votre identifiant bookmaker');
+      return;
+    }
+    setSubmittingId(true);
+    try {
+      const res = await fetch('/api/verify-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookmaker: '1xbet', accountId: bookmarkerId.trim() }),
+      });
+      const data = await res.json();
+      if (data.optimized) {
+        toast.success('Compte déjà optimisé IA ! Actualisation en cours…');
+        router.refresh();
+      } else if (data.reason === 'pending_review') {
+        toast.success('Votre demande est en cours de vérification. Vous serez notifié sous 24h.');
+        setShowSubmitId(false);
+      } else {
+        // Not found → redirect to full activation flow
+        toast('Identifiant non trouvé. Redirigé vers la page d\'activation.', { icon: 'ℹ️' });
+        router.push(`/unlock-vip?id=${encodeURIComponent(bookmarkerId.trim())}`);
+      }
+    } catch {
+      toast.error('Erreur lors de la vérification. Réessayez.');
+    } finally {
+      setSubmittingId(false);
+    }
+  }
+
   const isVerified = user?.tier === 'verified';
 
   return (
+    <>
     <header className="sticky top-0 z-30 h-16 bg-background/80 backdrop-blur-xl border-b border-surface-light">
       <div className="flex items-center justify-between h-full px-4 lg:px-6">
         {/* Left Side */}
@@ -91,14 +137,27 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
 
         {/* Right Side */}
         <div className="flex items-center gap-3">
-          {/* Activate Button (if not verified) */}
+          {/* Standard user: two action buttons */}
           {!isVerified && (
-            <Button variant="gradient" size="sm" className="hidden sm:flex" asChild>
-              <Link href="/unlock-vip">
-                <Sparkles className="mr-2 h-4 w-4" />
-                Activer Gratuitement
-              </Link>
-            </Button>
+            <div className="hidden sm:flex items-center gap-2">
+              {/* "J'ai mon ID bookmaker" quick submit */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-primary/40 text-primary hover:border-primary hover:bg-primary/5"
+                onClick={() => setShowSubmitId(true)}
+              >
+                <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                J&apos;ai mon ID
+              </Button>
+              {/* Full activation flow */}
+              <Button variant="gradient" size="sm" asChild>
+                <Link href="/unlock-vip">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Full Access
+                </Link>
+              </Button>
+            </div>
           )}
 
           {/* Admin Link */}
@@ -189,5 +248,72 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
         </div>
       </div>
     </header>
+
+    {/* ── Submit bookmaker ID dialog ──────────────────────────────────────────── */}
+    <Dialog open={showSubmitId} onOpenChange={setShowSubmitId}>
+      <DialogContent className="sm:max-w-md bg-surface border-surface-light">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-primary" />
+            Valider mon compte optimisé IA
+          </DialogTitle>
+          <DialogDescription className="text-text-muted">
+            Entrez votre identifiant (ID ou email) sur votre bookmaker pour
+            vérifier que votre compte est optimisé IA et débloquer le Full Access.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="bm-id" className="text-sm text-text-secondary">
+              Identifiant bookmaker (ID ou email du compte)
+            </Label>
+            <Input
+              id="bm-id"
+              placeholder="ex: 12345678 ou john@email.com"
+              value={bookmarkerId}
+              onChange={e => setBookmarkerId(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSubmitId()}
+              className="bg-surface-light border-surface-light focus:border-primary"
+            />
+          </div>
+
+          <p className="text-xs text-text-muted bg-primary/5 border border-primary/15 rounded-lg px-3 py-2">
+            💡 Votre compte doit avoir été créé via le lien AlgoPronos (passerelle de
+            métadonnées). Sinon, cliquez sur{' '}
+            <button
+              className="text-primary underline"
+              onClick={() => { setShowSubmitId(false); router.push('/unlock-vip'); }}
+            >
+              Activer Full Access
+            </button>
+            .
+          </p>
+
+          <div className="flex gap-2 pt-1">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowSubmitId(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="gradient"
+              className="flex-1"
+              onClick={handleSubmitId}
+              disabled={submittingId || !bookmarkerId.trim()}
+            >
+              {submittingId ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Vérifier & Débloquer'
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }

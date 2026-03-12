@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { NonOptimizedBanner } from './NonOptimizedBanner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
@@ -130,6 +131,8 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
         )}
       >
         <TopBar user={user} onMenuClick={() => setMobileMenuOpen(true)} isAdmin={isAdmin} />
+        {/* Non-Optimized banner for standard (non-verified) registered users */}
+        {user && user.tier !== 'verified' && <NonOptimizedBanner />}
         <main className="p-4 lg:p-6">{children}</main>
       </div>
     </div>
