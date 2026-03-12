@@ -22,7 +22,7 @@ export async function POST() {
   await adminSupabase.from('matches_cache').delete().eq('date', today);
 
   // Appelle GET /api/ticket-du-jour pour régénérer
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const res = await fetch(`${baseUrl}/api/ticket-du-jour`);
   const data = await res.json();
 

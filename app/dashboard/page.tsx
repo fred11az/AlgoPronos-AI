@@ -184,31 +184,62 @@ export default async function DashboardPage() {
 
       {/* Daily Usage (for verified users) */}
       {isVerified && user && (
-        <Card className="bg-gradient-to-br from-success/10 to-primary/10 border-success/30">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
-                  <Zap className="h-6 w-6 text-success" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">Coupons du jour</h3>
-                  <p className="text-text-secondary">
-                    {2 - (user.daily_coupon_count || 0)} coupon(s) restant(s) aujourd&apos;hui
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-white">
-                    {user.daily_coupon_count || 0}/2
+        <>
+          {(user.daily_coupon_count || 0) >= 2 ? (
+            /* Quota épuisé */
+            <Card className="bg-gradient-to-br from-warning/10 to-error/5 border-warning/40">
+              <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
+                      <Clock className="h-6 w-6 text-warning" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Quota atteint</h3>
+                      <p className="text-text-secondary text-sm">
+                        Revenez demain à 08h00 pour vos nouveaux coupons.
+                      </p>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        2/2 coupons utilisés aujourd&apos;hui
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-xs text-text-muted">utilisés</div>
+                  <Link href="/unlock-vip">
+                    <Button variant="gradient" size="sm" className="shrink-0">
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Full Access illimité
+                    </Button>
+                  </Link>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            /* Quota disponible */
+            <Card className="bg-gradient-to-br from-success/10 to-primary/10 border-success/30">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
+                      <Zap className="h-6 w-6 text-success" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Coupons du jour</h3>
+                      <p className="text-text-secondary">
+                        {2 - (user.daily_coupon_count || 0)} coupon(s) restant(s) aujourd&apos;hui
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-white">
+                      {user.daily_coupon_count || 0}/2
+                    </div>
+                    <div className="text-xs text-text-muted">utilisés</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Stats Grid */}
