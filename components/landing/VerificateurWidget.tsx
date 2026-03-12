@@ -37,7 +37,7 @@ type Step = 'idle' | 'simulating' | 'result';
 
 const AFFILIATE_URL =
   process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
-  'https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599';
+  'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599';
 
 // ─── Widget ───────────────────────────────────────────────────────────────
 

@@ -16,7 +16,7 @@ const BOOKMAKERS = [
     bgColor: 'bg-[#003087]',
     borderColor: 'border-blue-700/40 hover:border-blue-500/70',
     shadowColor: 'hover:shadow-blue-900/30',
-    url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://1xbet.com',
+    url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     badge: 'Partenaire officiel',
     badgeColor: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
   },

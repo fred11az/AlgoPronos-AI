@@ -388,7 +388,7 @@ function TicketCard({ ticket, highlight = false }: { ticket: DailyTicket; highli
         <div className="pt-2 flex flex-wrap gap-2">
           <span className="text-xs text-text-muted self-center">Parier sur :</span>
           {[
-            { name: '1xBet', color: 'bg-blue-600/20 text-blue-400 border-blue-600/30', url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://1xbet.com' },
+            { name: '1xBet', color: 'bg-blue-600/20 text-blue-400 border-blue-600/30', url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599' },
             { name: 'Betway', color: 'bg-green-600/20 text-green-400 border-green-600/30', url: 'https://betway.com' },
             { name: 'Melbet', color: 'bg-orange-600/20 text-orange-400 border-orange-600/30', url: 'https://melbet.com' },
           ].map(bm => (
