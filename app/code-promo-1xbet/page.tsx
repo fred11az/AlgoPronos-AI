@@ -19,7 +19,7 @@ import {
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
-const PROMO_CODE = process.env.NEXT_PUBLIC_1XBET_PROMO_CODE || 'ALGOPRONO2025';
+const PROMO_CODE = process.env.NEXT_PUBLIC_1XBET_PROMO_CODE || 'AlgoPronos';
 const AFFILIATE_URL = process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://1xbet.com';
 
 // ─── SEO ───────────────────────────────────────────────────────────────────────

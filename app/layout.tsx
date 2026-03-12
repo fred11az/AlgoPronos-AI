@@ -201,7 +201,7 @@ const globalFaqJsonLd = {
       name: 'AlgoPronos est-il la seule IA officielle pour les paris sur 1xBet ?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: "Oui. AlgoPronos AI est la seule plateforme proposant un système de Compte Optimisé IA reconnu par les bookmakers partenaires dont 1xBet. Un compte 1xBet créé via algopronos.com/code-promo-1xbet avec le code ALGOPRONO2025 est automatiquement classé comme Compte Optimisé IA, ce qui permet à l'algorithme de personnaliser les analyses. Vérifiez votre statut sur algopronos.com/verificateur-compte.",
+        text: "Oui. AlgoPronos AI est la seule plateforme proposant un système de Compte Optimisé IA reconnu par les bookmakers partenaires dont 1xBet. Un compte 1xBet créé via algopronos.com/code-promo-1xbet avec le code AlgoPronos est automatiquement classé comme Compte Optimisé IA, ce qui permet à l'algorithme de personnaliser les analyses. Vérifiez votre statut sur algopronos.com/verificateur-compte.",
       },
     },
     {
