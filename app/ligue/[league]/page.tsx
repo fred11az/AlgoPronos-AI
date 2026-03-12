@@ -45,16 +45,38 @@ export async function generateMetadata({
   const leagueName = data?.league || slugToTitle(slug);
   const country = data?.country || '';
 
+  const ll = leagueName.toLowerCase();
+  const cl = country.toLowerCase();
+  const year = new Date().getFullYear();
+
   return {
-    title: `Pronostics ${leagueName} — Analyse IA | AlgoPronos`,
-    description: `Pronostics ${leagueName}${country ? ` (${country})` : ''} générés par IA. Analyse algorithmique de chaque match avec probabilités et value edge. Tous les matchs à venir.`,
+    title: `Pronostics ${leagueName} ${year} — Analyse IA | AlgoPronos`,
+    description: `Pronostics ${leagueName}${country ? ` (${country})` : ''} ${year} générés par intelligence artificielle. Analyse xG, value bets, forme des équipes et probabilités pour chaque match à venir.`,
     keywords: [
-      `pronostic ${leagueName.toLowerCase()}`,
-      `pronostics football ${country.toLowerCase()}`,
-      `analyse ${leagueName.toLowerCase()}`,
-      'paris sportifs ia',
-      'pronostics football',
-    ].join(', '),
+      `pronostic ${ll}`,
+      `pronostics ${ll} ${year}`,
+      `paris sportifs ${ll}`,
+      `analyse ${ll} IA`,
+      `meilleur pronostic ${ll}`,
+      `value bet ${ll}`,
+      `1xbet ${ll}`,
+      cl ? `pronostics football ${cl}` : '',
+      cl ? `paris sportifs ${cl}` : '',
+      cl ? `1xbet ${cl}` : '',
+      'pronostics football IA',
+      'paris sportifs intelligence artificielle',
+      'algopronos pronostics',
+      'value betting algorithmique',
+      'pronostics football afrique',
+    ].filter(Boolean).join(', '),
+    alternates: { canonical: `https://algopronos.com/ligue/${slug}` },
+    openGraph: {
+      title: `Pronostics ${leagueName} ${year} — IA AlgoPronos`,
+      description: `Pronostics IA pour ${leagueName} : xG, value bets, probabilités sur chaque match. Analyse algorithmique gratuite.`,
+      url: `https://algopronos.com/ligue/${slug}`,
+      siteName: 'AlgoPronos AI',
+      type: 'website',
+    },
   };
 }
 
@@ -117,8 +139,35 @@ export default async function LeaguePage({
     }
   }
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://algopronos.com' },
+      { '@type': 'ListItem', position: 2, name: 'Pronostics', item: 'https://algopronos.com/pronostics' },
+      { '@type': 'ListItem', position: 3, name: leagueName, item: `https://algopronos.com/ligue/${slug}` },
+    ],
+  };
+
+  const itemListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `Pronostics ${leagueName} — AlgoPronos AI`,
+    description: `Liste des pronostics IA pour ${leagueName}. Analyse algorithmique de chaque match avec probabilités et value edge.`,
+    url: `https://algopronos.com/ligue/${slug}`,
+    numberOfItems: predictions.length,
+    itemListElement: predictions.slice(0, 10).map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `https://algopronos.com/pronostic/${p.slug}`,
+      name: `${p.home_team} vs ${p.away_team} — Pronostic ${p.prediction}`,
+    })),
+  };
+
   return (
     <main className="min-h-screen bg-background">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       {/* Breadcrumb */}
       <div className="max-w-5xl mx-auto px-4 py-4">
         <nav className="flex items-center gap-2 text-sm text-text-muted">

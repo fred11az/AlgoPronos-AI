@@ -49,15 +49,35 @@ export async function generateMetadata({
       : data.away_team
     : slugToTitle(slug);
 
+  const tl = teamName.toLowerCase();
+  const year = new Date().getFullYear();
+
   return {
-    title: `Pronostics ${teamName} — Matchs à venir | AlgoPronos`,
-    description: `Tous les pronostics IA pour ${teamName}. Analyse algorithme des prochains matchs de ${teamName} avec probabilités, cotes et value edge.`,
+    title: `Pronostics ${teamName} ${year} — Matchs à venir | AlgoPronos IA`,
+    description: `Tous les pronostics IA pour ${teamName} ${year}. Analyse algorithme des prochains matchs de ${teamName} avec probabilités, cotes, value edge et analyse xG. Gratuit.`,
     keywords: [
-      `pronostic ${teamName.toLowerCase()}`,
-      `${teamName.toLowerCase()} pronostic`,
-      `pronostic football ${teamName.toLowerCase()}`,
-      'paris sportifs ia',
+      `pronostic ${tl}`,
+      `${tl} pronostic`,
+      `pronostic ${tl} ${year}`,
+      `paris sportifs ${tl}`,
+      `${tl} paris sportifs`,
+      `prochain match ${tl}`,
+      `analyse ${tl} IA`,
+      `cote ${tl}`,
+      `1xbet ${tl}`,
+      'pronostics football IA',
+      'paris sportifs intelligence artificielle',
+      'algopronos pronostics',
+      'pronostics afrique football',
     ].join(', '),
+    alternates: { canonical: `https://algopronos.com/equipe/${slug}` },
+    openGraph: {
+      title: `Pronostics ${teamName} ${year} — AlgoPronos IA`,
+      description: `Pronostics IA pour les prochains matchs de ${teamName}. Analyse xG, value bets, probabilités.`,
+      url: `https://algopronos.com/equipe/${slug}`,
+      siteName: 'AlgoPronos AI',
+      type: 'website',
+    },
   };
 }
 
@@ -115,8 +135,36 @@ export default async function TeamPage({
     }
   }
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://algopronos.com' },
+      { '@type': 'ListItem', position: 2, name: 'Pronostics', item: 'https://algopronos.com/pronostics' },
+      { '@type': 'ListItem', position: 3, name: teamName, item: `https://algopronos.com/equipe/${slug}` },
+    ],
+  };
+
+  const teamPageJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: `Pronostics ${teamName} — AlgoPronos AI`,
+    description: `Pronostics IA pour les prochains matchs de ${teamName}. Analyse xG, value bets, probabilités.`,
+    url: `https://algopronos.com/equipe/${slug}`,
+    breadcrumb: breadcrumbJsonLd,
+    ...(totalResolved > 0 && {
+      mainEntity: {
+        '@type': 'SportsTeam',
+        name: teamName,
+        url: `https://algopronos.com/equipe/${slug}`,
+      },
+    }),
+  };
+
   return (
     <main className="min-h-screen bg-background">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(teamPageJsonLd) }} />
       {/* Breadcrumb */}
       <div className="max-w-5xl mx-auto px-4 py-4">
         <nav className="flex items-center gap-2 text-sm text-text-muted">

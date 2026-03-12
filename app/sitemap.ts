@@ -3,6 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://algopronos.com';
 
+// Country slugs for 1xBet landing pages — domination SEO Afrique
+const COUNTRY_SLUGS = [
+  'benin', 'cote-divoire', 'senegal', 'cameroun', 'mali',
+  'togo', 'burkina-faso', 'niger', 'congo', 'gabon', 'guinee', 'madagascar',
+];
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
@@ -12,12 +18,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/grandes-affiches`,            lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9 },
     { url: `${BASE_URL}/compte-optimise-ia`,          lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.85 },
     { url: `${BASE_URL}/classement`,                  lastModified: new Date(), changeFrequency: 'daily',   priority: 0.75 },
-    { url: `${BASE_URL}/code-promo-1xbet`,             lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${BASE_URL}/code-promo-1xbet`,             lastModified: new Date(), changeFrequency: 'monthly', priority: 0.95 },
     { url: `${BASE_URL}/try-free`,                    lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE_URL}/unlock-vip`,                  lastModified: new Date(), changeFrequency: 'monthly', priority: 0.65 },
     { url: `${BASE_URL}/verificateur-compte`,         lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE_URL}/dashboard/generate`,          lastModified: new Date(), changeFrequency: 'daily',   priority: 0.6 },
     { url: `${BASE_URL}/login`,                       lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
+    // Pages 1xBet par pays — 12 pages ciblant chaque pays africain
+    ...COUNTRY_SLUGS.map((slug) => ({
+      url: `${BASE_URL}/1xbet/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.88,
+    })),
   ];
 
   // Dynamic pages
