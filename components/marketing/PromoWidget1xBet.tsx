@@ -162,7 +162,7 @@ export function PromoWidget1xBet({
           asChild
         >
           <a
-            href={process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://1xbet.com'}
+            href={process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599'}
             target="_blank"
             rel="noopener noreferrer"
           >

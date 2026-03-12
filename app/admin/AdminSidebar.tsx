@@ -14,6 +14,7 @@ import {
   Ticket,
   Menu,
   X,
+  UserPlus,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -24,6 +25,8 @@ const adminNavItems = [
   { label: 'Analytics',         href: '/admin/analytics',      icon: BarChart3 },
   { label: 'Paramètres',        href: '/admin/settings',       icon: Settings },
 ];
+
+const RAPPORT_INSCRIPTIONS_URL = 'https://1x.partners/fr/partner/reports/players';
 
 export function AdminSidebar() {
   const [open, setOpen] = useState(false);
@@ -77,7 +80,16 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-surface-light">
+      <div className="p-4 border-t border-surface-light space-y-3">
+        <a
+          href={RAPPORT_INSCRIPTIONS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 text-sm text-primary hover:text-white bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl px-3 py-2.5 transition-all w-full"
+        >
+          <UserPlus className="h-4 w-4 shrink-0" />
+          <span className="font-medium">Rapport inscriptions</span>
+        </a>
         <Link
           href="/dashboard"
           className="flex items-center gap-2 text-sm text-text-muted hover:text-white transition-colors"

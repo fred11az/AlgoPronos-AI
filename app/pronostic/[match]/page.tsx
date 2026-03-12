@@ -50,7 +50,7 @@ const BOOKMAKERS = [
   {
     name: '1xBet',
     logo: '/bookmakers/1xbet.webp',
-    url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://1xbet.com',
+    url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     bonus: 'Bonus 200%',
     color: '#0066CC',
   },

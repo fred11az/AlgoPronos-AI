@@ -38,7 +38,7 @@ const BOOKMAKERS: Bookmaker[] = [
     bonusDetail: "jusqu'à 250 000 FCFA sur 1er dépôt",
     affiliateUrl:
       process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
-      'https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599',
+      'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     badge: 'Partenaire officiel',
     highlight: true,
     live: true,
@@ -52,7 +52,7 @@ const BOOKMAKERS: Bookmaker[] = [
     bonusDetail: "jusqu'à 150 000 FCFA",
     affiliateUrl:
       process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
-      'https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599',
+      'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     live: false,
   },
   {
@@ -64,7 +64,7 @@ const BOOKMAKERS: Bookmaker[] = [
     bonusDetail: "jusqu'à 200 000 FCFA",
     affiliateUrl:
       process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
-      'https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599',
+      'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     live: false,
   },
   {
@@ -76,7 +76,7 @@ const BOOKMAKERS: Bookmaker[] = [
     bonusDetail: "jusqu'à 50 000 FCFA",
     affiliateUrl:
       process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
-      'https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599',
+      'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     live: false,
   },
   {
@@ -88,7 +88,7 @@ const BOOKMAKERS: Bookmaker[] = [
     bonusDetail: 'offre réservée Afrique',
     affiliateUrl:
       process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
-      'https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599',
+      'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     live: false,
   },
   {
@@ -100,7 +100,7 @@ const BOOKMAKERS: Bookmaker[] = [
     bonusDetail: "jusqu'à 100 000 FCFA",
     affiliateUrl:
       process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
-      'https://refpa58144.com/L?tag=d_5093549m_1599c_&site=5093549&ad=1599',
+      'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     live: false,
   },
 ];
