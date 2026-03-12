@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Dialog,
@@ -321,12 +320,12 @@ export default function VerificationsPage() {
               <label className="text-xs text-text-secondary mb-1.5 block">
                 Raison du rejet <span className="text-text-muted">(optionnel)</span>
               </label>
-              <Textarea
+              <textarea
                 placeholder="Ex: ID bookmaker non reconnu, compte non créé via notre lien partenaire..."
                 value={rejectNotes}
                 onChange={e => setRejectNotes(e.target.value)}
-                className="bg-surface-light border-surface-light focus:border-error resize-none text-sm"
                 rows={3}
+                className="w-full rounded-md border border-surface-light bg-surface-light px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-error resize-none"
               />
             </div>
             <div className="flex gap-2">
