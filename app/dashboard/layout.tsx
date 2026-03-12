@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
-import { ANONYMOUS_COOKIE_CONFIG } from '@/lib/anonymous/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,16 +11,13 @@ export default async function DashboardLayout({
 }) {
   const user = await getCurrentUser();
 
+  // Visitors (no account) are no longer allowed in the dashboard.
+  // They must register to access their personalised space.
   if (!user) {
-    // Allow anonymous sessions (cookie set by /api/try-free)
-    const cookieStore = await cookies();
-    const hasAnonymousSession = !!cookieStore.get(ANONYMOUS_COOKIE_CONFIG.name)?.value;
-    if (!hasAnonymousSession) {
-      redirect('/try-free');
-    }
+    redirect('/?trial=1');
   }
 
-  const isAdmin = user ? await checkIsAdmin(user.id) : false;
+  const isAdmin = await checkIsAdmin(user.id);
 
-  return <DashboardShell user={user ?? null} isAdmin={isAdmin}>{children}</DashboardShell>;
+  return <DashboardShell user={user} isAdmin={isAdmin}>{children}</DashboardShell>;
 }

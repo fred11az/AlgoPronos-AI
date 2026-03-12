@@ -25,6 +25,7 @@ import {
   Star,
 } from 'lucide-react';
 import { HeroTicketPreview } from '@/components/landing/HeroTicketPreview';
+import { HomepageTrial } from '@/components/landing/HomepageTrial';
 import { StatsBar } from '@/components/landing/StatsBar';
 import { LiveTicketSection } from '@/components/landing/LiveTicketSection';
 import { ClassementPreview } from '@/components/landing/ClassementPreview';
@@ -166,7 +167,7 @@ export default function LandingPage() {
                   </Link>
                 </Button>
                 <Button size="xl" variant="outline" asChild>
-                  <Link href="/api/try-free">
+                  <Link href="#essai-demo">
                     Essayer sans compte
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -206,6 +207,19 @@ export default function LandingPage() {
 
       {/* ─── STATS BAR ────────────────────────────────────────────────────────── */}
       <StatsBar />
+
+      {/* ─── DEMO TRIAL ───────────────────────────────────────────────────────── */}
+      <section id="essai-demo" className="py-16 bg-surface border-t border-surface-light">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <Badge variant="outline" className="mb-3">Démo gratuite</Badge>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white">
+              Testez l&apos;algorithme maintenant
+            </h2>
+          </div>
+          <HomepageTrial />
+        </div>
+      </section>
 
       {/* ─── COMMENT ÇA MARCHE ────────────────────────────────────────────────── */}
       <section id="how-it-works" className="py-24 bg-surface">

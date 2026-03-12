@@ -228,3 +228,210 @@ export async function notifyTicketResult(p: TicketNotificationPayload) {
 
   return { email: emailOk, whatsapp: waOk };
 }
+
+// ─── Activation / Rejection notifications ──────────────────────────────────
+
+export interface ActivationPayload {
+  userEmail: string;
+  userName?: string;
+  userPhone?: string;
+}
+
+function buildActivationEmailHtml(p: ActivationPayload): string {
+  const firstName = p.userName?.split(' ')[0] || 'Parieur';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
+      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">🎉 Compte Full Access activé !</h1>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:32px">
+      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Félicitations <strong style="color:#fff">${firstName}</strong> !</p>
+      <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.6">
+        Votre compte bookmaker a été vérifié et validé par notre équipe.
+        Vous bénéficiez maintenant du <strong style="color:#7c3aed">Full Access AlgoPronos AI</strong>.
+      </p>
+
+      <!-- Features unlocked -->
+      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
+        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ce que vous débloquez</p>
+        ${[
+          '⚡ Analyses IA illimitées (sans quota journalier)',
+          '📊 Probabilités du modèle + value bets visibles',
+          '💰 Bankroll IA personnalisé sur chaque ticket',
+          '🛡️ Bouclier 20 Matchs — remboursement si 1 erreur sur 20',
+          '⚽ Garantie Matchs Nuls — 100% si 2 nuls perdants',
+          '🔥 Accès aux cotes prioritaires négociées',
+        ].map(f => `<p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">${f}</p>`).join('')}
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center">
+        <a href="${appUrl}/dashboard"
+           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:15px">
+          Accéder à mon tableau de bord →
+        </a>
+        <p style="margin:16px 0 0;color:#6b7280;font-size:12px">
+          Génération de combinés optimisés, analyse en temps réel, historique complet.
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
+      <p style="margin:0;color:#4a4a6a;font-size:11px">
+        AlgoPronos AI — Optimisation des paris sportifs par intelligence artificielle.<br>
+        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gérer mes préférences</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): string {
+  const firstName = p.userName?.split(' ')[0] || 'Parieur';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#374151,#1f2937);padding:28px 32px">
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
+      <h1 style="margin:8px 0 0;font-size:20px;color:#fff;font-weight:700">Demande de vérification</h1>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:32px">
+      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
+      <p style="margin:0 0 20px;color:#a0aec0;font-size:14px;line-height:1.6">
+        Nous n'avons pas pu valider votre demande d'activation Full Access pour le moment.
+      </p>
+
+      ${p.reason ? `
+      <div style="background:#ef444411;border:1px solid #ef444433;border-radius:10px;padding:16px;margin-bottom:20px">
+        <p style="margin:0 0 4px;color:#ef4444;font-size:12px;font-weight:600;text-transform:uppercase">Raison</p>
+        <p style="margin:0;color:#fca5a5;font-size:13px">${p.reason}</p>
+      </div>` : ''}
+
+      <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.6">
+        Si vous pensez qu'il s'agit d'une erreur ou si vous souhaitez soumettre à nouveau votre demande,
+        cliquez ci-dessous ou contactez notre support.
+      </p>
+
+      <div style="text-align:center">
+        <a href="${appUrl}/unlock-vip"
+           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-weight:600;font-size:14px">
+          Soumettre une nouvelle demande
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
+      <p style="margin:0;color:#4a4a6a;font-size:11px">
+        AlgoPronos AI — <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Paramètres</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export async function sendActivationEmail(p: ActivationPayload): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@algopronos.ai>';
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: p.userEmail,
+      subject: '🎉 Votre compte Full Access AlgoPronos AI est activé !',
+      html: buildActivationEmailHtml(p),
+    });
+    if (error) { console.error('[Notification] Activation email error:', error); return false; }
+    return true;
+  } catch (err) {
+    console.error('[Notification] Activation email failed:', err);
+    return false;
+  }
+}
+
+export async function sendRejectionEmail(p: ActivationPayload & { reason?: string }): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@algopronos.ai>';
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: p.userEmail,
+      subject: 'Votre demande de vérification AlgoPronos AI',
+      html: buildRejectionEmailHtml(p),
+    });
+    if (error) { console.error('[Notification] Rejection email error:', error); return false; }
+    return true;
+  } catch (err) {
+    console.error('[Notification] Rejection email failed:', err);
+    return false;
+  }
+}
+
+export async function sendActivationWhatsApp(p: { userPhone: string; userName?: string }): Promise<boolean> {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const templateName = process.env.WHATSAPP_TEMPLATE_ACTIVATION || 'account_activated';
+  if (!token || !phoneId || !p.userPhone) return false;
+
+  const phone = p.userPhone.replace(/\s/g, '').replace(/^00/, '+');
+  try {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: 'fr' },
+          components: [{
+            type: 'body',
+            parameters: [{ type: 'text', text: p.userName || 'Parieur' }],
+          }],
+        },
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('[Notification] Activation WhatsApp failed:', err);
+    return false;
+  }
+}
+
+export async function notifyActivation(p: ActivationPayload) {
+  const [emailOk, waOk] = await Promise.all([
+    sendActivationEmail(p),
+    p.userPhone ? sendActivationWhatsApp({ userPhone: p.userPhone, userName: p.userName }) : Promise.resolve(false),
+  ]);
+  return { email: emailOk, whatsapp: waOk };
+}
+
+export async function notifyRejection(p: ActivationPayload & { reason?: string }) {
+  const emailOk = await sendRejectionEmail(p);
+  return { email: emailOk, whatsapp: false };
+}

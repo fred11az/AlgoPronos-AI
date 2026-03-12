@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getCurrentAnonymousSession, getAnonymousSessionId, logAnonymousEvent } from '@/lib/anonymous';
@@ -37,27 +38,18 @@ interface CombineParameters {
 
 // ─── Quota config ─────────────────────────────────────────────────────────────
 
-const WEEKLY_LIMITS = {
-  visitor: 2,    // anonymous session
-  registered: 3, // has AlgoPronos account but no 1xBet verification
-  verified: 999, // 1xBet account verified → effectively unlimited
-} as const;
+const DAILY_LIMIT_REGISTERED = 2; // registered (non-verified): 2 per day
+// Visitor trial: 1 total, tracked via HttpOnly cookie 'algopronos_v_trial'
 
-// ─── Week helpers ─────────────────────────────────────────────────────────────
+// ─── Day helper ───────────────────────────────────────────────────────────────
 
-/** Returns the date (YYYY-MM-DD) of the Monday that started the current week */
-function getWeekStart(): string {
-  const now = new Date();
-  const day = now.getUTCDay(); // 0 = Sunday
-  const diff = day === 0 ? -6 : 1 - day; // shift to Monday
-  const monday = new Date(now);
-  monday.setUTCDate(now.getUTCDate() + diff);
-  return monday.toISOString().split('T')[0];
+function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0];
 }
 
-function isNewWeek(resetAt: string | null | undefined): boolean {
-  if (!resetAt) return true;
-  return resetAt < getWeekStart();
+function isNewDay(lastDate: string | null | undefined): boolean {
+  if (!lastDate) return true;
+  return lastDate < getTodayDate();
 }
 
 // ─── Cache key ────────────────────────────────────────────────────────────────
@@ -381,54 +373,52 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const weekStart = getWeekStart();
     const isVerified = user?.tier === 'verified';
     const isRegistered = !!user && !isVerified;
     // isVisitor = anonymous cookie present (with or without DB session)
     const isVisitor = !user && !!anonymousCookieId;
 
-    const limit = isVerified ? WEEKLY_LIMITS.verified
-      : isRegistered ? WEEKLY_LIMITS.registered
-      : WEEKLY_LIMITS.visitor;
-
-    // ── Weekly quota check ─────────────────────────────────────────────────────
-    if (isVisitor && anonymousSession) {
-      const meta = anonymousSession.metadata || {};
-      const currentCount = isNewWeek(meta.weeklyAiResetAt) ? 0 : (meta.weeklyAiCount ?? 0);
-
-      if (currentCount >= limit) {
-        await logAnonymousEvent(anonymousSession.id, 'generation_attempted', {
-          blocked: true, reason: 'WEEKLY_LIMIT', count: currentCount,
-        });
+    // ── Quota check ────────────────────────────────────────────────────────────
+    if (isVisitor) {
+      // Visitor: 1 total trial, tracked by HttpOnly cookie
+      const cookieStore = await cookies();
+      const trialCookie = cookieStore.get('algopronos_v_trial');
+      if (trialCookie) {
+        if (anonymousSession) {
+          await logAnonymousEvent(anonymousSession.id, 'generation_attempted', {
+            blocked: true, reason: 'TRIAL_USED',
+          });
+        }
         return NextResponse.json(
           {
-            error: 'Weekly limit reached',
-            code: 'WEEKLY_LIMIT',
+            error: 'Trial already used',
+            code: 'TRIAL_USED',
             isAnonymous: true,
-            limit,
+            limit: 1,
             remaining: 0,
-            message: 'Tu as atteint ta limite d\'analyses IA pour cette semaine. Crée un compte AlgoPronos AI pour 2 analyses/semaine ou un compte 1xBet optimisé IA pour un accès illimité.',
+            message: 'Tu as déjà utilisé ton essai gratuit. Crée un compte AlgoPronos AI pour 2 analyses/jour ou un compte 1xBet optimisé IA pour un accès illimité.',
           },
           { status: 429 }
         );
       }
     } else if (isRegistered && user) {
+      // Registered: 2 per day
       const { data: profile } = await supabase
         .from('profiles')
-        .select('weekly_ai_count, weekly_ai_reset_at')
+        .select('daily_coupon_count, last_coupon_date')
         .eq('id', user.id)
         .single();
 
-      const currentCount = isNewWeek(profile?.weekly_ai_reset_at) ? 0 : (profile?.weekly_ai_count ?? 0);
+      const currentCount = isNewDay(profile?.last_coupon_date) ? 0 : (profile?.daily_coupon_count ?? 0);
 
-      if (currentCount >= limit) {
+      if (currentCount >= DAILY_LIMIT_REGISTERED) {
         return NextResponse.json(
           {
-            error: 'Weekly limit reached',
-            code: 'WEEKLY_LIMIT',
-            limit,
+            error: 'Daily limit reached',
+            code: 'DAILY_LIMIT',
+            limit: DAILY_LIMIT_REGISTERED,
             remaining: 0,
-            message: 'Tu as atteint ta limite d\'analyses IA pour cette semaine. Crée un compte 1xBet optimisé IA pour un accès illimité.',
+            message: 'Tu as atteint ta limite de 2 analyses IA par jour. Reviens demain ou active ton compte Full Access pour un accès illimité.',
           },
           { status: 429 }
         );
@@ -472,22 +462,16 @@ export async function POST(request: Request) {
       ).catch(() => {});
 
       if (isVisitor && anonymousSession) {
-        const meta = anonymousSession.metadata || {};
-        const currentCount = isNewWeek(meta.weeklyAiResetAt) ? 0 : (meta.weeklyAiCount ?? 0);
-        void Promise.resolve(
-          adminSupabase.from('anonymous_sessions').update({
-            metadata: { ...meta, weeklyAiCount: currentCount + 1, weeklyAiResetAt: weekStart },
-          }).eq('id', anonymousSession.id)
-        ).catch(() => {});
         logAnonymousEvent(anonymousSession.id, 'generation_attempted', { fromCache: true, cacheLayer: 'redis' });
       } else if (user) {
-        const { data: profile } = await supabase
-          .from('profiles').select('weekly_ai_count, weekly_ai_reset_at').eq('id', user.id).single();
-        const currentCount = isNewWeek(profile?.weekly_ai_reset_at) ? 0 : (profile?.weekly_ai_count ?? 0);
         if (!isVerified) {
+          const { data: profile } = await supabase
+            .from('profiles').select('daily_coupon_count, last_coupon_date').eq('id', user.id).single();
+          const currentCount = isNewDay(profile?.last_coupon_date) ? 0 : (profile?.daily_coupon_count ?? 0);
+          const today = getTodayDate();
           void Promise.resolve(
             supabase.from('profiles').update({
-              weekly_ai_count: currentCount + 1, weekly_ai_reset_at: weekStart,
+              daily_coupon_count: currentCount + 1, last_coupon_date: today,
             }).eq('id', user.id)
           ).catch(() => {});
         }
@@ -499,8 +483,8 @@ export async function POST(request: Request) {
         ).catch(() => {});
       }
 
-      const weeklyUsage = buildWeeklyUsage(limit, 1);
-      return NextResponse.json({ combine: redisCached, fromCache: true, cacheLayer: 'redis', weeklyUsage });
+      const dailyUsage = buildDailyUsage(isVerified, 1);
+      return NextResponse.json({ combine: redisCached, fromCache: true, cacheLayer: 'redis', dailyUsage });
     }
 
     // L2: Supabase (warm cache, handles concurrent cold-starts)
@@ -521,22 +505,18 @@ export async function POST(request: Request) {
         .update({ usage_count: cachedCombine.usage_count + 1 })
         .eq('id', cachedCombine.id);
 
-      // Log & increment weekly count
+      // Log & increment daily count
       if (isVisitor && anonymousSession) {
-        const meta = anonymousSession.metadata || {};
-        const currentCount = isNewWeek(meta.weeklyAiResetAt) ? 0 : (meta.weeklyAiCount ?? 0);
-        await adminSupabase.from('anonymous_sessions').update({
-          metadata: { ...meta, weeklyAiCount: currentCount + 1, weeklyAiResetAt: weekStart },
-        }).eq('id', anonymousSession.id);
         await logAnonymousEvent(anonymousSession.id, 'generation_attempted', { fromCache: true });
       } else if (user) {
-        const { data: profile } = await supabase
-          .from('profiles').select('weekly_ai_count, weekly_ai_reset_at').eq('id', user.id).single();
-        const currentCount = isNewWeek(profile?.weekly_ai_reset_at) ? 0 : (profile?.weekly_ai_count ?? 0);
         if (!isVerified) {
+          const { data: profile } = await supabase
+            .from('profiles').select('daily_coupon_count, last_coupon_date').eq('id', user.id).single();
+          const currentCount = isNewDay(profile?.last_coupon_date) ? 0 : (profile?.daily_coupon_count ?? 0);
+          const today = getTodayDate();
           await supabase.from('profiles').update({
-            weekly_ai_count: currentCount + 1,
-            weekly_ai_reset_at: weekStart,
+            daily_coupon_count: currentCount + 1,
+            last_coupon_date: today,
           }).eq('id', user.id);
         }
         await adminSupabase.from('combine_usage_log').insert({
@@ -545,8 +525,8 @@ export async function POST(request: Request) {
         });
       }
 
-      const weeklyUsage = buildWeeklyUsage(limit, 1);
-      return NextResponse.json({ combine: cachedCombine, fromCache: true, weeklyUsage });
+      const dailyUsage = buildDailyUsage(isVerified, 1);
+      return NextResponse.json({ combine: cachedCombine, fromCache: true, dailyUsage });
     }
 
     // ── Prepare match data ─────────────────────────────────────────────────────
@@ -673,16 +653,11 @@ export async function POST(request: Request) {
     // Populate Redis L1 cache immediately after successful DB write
     cacheSet(redisCacheKey, generatedCombine, CACHE_TTL.COMBINE).catch(() => {});
 
-    // ── Update weekly count ────────────────────────────────────────────────────
-    let usedThisWeek = 1;
+    // ── Update daily count ─────────────────────────────────────────────────────
+    let usedToday = 1;
+    const today = getTodayDate();
 
     if (isVisitor && anonymousSession) {
-      const meta = anonymousSession.metadata || {};
-      const currentCount = isNewWeek(meta.weeklyAiResetAt) ? 0 : (meta.weeklyAiCount ?? 0);
-      usedThisWeek = currentCount + 1;
-      await adminSupabase.from('anonymous_sessions').update({
-        metadata: { ...meta, weeklyAiCount: usedThisWeek, weeklyAiResetAt: weekStart },
-      }).eq('id', anonymousSession.id);
       await logAnonymousEvent(anonymousSession.id, 'generation_attempted', {
         combineId, fromCache: false,
       });
@@ -693,22 +668,34 @@ export async function POST(request: Request) {
       });
       if (!isVerified) {
         const { data: profile } = await supabase
-          .from('profiles').select('weekly_ai_count, weekly_ai_reset_at').eq('id', user.id).single();
-        const currentCount = isNewWeek(profile?.weekly_ai_reset_at) ? 0 : (profile?.weekly_ai_count ?? 0);
-        usedThisWeek = currentCount + 1;
+          .from('profiles').select('daily_coupon_count, last_coupon_date').eq('id', user.id).single();
+        const currentCount = isNewDay(profile?.last_coupon_date) ? 0 : (profile?.daily_coupon_count ?? 0);
+        usedToday = currentCount + 1;
         await supabase.from('profiles').update({
-          weekly_ai_count: usedThisWeek,
-          weekly_ai_reset_at: weekStart,
+          daily_coupon_count: usedToday,
+          last_coupon_date: today,
         }).eq('id', user.id);
       }
     }
 
-    return NextResponse.json({
+    // Set HttpOnly trial cookie for visitors after successful generation
+    const jsonResponse = NextResponse.json({
       combine: generatedCombine,
       fromCache: false,
       isVisitor,
-      weeklyUsage: buildWeeklyUsage(limit, usedThisWeek),
+      dailyUsage: buildDailyUsage(isVerified, usedToday),
     });
+
+    if (isVisitor) {
+      jsonResponse.cookies.set('algopronos_v_trial', '1', {
+        httpOnly: true,
+        maxAge: 60 * 60 * 24 * 365,
+        path: '/',
+        sameSite: 'lax',
+      });
+    }
+
+    return jsonResponse;
 
   } catch (error) {
     console.error('Error generating combine:', error);
@@ -718,10 +705,13 @@ export async function POST(request: Request) {
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
-function buildWeeklyUsage(limit: number, used: number) {
+function buildDailyUsage(isVerified: boolean, used: number) {
+  if (isVerified) {
+    return { used, limit: null, remaining: null }; // unlimited
+  }
   return {
     used,
-    limit: limit >= 999 ? null : limit, // null = unlimited for verified users
-    remaining: limit >= 999 ? null : Math.max(0, limit - used),
+    limit: DAILY_LIMIT_REGISTERED,
+    remaining: Math.max(0, DAILY_LIMIT_REGISTERED - used),
   };
 }
