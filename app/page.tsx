@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Header } from '@/components/marketing/Header';
 import { Footer } from '@/components/marketing/Footer';
+import { StickyCodeCTA } from '@/components/landing/StickyCodeCTA';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -24,7 +25,6 @@ import {
   Users,
   Star,
 } from 'lucide-react';
-import { HeroTicketPreview } from '@/components/landing/HeroTicketPreview';
 import { HomepageTrial } from '@/components/landing/HomepageTrial';
 import { StatsBar } from '@/components/landing/StatsBar';
 import { LiveTicketSection } from '@/components/landing/LiveTicketSection';
@@ -247,9 +247,9 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Right — generator UI mockup */}
-            <div className="hidden lg:flex justify-center">
-              <HeroTicketPreview />
+            {/* Right — functional generator (mobile + desktop) */}
+            <div id="essai-demo" className="flex justify-center mt-8 lg:mt-0">
+              <HomepageTrial />
             </div>
           </div>
         </div>
@@ -264,19 +264,6 @@ export default function LandingPage() {
 
       {/* ─── STATS BAR ────────────────────────────────────────────────────────── */}
       <StatsBar />
-
-      {/* ─── DEMO TRIAL ───────────────────────────────────────────────────────── */}
-      <section id="essai-demo" className="py-16 bg-surface border-t border-surface-light">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-10">
-            <Badge variant="outline" className="mb-3">Démo gratuite</Badge>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white">
-              Testez l&apos;algorithme maintenant
-            </h2>
-          </div>
-          <HomepageTrial />
-        </div>
-      </section>
 
       {/* ─── COMMENT ÇA MARCHE ────────────────────────────────────────────────── */}
       <section id="how-it-works" className="py-24 bg-surface">
@@ -526,6 +513,7 @@ export default function LandingPage() {
 
       <SocialProofTicker />
       <Footer />
+      <StickyCodeCTA />
     </main>
   );
 }

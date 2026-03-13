@@ -193,18 +193,14 @@ export async function PATCH(req: NextRequest) {
       .not('email', 'is', null);
 
     if (profiles && profiles.length > 0) {
-      const matches: TicketMatch[] = (ticket.matches || []).map((m: {
-        home_team: string;
-        away_team: string;
-        prediction?: string;
-        recommended_bet?: string;
-        total_odds?: number;
-        odds?: number;
-      }) => ({
-        home_team: m.home_team,
-        away_team: m.away_team,
-        prediction: m.prediction || m.recommended_bet || '',
-        odds: m.total_odds || m.odds || 0,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const matches: TicketMatch[] = (ticket.matches || []).map((m: any) => ({
+        // Tickets IA stockent homeTeam/awayTeam (camelCase), tickets admin stockent home_team/away_team
+        home_team: m.home_team || m.homeTeam || '',
+        away_team: m.away_team || m.awayTeam || '',
+        prediction: m.prediction || m.recommended_bet ||
+          (m.selection ? `${m.selection.type} ${m.selection.value}` : '') || '',
+        odds: m.odds || m.total_odds || m.selection?.odds || 0,
       }));
 
       // Notifier en parallèle (max 10 à la fois pour éviter rate limits)

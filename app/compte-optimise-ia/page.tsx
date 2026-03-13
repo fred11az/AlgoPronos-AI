@@ -28,13 +28,14 @@ import { BookmakerSelector, BookmakerAffiliateButtons } from './BookmakerSelecto
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
 import { LiveTicketSection } from '@/components/landing/LiveTicketSection';
 import { VerificateurWidget } from '@/components/landing/VerificateurWidget';
+import { StickyCodeCTA } from '@/components/landing/StickyCodeCTA';
 
 // ─── SEO Metadata ──────────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
-  title: 'Compte Optimisé IA Paris Sportifs — Comment ça marche ? | AlgoPronos',
+  title: 'Compte Optimisé IA 1xBet — Créer votre Compte IA Exclusif | AlgoPronos AI',
   description:
-    "Créez un compte bookmaker Optimisé IA avec AlgoPronos. L'algorithme analyse les statistiques, détecte les value bets et génère vos combinés automatiquement. Gratuit, sans abonnement. Compatible 1xBet, et autres bookmakers africains.",
+    "Créez un Compte Optimisé IA exclusif sur 1xBet via AlgoPronos AI. Code ALGOPRONOS obligatoire. Algorithme analyse xG, Value Betting, forme des équipes. Bonus majoré. Gratuit. Bénin, Sénégal, Côte d'Ivoire, Cameroun et toute l'Afrique.",
   keywords: [
     // Compte optimisé IA
     'compte optimisé IA paris sportifs',
@@ -232,11 +233,127 @@ const STEPS = [
   },
 ];
 
+// ─── Structured Data ───────────────────────────────────────────────────────────
+
+const howToJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: 'Comment créer un Compte Optimisé IA 1xBet avec AlgoPronos AI',
+  description:
+    'Guide étape par étape pour créer un compte 1xBet Optimisé IA exclusif via AlgoPronos AI.',
+  totalTime: 'PT5M',
+  estimatedCost: { '@type': 'MonetaryAmount', currency: 'XOF', value: '0' },
+  tool: [
+    { '@type': 'HowToTool', name: 'Smartphone ou ordinateur' },
+    { '@type': 'HowToTool', name: 'Connexion internet' },
+    { '@type': 'HowToTool', name: 'Code ALGOPRONOS' },
+  ],
+  step: [
+    {
+      '@type': 'HowToStep', position: 1,
+      name: 'Copier le code exclusif ALGOPRONOS',
+      text: 'Copiez le code promo "ALGOPRONOS" depuis cette page. Indispensable pour activer l\'optimisation IA.',
+      url: 'https://algopronos.com/compte-optimise-ia',
+    },
+    {
+      '@type': 'HowToStep', position: 2,
+      name: 'Accéder au formulaire d\'inscription 1xBet via notre lien partenaire',
+      text: 'Cliquez sur "Créer mon Compte Optimisé IA" pour accéder directement au formulaire 1xBet via notre lien officiel.',
+      url: 'https://algopronos.com/compte-optimise-ia',
+    },
+    {
+      '@type': 'HowToStep', position: 3,
+      name: 'Saisir ALGOPRONOS dans le champ code promo',
+      text: 'Lors de l\'inscription, saisissez "ALGOPRONOS" dans le champ "Code promo". Ce code active les paramètres d\'optimisation IA.',
+      url: 'https://algopronos.com/compte-optimise-ia',
+    },
+    {
+      '@type': 'HowToStep', position: 4,
+      name: 'Finaliser l\'inscription et vérifier votre compte',
+      text: 'Complétez votre profil, vérifiez votre numéro de téléphone et effectuez votre premier dépôt.',
+      url: 'https://algopronos.com/compte-optimise-ia',
+    },
+    {
+      '@type': 'HowToStep', position: 5,
+      name: 'Utiliser l\'algorithme AlgoPronos AI',
+      text: 'Revenez sur AlgoPronos.com pour accéder au ticket IA quotidien et au générateur de combinés personnalisé. Gratuit.',
+      url: 'https://algopronos.com/dashboard/generate',
+    },
+  ],
+};
+
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'C\'est quoi un Compte Optimisé IA ?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Un Compte Optimisé IA est un compte de pari sportif créé via AlgoPronos.com avec le code ALGOPRONOS. Il donne accès à notre algorithme d\'intelligence artificielle qui analyse les matchs, détecte les Value Bets et génère des pronostics personnalisés. C\'est la seule méthode combinant un compte bookmaker et une IA exclusive dès l\'inscription.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Pourquoi utiliser le code AlgoPronos ?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Le code ALGOPRONOS active les avantages exclusifs du partenariat AlgoPronos × 1xBet : bonus de bienvenue majoré, synchronisation avec notre algorithme IA, analyse personnalisée et alertes sur les meilleures opportunités détectées. Sans ce code, vous n\'avez qu\'un compte standard sans optimisation IA.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Comment créer un compte 1xBet optimisé IA au Sénégal, Côte d\'Ivoire ou Bénin ?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'La procédure est identique dans toute l\'Afrique de l\'Ouest : 1) Copiez le code ALGOPRONOS. 2) Cliquez sur notre lien partenaire. 3) Saisissez ALGOPRONOS lors de l\'inscription. 4) Vérifiez votre numéro de téléphone. Compte actif en moins de 5 minutes.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Est-ce que le Compte Optimisé IA est gratuit ?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Oui, totalement gratuit. AlgoPronos AI est rémunéré par une commission de partenariat versée par 1xBet. Vous ne payez rien pour accéder à l\'algorithme.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Quelle est la différence entre un compte normal 1xBet et un Compte Optimisé IA ?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Un compte normal est un compte standard. Un Compte Optimisé IA donne accès au ticket IA quotidien, au générateur de combinés personnalisé, aux analyses xG, aux Value Bets et à un bonus majoré. Créé uniquement via AlgoPronos avec le code ALGOPRONOS.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Quel est le meilleur code promo 1xBet en 2026 pour l\'Afrique ?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Le meilleur code promo 1xBet 2026 pour l\'Afrique est ALGOPRONOS. C\'est le seul code qui donne accès à un vrai Compte Optimisé IA avec un algorithme actif en permanence, pas juste un bonus ponctuel.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Comment gagner au Dash avec l\'IA AlgoPronos ?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Le Dash et les mini-jeux de casino utilisent des générateurs de nombres aléatoires — aucun algorithme ne peut les prédire. Notre IA se concentre exclusivement sur les paris sportifs (football) où les données statistiques permettent une vraie analyse prédictive.',
+      },
+    },
+  ],
+};
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CompteOptimiseIAPage() {
   return (
     <main className="min-h-screen bg-background">
+      {/* JSON-LD Structured Data */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+
       <Header />
 
       {/* ─── HERO ────────────────────────────────────────────────────────────── */}
@@ -721,6 +838,7 @@ export default function CompteOptimiseIAPage() {
       </section>
 
       <Footer />
+      <StickyCodeCTA />
     </main>
   );
 }

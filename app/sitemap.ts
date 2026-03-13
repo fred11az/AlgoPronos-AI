@@ -16,7 +16,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/pronostics`,                  lastModified: new Date(), changeFrequency: 'daily',   priority: 0.95 },
     { url: `${BASE_URL}/matchs`,                      lastModified: new Date(), changeFrequency: 'daily',   priority: 0.9 },
     { url: `${BASE_URL}/grandes-affiches`,            lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9 },
-    { url: `${BASE_URL}/compte-optimise-ia`,          lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.85 },
+    { url: `${BASE_URL}/compte-optimise-ia`,          lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.92 },
+    // Silo support pages — SEO domination "compte optimisé IA"
+    { url: `${BASE_URL}/algorithme-pronostic-foot`,   lastModified: new Date(), changeFrequency: 'monthly', priority: 0.80 },
+    { url: `${BASE_URL}/avis-algopronos`,             lastModified: new Date(), changeFrequency: 'monthly', priority: 0.78 },
     { url: `${BASE_URL}/classement`,                  lastModified: new Date(), changeFrequency: 'daily',   priority: 0.75 },
     { url: `${BASE_URL}/code-promo-1xbet`,             lastModified: new Date(), changeFrequency: 'monthly', priority: 0.95 },
     { url: `${BASE_URL}/try-free`,                    lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },

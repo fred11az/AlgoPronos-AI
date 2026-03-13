@@ -19,6 +19,8 @@ interface MatchPick {
   league: string;
   kickoffTime?: string;
   selection: { type: string; value: string; odds: number };
+  result?: 'won' | 'lost' | 'void';
+  score?: { home: number; away: number } | null;
 }
 
 interface DailyTicket {
@@ -216,6 +218,19 @@ export default async function PronosticsPage() {
                     <div className="font-semibold text-white mt-0.5 text-sm">
                       {valueLabel(match.selection.type, match.selection.value, match.homeTeam, match.awayTeam)}
                     </div>
+                    {match.score && (
+                      <div className="mt-1 text-xs font-bold">
+                        <span className={
+                          match.result === 'won' ? 'text-green-400' :
+                          match.result === 'lost' ? 'text-red-400' :
+                          'text-text-muted'
+                        }>
+                          {match.score.home} – {match.score.away}
+                          {match.result === 'won' && ' ✓'}
+                          {match.result === 'lost' && ' ✗'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex-shrink-0 text-right">
                     <div className="text-xl font-bold text-primary">{match.selection.odds.toFixed(2)}</div>
