@@ -62,7 +62,8 @@ import { parseArgs } from 'util';
 
 const BASE_URL    = 'https://algopronos.com';
 const API_ENDPOINT = 'https://indexing.googleapis.com/v3/urlNotifications:publish';
-const KEY_FILE    = new URL('./service-account.json', import.meta.url).pathname;
+import { fileURLToPath } from 'url';
+const KEY_FILE    = fileURLToPath(new URL('./service-account.json', import.meta.url));
 
 // Délai entre chaque requête (ms) — respecter les quotas Google (200 req/jour)
 const BATCH_DELAY_MS = 200;
