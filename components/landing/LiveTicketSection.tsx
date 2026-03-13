@@ -11,6 +11,7 @@ interface MatchPick {
   awayTeam: string;
   league: string;
   selection: { type: string; value: string; odds: number };
+  score?: string | null;
 }
 
 interface DailyTicket {
@@ -275,6 +276,15 @@ export function LiveTicketSection() {
                         <div className="font-semibold text-white mt-0.5">
                           {valueLabel(match.selection.type, match.selection.value, match.homeTeam, match.awayTeam)}
                         </div>
+                        {match.score && (
+                          <div className={`inline-flex items-center gap-1 mt-1 text-xs font-bold px-2 py-0.5 rounded-full ${
+                            ticket.status === 'won' ? 'bg-green-500/20 text-green-400' :
+                            ticket.status === 'lost' ? 'bg-red-500/20 text-red-400' :
+                            'bg-surface-light text-text-secondary'
+                          }`}>
+                            Score : {match.score}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-shrink-0 text-right">
                         <div className={`text-2xl font-bold ${

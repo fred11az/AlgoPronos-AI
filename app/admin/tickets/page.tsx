@@ -87,6 +87,15 @@ interface NotesDialog {
   onConfirm: (notes: string) => void;
 }
 
+interface ScoreDialog {
+  open: boolean;
+  ticket: DailyTicket | null;
+  status: 'won' | 'lost';
+  homeScores: string[];
+  awayScores: string[];
+  notes: string;
+}
+
 export default function AdminTicketsPage() {
   const [tickets, setTickets]   = useState<DailyTicket[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -104,6 +113,9 @@ export default function AdminTicketsPage() {
     open: false, title: '', placeholder: '', onConfirm: () => {},
   });
   const [notesValue, setNotesValue] = useState('');
+  const [scoreDialog, setScoreDialog] = useState<ScoreDialog>({
+    open: false, ticket: null, status: 'won', homeScores: [], awayScores: [], notes: '',
+  });
 
   // ── Manual creation dialog ──────────────────────────────────────────────
   const [createDialog, setCreateDialog] = useState(false);
@@ -130,14 +142,19 @@ export default function AdminTicketsPage() {
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
-  // Exécute la résolution avec les notes
-  async function resolveWithNotes(id: string, status: 'won' | 'lost' | 'void', notes: string | null) {
+  // Exécute la résolution avec notes et scores optionnels
+  async function resolveWithNotes(
+    id: string,
+    status: 'won' | 'lost' | 'void',
+    notes: string | null,
+    scores?: string[],
+  ) {
     setProcessing(id);
     try {
       const res = await fetch('/api/admin/tickets', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status, result_notes: notes, notify_users: notifyUsers }),
+        body: JSON.stringify({ id, status, result_notes: notes, notify_users: notifyUsers, scores }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -154,19 +171,45 @@ export default function AdminTicketsPage() {
     }
   }
 
-  // Ouvre le dialog de notes puis résout
-  function resolve(id: string, status: 'won' | 'lost' | 'void') {
-    if (status === 'won') {
-      resolveWithNotes(id, status, null);
+  // Ouvre le dialog de scores pour won/lost, ou le dialog de notes pour void
+  function resolve(ticket: DailyTicket, status: 'won' | 'lost' | 'void') {
+    if (status === 'void') {
+      setNotesValue('');
+      setNotesDialog({
+        open: true,
+        title: "Raison de l'annulation",
+        placeholder: 'Raison (optionnel)...',
+        onConfirm: (notes) => resolveWithNotes(ticket.id, status, notes || null),
+      });
       return;
     }
-    setNotesValue('');
-    setNotesDialog({
+    const n = (ticket.matches || []).length;
+    setScoreDialog({
       open: true,
-      title: status === 'void' ? "Raison de l'annulation" : "Notes sur le résultat",
-      placeholder: status === 'void' ? 'Raison (optionnel)...' : 'Notes (optionnel)...',
-      onConfirm: (notes) => resolveWithNotes(id, status, notes || null),
+      ticket,
+      status,
+      homeScores: Array(n).fill(''),
+      awayScores: Array(n).fill(''),
+      notes: '',
     });
+  }
+
+  function submitScoreDialog() {
+    if (!scoreDialog.ticket) return;
+    const scores = scoreDialog.homeScores.map((h, i) => {
+      const hs = h.trim();
+      const as_ = scoreDialog.awayScores[i].trim();
+      if (hs === '' && as_ === '') return '';
+      return `${hs || '?'}-${as_ || '?'}`;
+    });
+    const nonEmpty = scores.filter(Boolean);
+    resolveWithNotes(
+      scoreDialog.ticket.id,
+      scoreDialog.status,
+      scoreDialog.notes || null,
+      nonEmpty.length > 0 ? scores : undefined,
+    );
+    setScoreDialog(d => ({ ...d, open: false }));
   }
 
   async function generateToday() {
@@ -346,6 +389,74 @@ export default function AdminTicketsPage() {
               }}
             >
               Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Score Dialog (won/lost) ── */}
+      <Dialog open={scoreDialog.open} onOpenChange={(o) => setScoreDialog(d => ({ ...d, open: o }))}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {scoreDialog.status === 'won' ? '✅ Ticket Gagné' : '❌ Ticket Perdu'} — Scores
+            </DialogTitle>
+            <DialogDescription>
+              Entrez le score final de chaque match (optionnel).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {(scoreDialog.ticket?.matches || []).map((m, i) => (
+              <div key={i} className="bg-surface-light rounded-xl p-3">
+                <p className="text-xs text-text-muted mb-2">
+                  {m.homeTeam || m.home_team} vs {m.awayTeam || m.away_team}
+                  {m.league && <span className="ml-1">· {m.league}</span>}
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Dom."
+                    value={scoreDialog.homeScores[i] ?? ''}
+                    onChange={(e) => setScoreDialog(d => {
+                      const h = [...d.homeScores]; h[i] = e.target.value; return { ...d, homeScores: h };
+                    })}
+                    className="w-16 text-center rounded-lg bg-background border border-surface-light text-white text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                  <span className="text-text-muted font-bold">—</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Ext."
+                    value={scoreDialog.awayScores[i] ?? ''}
+                    onChange={(e) => setScoreDialog(d => {
+                      const a = [...d.awayScores]; a[i] = e.target.value; return { ...d, awayScores: a };
+                    })}
+                    className="w-16 text-center rounded-lg bg-background border border-surface-light text-white text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+              </div>
+            ))}
+            <div>
+              <label className="block text-xs text-text-muted mb-1">Notes (optionnel)</label>
+              <textarea
+                className="w-full rounded-lg bg-surface-light border border-surface-light text-white placeholder:text-text-muted text-sm px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+                rows={2}
+                placeholder="Commentaire sur le résultat..."
+                value={scoreDialog.notes}
+                onChange={(e) => setScoreDialog(d => ({ ...d, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setScoreDialog(d => ({ ...d, open: false }))}>
+              Annuler
+            </Button>
+            <Button
+              className={scoreDialog.status === 'won' ? 'bg-success text-white hover:bg-success/90' : 'bg-destructive text-white hover:bg-destructive/90'}
+              onClick={submitScoreDialog}
+            >
+              {scoreDialog.status === 'won' ? '✅ Confirmer Gagné' : '❌ Confirmer Perdu'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -683,7 +794,7 @@ export default function AdminTicketsPage() {
                         <Button
                           size="sm"
                           className="bg-success/20 text-success border border-success/30 hover:bg-success hover:text-white"
-                          onClick={() => resolve(ticket.id, 'won')}
+                          onClick={() => resolve(ticket, 'won')}
                           disabled={processing === ticket.id}
                         >
                           {processing === ticket.id ? (
@@ -699,7 +810,7 @@ export default function AdminTicketsPage() {
                           size="sm"
                           variant="destructive"
                           className="opacity-80"
-                          onClick={() => resolve(ticket.id, 'lost')}
+                          onClick={() => resolve(ticket, 'lost')}
                           disabled={processing === ticket.id}
                         >
                           <XCircle className="h-4 w-4 mr-1" />
@@ -708,7 +819,7 @@ export default function AdminTicketsPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => resolve(ticket.id, 'void')}
+                          onClick={() => resolve(ticket, 'void')}
                           disabled={processing === ticket.id}
                         >
                           <MinusCircle className="h-4 w-4 mr-1" />

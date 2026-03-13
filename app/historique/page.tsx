@@ -33,7 +33,7 @@ interface MatchPick {
   kickoffTime?: string;
   selection?: { type: string; value: string; odds: number; impliedPct?: number };
   result?: 'won' | 'lost' | 'void';
-  score?: { home: number; away: number } | null;
+  score?: string | { home: number; away: number } | null;
 }
 
 interface DailyTicket {
@@ -358,8 +358,12 @@ function TicketCard({ ticket, highlight = false }: { ticket: DailyTicket; highli
                   <p className="font-medium text-white truncate">{teamName(m, 'home')} vs {teamName(m, 'away')}</p>
                   <p className="text-xs text-text-muted">
                     {m.league}
-                    {m.score != null && (
-                      <span className="ml-2 font-semibold text-white/70">{m.score.home} – {m.score.away}</span>
+                    {m.score != null && m.score !== '' && (
+                      <span className="ml-2 font-semibold text-white/70">
+                        {typeof m.score === 'string'
+                          ? m.score
+                          : `${m.score.home} – ${m.score.away}`}
+                      </span>
                     )}
                   </p>
                 </div>
