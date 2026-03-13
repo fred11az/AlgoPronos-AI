@@ -503,7 +503,7 @@ export default function AvisAlgopronos() {
         </section>
 
         <MobileMagicCopy promoCode={PROMO_CODE} affiliateUrl={AFFILIATE_URL} />
-        <FloatingIACTA />
+        <FloatingIACTA affiliateUrl={AFFILIATE_URL} promoCode={PROMO_CODE} />
         <Footer />
       </div>
     </>
