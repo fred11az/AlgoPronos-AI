@@ -1,29 +1,29 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-// 192×192 — dépasse le minimum Google (48×48) et convient aux PWA
-export const size = { width: 192, height: 192 };
+export const size = { width: 180, height: 180 };
 export const contentType = 'image/png';
 
-export default function Icon() {
+// Apple touch icon — aussi utilisé par Google comme fallback favicon
+export default function AppleIcon() {
   return new ImageResponse(
     (
       <div
         style={{
-          width: '192px',
-          height: '192px',
+          width: '180px',
+          height: '180px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           background: 'linear-gradient(135deg, #6366f1 0%, #00D4FF 100%)',
-          borderRadius: '38px',
+          borderRadius: '36px',
           fontFamily: 'sans-serif',
         }}
       >
         <span
           style={{
             color: 'white',
-            fontSize: '110px',
+            fontSize: '104px',
             fontWeight: 800,
             lineHeight: 1,
           }}
