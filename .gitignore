@@ -53,3 +53,8 @@ logs
 # Temporary files
 tmp
 temp
+
+# Google Service Account (NEVER commit!)
+service-account.json
+scripts/service-account.json
+*.json.json

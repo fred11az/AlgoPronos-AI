@@ -54,18 +54,102 @@
  * ============================================================
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { GoogleAuth } from 'google-auth-library';
 import { parseArgs } from 'util';
+import { join, dirname } from 'path';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const BASE_URL    = 'https://algopronos.com';
 const API_ENDPOINT = 'https://indexing.googleapis.com/v3/urlNotifications:publish';
-const KEY_FILE    = new URL('./service-account.json', import.meta.url).pathname;
+import { fileURLToPath } from 'url';
+const KEY_FILE    = fileURLToPath(new URL('./service-account.json', import.meta.url));
+const __dirname   = dirname(fileURLToPath(import.meta.url));
 
 // Délai entre chaque requête (ms) — respecter les quotas Google (200 req/jour)
 const BATCH_DELAY_MS = 200;
+
+// ─── Lecture .env ──────────────────────────────────────────────────────────────
+
+function loadEnv() {
+  const envPath = join(__dirname, '..', '.env');
+  const envLocalPath = join(__dirname, '..', '.env.local');
+  const file = existsSync(envLocalPath) ? envLocalPath : existsSync(envPath) ? envPath : null;
+  if (!file) return {};
+  const vars = {};
+  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)=(.*)$/);
+    if (match) vars[match[1]] = match[2].trim().replace(/^["']|["']$/g, '');
+  }
+  return vars;
+}
+
+// ─── Fetch pages dynamiques depuis Supabase ───────────────────────────────────
+
+async function fetchDynamicUrls(env) {
+  const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return { urls: [], error: 'Variables NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY manquantes dans .env' };
+  }
+
+  const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` };
+  const today   = new Date().toISOString().split('T')[0];
+  const urls    = [];
+
+  // Pronostics de matchs
+  const matchRes = await fetch(
+    `${supabaseUrl}/rest/v1/match_predictions?select=slug&match_date=gte.${today}&limit=500`,
+    { headers }
+  );
+  if (matchRes.ok) {
+    const matches = await matchRes.json();
+    for (const m of matches) {
+      if (m.slug) urls.push({ url: `${BASE_URL}/pronostic/${m.slug}`, priority: 'DYN' });
+    }
+  }
+
+  // Pages de ligues
+  const leagueRes = await fetch(
+    `${supabaseUrl}/rest/v1/match_predictions?select=league_slug&match_date=gte.${today}`,
+    { headers }
+  );
+  if (leagueRes.ok) {
+    const leagues = await leagueRes.json();
+    const unique  = [...new Set(leagues.map(l => l.league_slug).filter(Boolean))];
+    for (const slug of unique) urls.push({ url: `${BASE_URL}/ligue/${slug}`, priority: 'DYN' });
+  }
+
+  // Pages d'équipes
+  const homeRes = await fetch(
+    `${supabaseUrl}/rest/v1/match_predictions?select=home_team_slug,away_team_slug&match_date=gte.${today}`,
+    { headers }
+  );
+  if (homeRes.ok) {
+    const teams  = await homeRes.json();
+    const unique = [...new Set([
+      ...teams.map(t => t.home_team_slug),
+      ...teams.map(t => t.away_team_slug),
+    ].filter(Boolean))];
+    for (const slug of unique) urls.push({ url: `${BASE_URL}/equipe/${slug}`, priority: 'DYN' });
+  }
+
+  // Grandes affiches
+  const spotRes = await fetch(
+    `${supabaseUrl}/rest/v1/weekly_spotlights?select=slug&limit=100&order=created_at.desc`,
+    { headers }
+  );
+  if (spotRes.ok) {
+    const spots = await spotRes.json();
+    for (const s of spots) {
+      if (s.slug) urls.push({ url: `${BASE_URL}/grandes-affiches/${s.slug}`, priority: 'DYN' });
+    }
+  }
+
+  return { urls, error: null };
+}
 
 // ─── URLs à indexer — toutes les pages statiques ──────────────────────────────
 
@@ -133,9 +217,10 @@ async function main() {
   const { values, positionals } = parseArgs({
     args: process.argv.slice(2),
     options: {
-      new:    { type: 'boolean', default: false },
-      delete: { type: 'boolean', default: false },
-      url:    { type: 'string'  },
+      new:     { type: 'boolean', default: false },
+      delete:  { type: 'boolean', default: false },
+      dynamic: { type: 'boolean', default: false },
+      url:     { type: 'string'  },
     },
     allowPositionals: true,
   });
@@ -151,9 +236,20 @@ async function main() {
   } else if (values.new) {
     targets = NEW_URLS;
     log('🆕', `Mode --new : ${targets.length} nouvelles URLs ciblées`, YELLOW);
+  } else if (values.dynamic) {
+    log('🌐', `Mode --dynamic : récupération des pages dynamiques depuis Supabase…`, CYAN);
+    const env = loadEnv();
+    const { urls, error } = await fetchDynamicUrls(env);
+    if (error) {
+      log('❌', error, RED);
+      process.exit(1);
+    }
+    targets = [...ALL_URLS, ...urls];
+    log('📋', `Total : ${ALL_URLS.length} pages statiques + ${urls.length} pages dynamiques = ${targets.length} URLs`, CYAN);
   } else {
     targets = ALL_URLS;
-    log('📋', `Mode complet : ${targets.length} URLs totales`, CYAN);
+    log('📋', `Mode complet : ${targets.length} URLs statiques`, CYAN);
+    log('💡', `Astuce : utilisez --dynamic pour inclure aussi les pages de matchs/ligues/équipes`, YELLOW);
   }
 
   const notificationType = values.delete ? 'URL_DELETED' : 'URL_UPDATED';
