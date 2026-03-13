@@ -90,29 +90,41 @@ function StatusBanner({ status }: { status: string }) {
 
 export function LiveTicketSection() {
   const [ticket, setTicket] = useState<DailyTicket | null>(null);
+  const [previousTicket, setPreviousTicket] = useState<DailyTicket | null>(null);
   const [isToday, setIsToday] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
 
-    fetch('/api/ticket-du-jour')
+    const todayFetch = fetch('/api/ticket-du-jour', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((data) => {
-        if (data?.ticket) {
-          setTicket(data.ticket);
-          setIsToday(data.ticket.date === today);
+      .then((data) => data?.ticket ?? null)
+      .catch(() => null);
+
+    const historyFetch = fetch('/api/history', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((hist) => hist?.tickets ?? [])
+      .catch(() => []);
+
+    Promise.all([todayFetch, historyFetch])
+      .then(([todayTicket, histTickets]) => {
+        if (todayTicket) {
+          setTicket(todayTicket);
+          setIsToday(todayTicket.date === today);
+          // Si le ticket du jour est en cours, afficher le dernier résultat résolu
+          if (todayTicket.status === 'pending' && todayTicket.date === today) {
+            const lastResolved = (histTickets as DailyTicket[]).find(
+              (t) => t.status !== 'pending' && t.date < today
+            );
+            if (lastResolved) setPreviousTicket(lastResolved);
+          }
         } else {
-          // Fallback : afficher le dernier ticket connu depuis l'historique
-          return fetch('/api/history')
-            .then((r) => r.json())
-            .then((hist) => {
-              const last = hist?.tickets?.[0];
-              if (last) { setTicket(last); setIsToday(false); }
-            });
+          // Pas de ticket aujourd'hui : afficher le dernier connu
+          const last = (histTickets as DailyTicket[])[0];
+          if (last) { setTicket(last); setIsToday(false); }
         }
       })
-      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -153,6 +165,41 @@ export function LiveTicketSection() {
               : 'Notre IA analyse des centaines de matchs chaque matin et sélectionne les 3 meilleures opportunités'}
           </p>
         </motion.div>
+
+        {/* Résultat précédent (affiché quand le ticket du jour est encore en cours) */}
+        {previousTicket && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`flex items-center gap-3 rounded-xl px-5 py-3 mb-6 ${
+              previousTicket.status === 'won'
+                ? 'bg-green-500/15 border border-green-500/30'
+                : previousTicket.status === 'lost'
+                ? 'bg-red-500/15 border border-red-500/30'
+                : 'bg-surface-light border border-surface-light'
+            }`}
+          >
+            {previousTicket.status === 'won' ? (
+              <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+            ) : previousTicket.status === 'lost' ? (
+              <XCircle className="h-5 w-5 text-red-400 shrink-0" />
+            ) : (
+              <MinusCircle className="h-5 w-5 text-text-muted shrink-0" />
+            )}
+            <div>
+              <p className={`font-bold text-sm ${previousTicket.status === 'won' ? 'text-green-400' : previousTicket.status === 'lost' ? 'text-red-400' : 'text-text-secondary'}`}>
+                Résultat du {new Date(previousTicket.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} —{' '}
+                {previousTicket.status === 'won' ? 'Ticket Gagné ✅' : previousTicket.status === 'lost' ? 'Ticket Perdu ❌' : 'Annulé ⏸'}
+              </p>
+              <p className="text-xs text-text-muted">
+                Cote totale : x{previousTicket.total_odds?.toFixed(2)}
+              </p>
+            </div>
+            <Link href="/historique" className="ml-auto text-xs text-primary underline underline-offset-2 shrink-0">
+              Voir l&apos;historique
+            </Link>
+          </motion.div>
+        )}
 
         {/* Ticket Card */}
         <AnimatePresence mode="wait">
