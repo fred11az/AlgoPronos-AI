@@ -145,11 +145,12 @@ export async function PATCH(req: NextRequest) {
   if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
-  const { id, status, result_notes, notify_users } = body as {
+  const { id, status, result_notes, notify_users, scores } = body as {
     id: string;
     status: 'won' | 'lost' | 'void';
     result_notes?: string;
     notify_users?: boolean;
+    scores?: string[]; // ["2-1", "0-0", "1-2"] — one per match, empty string = no score
   };
 
   if (!id || !['won', 'lost', 'void'].includes(status)) {
@@ -169,14 +170,29 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Ticket introuvable' }, { status: 404 });
   }
 
-  // Mettre à jour le statut
+  // Injecter les scores dans chaque match si fournis
+  let updatedMatches = ticket.matches;
+  if (scores && scores.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    updatedMatches = (ticket.matches || []).map((m: any, i: number) => ({
+      ...m,
+      score: scores[i] || null,
+    }));
+  }
+
+  // Mettre à jour le statut (et les scores si fournis)
+  const updatePayload: Record<string, unknown> = {
+    status,
+    result_notes: result_notes || null,
+    resolved_at: new Date().toISOString(),
+  };
+  if (scores && scores.length > 0) {
+    updatePayload.matches = updatedMatches;
+  }
+
   const { error: updateErr } = await supabase
     .from('daily_ticket')
-    .update({
-      status,
-      result_notes: result_notes || null,
-      resolved_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', id);
 
   if (updateErr) {

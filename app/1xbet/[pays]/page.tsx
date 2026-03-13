@@ -30,140 +30,119 @@ interface CountryData {
   leagues: string[];
   topTeams: string[];
   sportPopulaire: string;
+  paymentMethods: string[];   // ex: ['Wave', 'Orange Money', 'Free Money']
+  paymentNote?: string;       // ex: 'Dépôt instantané via #144#391# Orange Money'
+  isoCode: string;            // ISO 3166-1 alpha-2 ex: 'SN'
 }
 
 const COUNTRIES: Record<string, CountryData> = {
   benin: {
-    name: 'Bénin',
-    nameAccusatif: 'au Bénin',
-    capital: 'Cotonou',
-    currency: 'FCFA',
-    region: 'Afrique de l\'Ouest',
-    flag: '🇧🇯',
+    name: 'Bénin', nameAccusatif: 'au Bénin', capital: 'Cotonou', currency: 'FCFA',
+    region: 'Afrique de l\'Ouest', flag: '🇧🇯', isoCode: 'BJ',
     leagues: ['Ligue 1 (France)', 'Premier League (Angleterre)', 'Champions League', 'La Liga (Espagne)', 'Série A (Italie)', 'Ligue 1 Bénin'],
     topTeams: ['Paris Saint-Germain', 'Manchester City', 'Real Madrid', 'AS Monaco', 'Liverpool'],
     sportPopulaire: 'football',
+    paymentMethods: ['MTN MoMo', 'Moov Money', 'Celtiis Cash', 'Virement bancaire'],
+    paymentNote: 'Dépôt instantané via MTN MoMo ou Moov Money Bénin',
   },
   'cote-divoire': {
-    name: 'Côte d\'Ivoire',
-    nameAccusatif: 'en Côte d\'Ivoire',
-    capital: 'Abidjan',
-    currency: 'FCFA',
-    region: 'Afrique de l\'Ouest',
-    flag: '🇨🇮',
+    name: 'Côte d\'Ivoire', nameAccusatif: 'en Côte d\'Ivoire', capital: 'Abidjan', currency: 'FCFA',
+    region: 'Afrique de l\'Ouest', flag: '🇨🇮', isoCode: 'CI',
     leagues: ['Ligue 1 (France)', 'Premier League (Angleterre)', 'Champions League', 'MTN Ligue 1 CI', 'La Liga', 'AFCON'],
     topTeams: ['ASEC Mimosas', 'Africa Sports', 'Paris Saint-Germain', 'Manchester United', 'Real Madrid'],
     sportPopulaire: 'football',
+    paymentMethods: ['Orange Money CI', 'MTN MoMo CI', 'Moov Money CI', 'Wave'],
+    paymentNote: 'Recharge et retrait via Orange Money, MTN MoMo ou Moov Money CI',
   },
   senegal: {
-    name: 'Sénégal',
-    nameAccusatif: 'au Sénégal',
-    capital: 'Dakar',
-    currency: 'FCFA',
-    region: 'Afrique de l\'Ouest',
-    flag: '🇸🇳',
+    name: 'Sénégal', nameAccusatif: 'au Sénégal', capital: 'Dakar', currency: 'FCFA',
+    region: 'Afrique de l\'Ouest', flag: '🇸🇳', isoCode: 'SN',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'Ligue Pro Sénégal', 'La Liga', 'CAN'],
     topTeams: ['Paris Saint-Germain', 'Liverpool', 'Chelsea', 'AS Pikine', 'Génération Foot'],
     sportPopulaire: 'football',
+    paymentMethods: ['Wave', 'Orange Money Sénégal', 'Free Money', 'Expresso Cash'],
+    paymentNote: 'Dépôt ultra-rapide via Wave ou Orange Money (#144#391#) Sénégal',
   },
   cameroun: {
-    name: 'Cameroun',
-    nameAccusatif: 'au Cameroun',
-    capital: 'Yaoundé',
-    currency: 'FCFA',
-    region: 'Afrique Centrale',
-    flag: '🇨🇲',
+    name: 'Cameroun', nameAccusatif: 'au Cameroun', capital: 'Yaoundé', currency: 'FCFA',
+    region: 'Afrique Centrale', flag: '🇨🇲', isoCode: 'CM',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'MTN Elite One', 'La Liga', 'CAN'],
     topTeams: ['Canon Yaoundé', 'Coton Sport', 'Paris Saint-Germain', 'Inter Milan', 'Barcelona'],
     sportPopulaire: 'football',
+    paymentMethods: ['MTN MoMo Cameroun', 'Orange Money CM', 'Virement bancaire'],
+    paymentNote: 'Dépôt via MTN MoMo ou Orange Money Cameroun',
   },
   mali: {
-    name: 'Mali',
-    nameAccusatif: 'au Mali',
-    capital: 'Bamako',
-    currency: 'FCFA',
-    region: 'Afrique de l\'Ouest',
-    flag: '🇲🇱',
+    name: 'Mali', nameAccusatif: 'au Mali', capital: 'Bamako', currency: 'FCFA',
+    region: 'Afrique de l\'Ouest', flag: '🇲🇱', isoCode: 'ML',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'Ligue Nationale Mali', 'La Liga'],
     topTeams: ['Stade Malien', 'Real Bamako', 'Manchester City', 'Real Madrid', 'Liverpool'],
     sportPopulaire: 'football',
+    paymentMethods: ['Orange Money Mali', 'Malitel Money', 'Sama Money'],
+    paymentNote: 'Dépôt et retrait via Orange Money ou Malitel Money Mali',
   },
   togo: {
-    name: 'Togo',
-    nameAccusatif: 'au Togo',
-    capital: 'Lomé',
-    currency: 'FCFA',
-    region: 'Afrique de l\'Ouest',
-    flag: '🇹🇬',
+    name: 'Togo', nameAccusatif: 'au Togo', capital: 'Lomé', currency: 'FCFA',
+    region: 'Afrique de l\'Ouest', flag: '🇹🇬', isoCode: 'TG',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'Championnat Togo', 'La Liga'],
     topTeams: ['Maranatha FC', 'ASKO de Kara', 'Paris Saint-Germain', 'Barcelona', 'Manchester United'],
     sportPopulaire: 'football',
+    paymentMethods: ['T-Money', 'Flooz (Moov Togo)', 'Orange Money TG'],
+    paymentNote: 'Dépôt via T-Money ou Flooz au Togo',
   },
   'burkina-faso': {
-    name: 'Burkina Faso',
-    nameAccusatif: 'au Burkina Faso',
-    capital: 'Ouagadougou',
-    currency: 'FCFA',
-    region: 'Afrique de l\'Ouest',
-    flag: '🇧🇫',
+    name: 'Burkina Faso', nameAccusatif: 'au Burkina Faso', capital: 'Ouagadougou', currency: 'FCFA',
+    region: 'Afrique de l\'Ouest', flag: '🇧🇫', isoCode: 'BF',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'Championnat Burkina', 'La Liga'],
     topTeams: ['ASFA Yennenga', 'Racing Club Bobo', 'Paris Saint-Germain', 'Chelsea', 'Arsenal'],
     sportPopulaire: 'football',
+    paymentMethods: ['Orange Money BF', 'Moov Money BF', 'CORIS Money'],
+    paymentNote: 'Dépôt via Orange Money ou Moov Money Burkina Faso',
   },
   niger: {
-    name: 'Niger',
-    nameAccusatif: 'au Niger',
-    capital: 'Niamey',
-    currency: 'FCFA',
-    region: 'Afrique de l\'Ouest',
-    flag: '🇳🇪',
+    name: 'Niger', nameAccusatif: 'au Niger', capital: 'Niamey', currency: 'FCFA',
+    region: 'Afrique de l\'Ouest', flag: '🇳🇪', isoCode: 'NE',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'Championnat Niger', 'La Liga'],
     topTeams: ['Sahel SC', 'Olympic FC', 'Paris Saint-Germain', 'Barcelona', 'Manchester City'],
     sportPopulaire: 'football',
+    paymentMethods: ['Airtel Money', 'Moov Money Niger', 'Orange Money NE'],
+    paymentNote: 'Dépôt via Airtel Money ou Moov Money au Niger',
   },
   congo: {
-    name: 'Congo',
-    nameAccusatif: 'au Congo',
-    capital: 'Brazzaville',
-    currency: 'FCFA',
-    region: 'Afrique Centrale',
-    flag: '🇨🇬',
+    name: 'Congo', nameAccusatif: 'au Congo', capital: 'Brazzaville', currency: 'FCFA',
+    region: 'Afrique Centrale', flag: '🇨🇬', isoCode: 'CG',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'Ligue 1 Congo', 'La Liga'],
     topTeams: ['CARA Brazzaville', 'Etoile du Congo', 'Paris Saint-Germain', 'Barcelona', 'Liverpool'],
     sportPopulaire: 'football',
+    paymentMethods: ['MTN MoMo Congo', 'Airtel Money Congo', 'Virement bancaire'],
+    paymentNote: 'Dépôt via MTN MoMo ou Airtel Money Congo',
   },
   gabon: {
-    name: 'Gabon',
-    nameAccusatif: 'au Gabon',
-    capital: 'Libreville',
-    currency: 'FCFA',
-    region: 'Afrique Centrale',
-    flag: '🇬🇦',
+    name: 'Gabon', nameAccusatif: 'au Gabon', capital: 'Libreville', currency: 'FCFA',
+    region: 'Afrique Centrale', flag: '🇬🇦', isoCode: 'GA',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'Championnat Gabon', 'La Liga'],
     topTeams: ['CF Mounana', 'Manchester City', 'Barcelona', 'Juventus', 'AC Milan'],
     sportPopulaire: 'football',
+    paymentMethods: ['Airtel Money Gabon', 'Moov Money Gabon', 'Virement bancaire'],
+    paymentNote: 'Dépôt via Airtel Money ou Moov Money au Gabon',
   },
   guinee: {
-    name: 'Guinée',
-    nameAccusatif: 'en Guinée',
-    capital: 'Conakry',
-    currency: 'GNF',
-    region: 'Afrique de l\'Ouest',
-    flag: '🇬🇳',
+    name: 'Guinée', nameAccusatif: 'en Guinée', capital: 'Conakry', currency: 'GNF',
+    region: 'Afrique de l\'Ouest', flag: '🇬🇳', isoCode: 'GN',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'Ligue Pro Guinée', 'La Liga'],
     topTeams: ['Hafia FC', 'Satellite FC', 'Paris Saint-Germain', 'Real Madrid', 'Manchester United'],
     sportPopulaire: 'football',
+    paymentMethods: ['Orange Money GN', 'MTN MoMo GN', 'Cellcom Money'],
+    paymentNote: 'Dépôt via Orange Money ou MTN MoMo en Guinée',
   },
   madagascar: {
-    name: 'Madagascar',
-    nameAccusatif: 'à Madagascar',
-    capital: 'Antananarivo',
-    currency: 'MGA',
-    region: 'Afrique de l\'Est',
-    flag: '🇲🇬',
+    name: 'Madagascar', nameAccusatif: 'à Madagascar', capital: 'Antananarivo', currency: 'MGA',
+    region: 'Afrique de l\'Est', flag: '🇲🇬', isoCode: 'MG',
     leagues: ['Ligue 1 (France)', 'Premier League', 'Champions League', 'TNT Kbox Liga', 'La Liga'],
     topTeams: ['CNaPS Sport', 'Elgeco Plus', 'Paris Saint-Germain', 'Barcelona', 'Arsenal'],
     sportPopulaire: 'football',
+    paymentMethods: ['MVola', 'Orange Money MG', 'Airtel Money MG'],
+    paymentNote: 'Dépôt via MVola ou Orange Money Madagascar',
   },
 };
 
@@ -327,7 +306,49 @@ function buildJsonLd(pays: string, country: CountryData) {
     },
   };
 
-  return { faqJsonLd, breadcrumbJsonLd, landingPageJsonLd };
+  const howToJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: `Comment s'inscrire sur 1xBet ${country.nameAccusatif} avec le code ${PROMO_CODE} ${CURRENT_YEAR}`,
+    description: `Guide complet en 4 étapes pour créer votre compte 1xBet Optimisé IA ${country.nameAccusatif} avec le code promo AlgoPronos.`,
+    totalTime: 'PT3M',
+    tool: [
+      { '@type': 'HowToTool', name: 'Smartphone ou ordinateur' },
+      { '@type': 'HowToTool', name: country.paymentMethods[0] },
+    ],
+    step: [
+      {
+        '@type': 'HowToStep',
+        position: 1,
+        name: `Copiez le code promo ${PROMO_CODE}`,
+        text: `Cliquez sur le code ${PROMO_CODE} affiché sur cette page pour le copier dans votre presse-papier.`,
+        url: `https://algopronos.com/1xbet/${pays}`,
+      },
+      {
+        '@type': 'HowToStep',
+        position: 2,
+        name: `Accédez à 1xBet ${country.nameAccusatif}`,
+        text: `Cliquez sur le bouton "Créer mon compte 1xBet" pour être redirigé vers le formulaire d'inscription 1xBet.`,
+        url: `https://algopronos.com/1xbet/${pays}`,
+      },
+      {
+        '@type': 'HowToStep',
+        position: 3,
+        name: `Entrez ${PROMO_CODE} dans le champ "Code promo"`,
+        text: `Dans le formulaire 1xBet, localisez le champ "Code promo" ou "Code bonus", collez ${PROMO_CODE} et validez votre inscription.`,
+        url: `https://algopronos.com/1xbet/${pays}`,
+      },
+      {
+        '@type': 'HowToStep',
+        position: 4,
+        name: 'Vérifiez votre statut Compte Optimisé IA',
+        text: `Revenez sur AlgoPronos et utilisez le vérificateur gratuit (algopronos.com/verificateur-compte) pour confirmer que votre compte 1xBet est bien Optimisé IA.`,
+        url: 'https://algopronos.com/verificateur-compte',
+      },
+    ],
+  };
+
+  return { faqJsonLd, breadcrumbJsonLd, landingPageJsonLd, howToJsonLd };
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
@@ -341,13 +362,19 @@ export default async function Pays1xBetPage({
   const country = COUNTRIES[pays];
   if (!country) notFound();
 
-  const { faqJsonLd, breadcrumbJsonLd, landingPageJsonLd } = buildJsonLd(pays, country);
+  const { faqJsonLd, breadcrumbJsonLd, landingPageJsonLd, howToJsonLd } = buildJsonLd(pays, country);
+
+  const waText = encodeURIComponent(
+    `✅ J'ai activé mon Compte Optimisé IA sur 1xBet ${country.flag} ${country.name} avec le code ${PROMO_CODE} !\n🤖 Rejoins-moi gratuitement : https://algopronos.com/1xbet/${pays}`
+  );
+  const whatsappUrl = `https://wa.me/?text=${waText}`;
 
   return (
     <main className="min-h-screen bg-background">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(landingPageJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }} />
 
       <Header />
 
@@ -426,6 +453,35 @@ export default async function Pays1xBetPage({
                 <span>{text}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── MOYENS DE PAIEMENT LOCAUX ── */}
+      <section className="py-10 px-4 bg-background border-b border-surface-light">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div>
+              <p className="text-xs text-text-muted uppercase tracking-widest mb-1 font-medium">
+                Dépôt &amp; Retrait {country.flag} {country.name}
+              </p>
+              <h2 className="text-lg font-bold text-white mb-1">
+                Payez avec votre Mobile Money local
+              </h2>
+              {country.paymentNote && (
+                <p className="text-sm text-text-secondary">{country.paymentNote}</p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {country.paymentMethods.map((method) => (
+                <span
+                  key={method}
+                  className="inline-flex items-center gap-1.5 bg-surface border border-surface-light rounded-lg px-3 py-1.5 text-sm font-medium text-text-secondary"
+                >
+                  💳 {method}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -686,13 +742,23 @@ export default async function Pays1xBetPage({
             <strong className="text-primary">{PROMO_CODE}</strong>{' '}
             et commencez à générer vos tickets IA gratuitement.
           </p>
-          <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
-            <Button variant="gradient" size="lg">
-              <Gift className="mr-2 h-5 w-5" />
-              Créer mon compte 1xBet {country.name}
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </a>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+              <Button variant="gradient" size="lg">
+                <Gift className="mr-2 h-5 w-5" />
+                Créer mon compte 1xBet {country.name}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </a>
+            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="lg" className="border-green-500/40 text-green-400 hover:bg-green-500/10">
+                <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                Partager mon éligibilité IA
+              </Button>
+            </a>
+          </div>
           <p className="text-xs text-text-muted mt-6">
             Jouez responsable · 18+ · AlgoPronos ne garantit pas les gains · Paris à risque
           </p>
