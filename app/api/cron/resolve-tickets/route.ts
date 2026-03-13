@@ -135,35 +135,44 @@ export async function GET(req: NextRequest) {
         })
         .filter((id): id is number => id !== null);
 
-      if (fixtureIds.length !== matches.length) {
-        // Some matches have non-apif IDs — can't auto-resolve
-        console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}) has non-APIF matches, skipping`);
-        continue;
-      }
+      // Ticket age in days (after midnight of the ticket date)
+      const ticketAgeDays = Math.floor(
+        (Date.now() - new Date(ticket.date + 'T23:59:59Z').getTime()) / (1000 * 60 * 60 * 24)
+      );
 
-      // Fetch results from API-Football
+      // Fetch results from API-Football for all apif- fixture IDs we found
       const fixtureResults = await fetchFixtureResults(fixtureIds, footballApiKey);
 
-      // Check all matches are finished
-      const allFinished = fixtureIds.every(id => fixtureResults.get(id)?.finished);
-      if (!allFinished) {
-        console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}): not all matches finished yet`);
+      // Check if any resolvable apif matches are still not finished
+      const unresolvedApif = fixtureIds.filter(id => !fixtureResults.get(id)?.finished);
+      if (unresolvedApif.length > 0 && ticketAgeDays < 1) {
+        // Matches not finished yet and ticket is recent — wait
+        console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}): ${unresolvedApif.length} match(es) not finished yet`);
         continue;
       }
 
-      // Evaluate each pick and enrich matches with per-match result + score
-      let allWon = true;
+      // Evaluate each pick — non-apif IDs get marked void individually
+      let anyResolved = false;
       let anyLost = false;
+      let anyVoid = false;
 
-      const enrichedMatches = matches.map((m, i) => {
-        const fid = fixtureIds[i];
+      const enrichedMatches = matches.map((m) => {
+        const apifMatch = m.matchId?.match(/^apif-(\d+)$/);
+        if (!apifMatch) {
+          // Non-apif ID: cannot auto-resolve this pick
+          anyVoid = true;
+          return { ...m, result: 'void', score: null };
+        }
+        const fid = parseInt(apifMatch[1]);
         const result = fixtureResults.get(fid);
-        if (!result) {
-          allWon = false;
+        if (!result || !result.finished) {
+          // Still not finished or missing — treat as void for old tickets
+          anyVoid = true;
           return { ...m, result: 'void', score: null };
         }
         const won = evaluatePick(m.selection.type, m.selection.value, result.homeGoals, result.awayGoals);
         if (!won) anyLost = true;
+        anyResolved = true;
         return {
           ...m,
           result: won ? 'won' : 'lost',
@@ -171,7 +180,14 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      const newStatus = anyLost ? 'lost' : (allWon ? 'won' : 'void');
+      // If nothing could be resolved and ticket is recent, wait
+      if (!anyResolved && !anyVoid && ticketAgeDays < 2) {
+        console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}): nothing resolved yet, waiting`);
+        continue;
+      }
+
+      // Overall status: lost if any pick lost, void if any pick unresolvable + none lost, won only if all resolved + won
+      const newStatus = anyLost ? 'lost' : (anyVoid ? 'void' : 'won');
 
       // Update ticket in DB with enriched matches + global status
       const { error: updateErr } = await adminSupabase

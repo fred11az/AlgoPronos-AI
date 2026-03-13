@@ -30,6 +30,8 @@ interface MatchPick {
   league: string;
   kickoffTime?: string;
   selection: { type: string; value: string; odds: number };
+  result?: 'won' | 'lost' | 'void';
+  score?: { home: number; away: number } | null;
 }
 
 interface PublicTicket {
@@ -194,19 +196,40 @@ export default function PublicTicketClient({
         </CardHeader>
         <CardContent className="space-y-2">
           {ticket.matches.map((m, i) => (
-            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-surface-light/60 text-sm">
+            <div key={i} className={`flex items-center justify-between p-3 rounded-xl text-sm ${
+              m.result === 'won'  ? 'bg-green-500/10 border border-green-500/20' :
+              m.result === 'lost' ? 'bg-red-500/10 border border-red-500/20' :
+              'bg-surface-light/60'
+            }`}>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-white truncate">{m.homeTeam} vs {m.awayTeam}</p>
                 <p className="text-xs text-text-muted">{m.league}</p>
+                {m.score && (
+                  <p className={`text-xs font-bold mt-0.5 ${
+                    m.result === 'won' ? 'text-green-400' :
+                    m.result === 'lost' ? 'text-red-400' :
+                    'text-text-muted'
+                  }`}>
+                    Score : {m.score.home} – {m.score.away}
+                    {m.result === 'won' && ' ✓'}
+                    {m.result === 'lost' && ' ✗'}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-3">
                 <div className="text-right">
                   <p className="text-xs text-text-muted">{m.selection.type}</p>
                   <p className="font-bold text-white text-sm">{m.selection.value}</p>
                 </div>
-                <div className="px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 min-w-[52px] text-center">
+                <div className={`px-2.5 py-1.5 rounded-lg min-w-[52px] text-center ${
+                  m.result === 'won'  ? 'bg-green-500/20 border border-green-500/30' :
+                  m.result === 'lost' ? 'bg-red-500/20 border border-red-500/30' :
+                  'bg-primary/10 border border-primary/20'
+                }`}>
                   <p className="text-xs text-text-muted leading-none">Cote</p>
-                  <p className="font-bold text-primary">{m.selection.odds.toFixed(2)}</p>
+                  <p className={`font-bold ${m.result === 'won' ? 'text-green-400' : m.result === 'lost' ? 'text-red-400' : 'text-primary'}`}>
+                    {m.selection.odds.toFixed(2)}
+                  </p>
                 </div>
               </div>
             </div>

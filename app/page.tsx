@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Header } from '@/components/marketing/Header';
 import { Footer } from '@/components/marketing/Footer';
+import { StickyCodeCTA } from '@/components/landing/StickyCodeCTA';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -526,6 +527,7 @@ export default function LandingPage() {
 
       <SocialProofTicker />
       <Footer />
+      <StickyCodeCTA />
     </main>
   );
 }
