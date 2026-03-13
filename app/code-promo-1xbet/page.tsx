@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Header } from '@/components/marketing/Header';
 import { Footer } from '@/components/marketing/Footer';
+import { MobileMagicCopy } from '@/components/landing/MobileMagicCopy';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CopyButton } from './CopyButton';
@@ -655,6 +656,8 @@ export default function CodePromoPage() {
       </section>
 
       <Footer />
+      {/* ─── MOBILE MAGIC COPY ──────────────────────────────────────────────── */}
+      <MobileMagicCopy affiliateUrl={AFFILIATE_URL} promoCode={PROMO_CODE} />
     </main>
   );
 }

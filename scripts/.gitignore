@@ -1,0 +1,4 @@
+# Ne jamais commit les credentials Google Cloud
+service-account.json
+*.json
+!package.json
