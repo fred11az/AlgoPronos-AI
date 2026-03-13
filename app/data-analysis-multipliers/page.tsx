@@ -27,6 +27,7 @@ import {
 import { TerminalIAWidget } from '@/components/landing/TerminalIAWidget';
 import { FloatingIACTA } from '@/components/landing/FloatingIACTA';
 import { GainsNotification } from '@/components/landing/GainsNotification';
+import { MobileMagicCopy } from '@/components/landing/MobileMagicCopy';
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -835,6 +836,7 @@ export default function DataAnalysisMultipliersPage() {
       {/* ─── FLOATING UX LAYERS ──────────────────────────────────────────────── */}
       <FloatingIACTA affiliateUrl={AFFILIATE_URL} promoCode={PROMO_CODE} />
       <GainsNotification />
+      <MobileMagicCopy affiliateUrl={AFFILIATE_URL} promoCode={PROMO_CODE} />
     </main>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Header } from '@/components/marketing/Header';
 import { Footer } from '@/components/marketing/Footer';
+import { MobileMagicCopy } from '@/components/landing/MobileMagicCopy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,6 +48,11 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
 };
+
+const PROMO_CODE = process.env.NEXT_PUBLIC_1XBET_PROMO_CODE || 'AlgoPronos';
+const AFFILIATE_URL =
+  process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
+  'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599';
 
 // ─── JSON-LD ──────────────────────────────────────────────────────────────────
 
@@ -394,6 +400,8 @@ export default function AutresLiensPage() {
       </section>
 
       <Footer />
+      {/* ─── MOBILE MAGIC COPY ──────────────────────────────────────────────── */}
+      <MobileMagicCopy affiliateUrl={AFFILIATE_URL} promoCode={PROMO_CODE} />
     </main>
   );
 }
