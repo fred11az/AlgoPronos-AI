@@ -34,6 +34,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Data Science / Visualization silo pages
     { url: `${BASE_URL}/data-analysis-multipliers`,      lastModified: new Date(), changeFrequency: 'monthly', priority: 0.83 },
     { url: `${BASE_URL}/probability-optimization-models`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.82 },
+    // HTML sitemap
+    { url: `${BASE_URL}/autres-liens`,                   lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.60 },
     // Pages 1xBet par pays — 12 pages ciblant chaque pays africain
     ...COUNTRY_SLUGS.map((slug) => ({
       url: `${BASE_URL}/1xbet/${slug}`,

@@ -29,6 +29,12 @@ const footerLinks = {
     { label: 'Contact', href: '/contact' },
     { label: 'Communauté', href: '/community' },
   ],
+  explore: [
+    { label: 'Analyse Multiplicateurs', href: '/data-analysis-multipliers' },
+    { label: 'Modèles Probabilistes', href: '/probability-optimization-models' },
+    { label: 'Code Promo 1xBet', href: '/code-promo-1xbet' },
+    { label: 'Tous les liens', href: '/autres-liens' },
+  ],
 };
 
 const socialLinks = [
@@ -42,7 +48,7 @@ export function Footer() {
   return (
     <footer className="bg-surface border-t border-surface-light">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 lg:gap-10">
           {/* Brand */}
           <div className="col-span-2 lg:col-span-1">
             <Logo size="lg" />
@@ -103,6 +109,23 @@ export function Footer() {
             <h4 className="font-semibold text-white mb-4">Support</h4>
             <ul className="space-y-3">
               {footerLinks.support.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-text-secondary hover:text-primary transition-colors text-sm"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Explorer */}
+          <div>
+            <h4 className="font-semibold text-white mb-4">Explorer</h4>
+            <ul className="space-y-3">
+              {footerLinks.explore.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
