@@ -81,8 +81,8 @@ export function HomepageTrial() {
       setTrialUsed(true);
       setTicket(data.ticket || data);
 
-      // Show lock popup after short delay
-      setTimeout(() => setShowLock(true), 2000);
+      // Show lock popup after 10 seconds
+      setTimeout(() => setShowLock(true), 10000);
     } catch {
       setError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
