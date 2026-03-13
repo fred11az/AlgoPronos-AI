@@ -789,6 +789,37 @@ export default function AdminTicketsPage() {
                     </div>
 
                     {/* Actions */}
+                    {(ticket.status === 'won' || ticket.status === 'lost') && (
+                      <div className="shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-primary/30 text-primary hover:bg-primary/10"
+                          onClick={() => {
+                            const n = (ticket.matches || []).length;
+                            const existingHome = (ticket.matches || []).map((m: any) => {
+                              const s = m.score as string | undefined;
+                              return s ? s.split('-')[0] ?? '' : '';
+                            });
+                            const existingAway = (ticket.matches || []).map((m: any) => {
+                              const s = m.score as string | undefined;
+                              return s ? s.split('-')[1] ?? '' : '';
+                            });
+                            setScoreDialog({
+                              open: true,
+                              ticket,
+                              status: ticket.status as 'won' | 'lost',
+                              homeScores: existingHome.length === n ? existingHome : Array(n).fill(''),
+                              awayScores: existingAway.length === n ? existingAway : Array(n).fill(''),
+                              notes: ticket.result_notes || '',
+                            });
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Scores
+                        </Button>
+                      </div>
+                    )}
                     {ticket.status === 'pending' && (
                       <div className="flex flex-col gap-2 shrink-0">
                         <Button
