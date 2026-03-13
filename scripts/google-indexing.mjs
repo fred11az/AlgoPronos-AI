@@ -78,7 +78,7 @@ function loadEnv() {
   const file = existsSync(envLocalPath) ? envLocalPath : existsSync(envPath) ? envPath : null;
   if (!file) return {};
   const vars = {};
-  for (const line of readFileSync(file, 'utf8').split('\n')) {
+  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
     const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)=(.*)$/);
     if (match) vars[match[1]] = match[2].trim().replace(/^["']|["']$/g, '');
   }
