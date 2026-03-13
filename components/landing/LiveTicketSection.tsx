@@ -289,7 +289,7 @@ export function LiveTicketSection() {
                   ) : (
                     <>
                       <Button size="lg" variant="outline" className="flex-1" asChild>
-                        <Link href="/classement">
+                        <Link href="/historique">
                           <ExternalLink className="mr-2 h-4 w-4" />
                           Voir l&apos;historique
                         </Link>

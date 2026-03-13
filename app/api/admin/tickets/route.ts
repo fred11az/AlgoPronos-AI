@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { getCurrentUser, checkIsAdmin, createAdminClient } from '@/lib/supabase/server';
 import { notifyTicketResult, TicketMatch } from '@/lib/services/notification-service';
 
@@ -181,6 +182,11 @@ export async function PATCH(req: NextRequest) {
   if (updateErr) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
+
+  // Forcer la revalidation des pages publiques qui affichent le statut du ticket
+  revalidatePath('/');
+  revalidatePath('/classement');
+  revalidatePath('/historique');
 
   // Notifier les utilisateurs inscrits si demandé
   let notified = 0;

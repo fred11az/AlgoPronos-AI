@@ -501,7 +501,7 @@ export default function LandingPage() {
                 </Link>
               </Button>
               <Button size="xl" variant="outline" asChild>
-                <Link href="/dashboard/history">
+                <Link href="/historique">
                   Voir l&apos;historique
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
