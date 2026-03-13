@@ -1,9 +1,5 @@
 'use client';
 
-// Homepage Trial Widget — visitor's single entry point to the AI generator.
-// Uses the /api/ticket-du-jour endpoint to fetch the daily best picks.
-// After displaying results, fires the LockPopup to drive registration.
-
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,10 +11,11 @@ import {
   Lock,
   ChevronRight,
   AlertCircle,
+  LayoutDashboard,
 } from 'lucide-react';
 import { LockPopup } from './LockPopup';
+import { useSession } from '@/hooks/useSession';
 
-// Cookie name that persists across page refreshes (fingerprint lock)
 const TRIAL_COOKIE = 'algopronos_v_trial';
 
 function getCookie(name: string): string | null {
@@ -32,13 +29,22 @@ function setCookie(name: string, value: string, days = 365) {
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
 }
 
-interface DailyTicketMatch {
-  homeTeam: string;
-  awayTeam: string;
-  league: string;
-  pick: string;
+interface MatchSelection {
+  type: string;
+  value: string;
   odds: number;
-  confidence?: number;
+}
+
+interface DailyTicketMatch {
+  homeTeam?: string;
+  awayTeam?: string;
+  home_team?: string;
+  away_team?: string;
+  league?: string;
+  selection?: MatchSelection;
+  // legacy fields (admin-created tickets)
+  pick?: string;
+  odds?: number;
 }
 
 interface DailyTicket {
@@ -48,40 +54,41 @@ interface DailyTicket {
   analysis?: { summary?: string };
 }
 
+function getHome(m: DailyTicketMatch) { return m.homeTeam || m.home_team || '—'; }
+function getAway(m: DailyTicketMatch) { return m.awayTeam || m.away_team || '—'; }
+function getPick(m: DailyTicketMatch) {
+  if (m.selection) return `${m.selection.type} : ${m.selection.value}`;
+  return m.pick || '—';
+}
+function getOdds(m: DailyTicketMatch): number {
+  return m.selection?.odds ?? m.odds ?? 0;
+}
+
 export function HomepageTrial() {
+  const { type: sessionType, isLoading: sessionLoading } = useSession();
+  const isLoggedIn = sessionType === 'authenticated';
+
   const [trialUsed, setTrialUsed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<DailyTicket | null>(null);
   const [showLock, setShowLock] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check client-side cookie on mount
   useEffect(() => {
-    if (getCookie(TRIAL_COOKIE)) {
-      setTrialUsed(true);
-    }
+    if (getCookie(TRIAL_COOKIE)) setTrialUsed(true);
   }, []);
 
   async function handleGenerate() {
-    if (trialUsed) {
-      setShowLock(true);
-      return;
-    }
-
+    if (trialUsed) { setShowLock(true); return; }
     setLoading(true);
     setError(null);
-
     try {
       const res = await fetch('/api/ticket-du-jour');
       if (!res.ok) throw new Error('Erreur lors de la génération');
       const data = await res.json();
-
-      // Mark trial as used (client cookie + server cookie via header)
       setCookie(TRIAL_COOKIE, '1', 365);
       setTrialUsed(true);
       setTicket(data.ticket || data);
-
-      // Show lock popup after 10 seconds
       setTimeout(() => setShowLock(true), 10000);
     } catch {
       setError('Une erreur est survenue. Veuillez réessayer.');
@@ -90,6 +97,48 @@ export function HomepageTrial() {
     }
   }
 
+  // ── Session loading ────────────────────────────────────────────────────────
+  if (sessionLoading) {
+    return (
+      <div className="max-w-xl mx-auto space-y-4">
+        <div className="h-8 w-40 mx-auto rounded-full bg-surface animate-pulse" />
+        <div className="h-48 rounded-2xl bg-surface animate-pulse" />
+        <div className="h-12 rounded-xl bg-surface animate-pulse" />
+      </div>
+    );
+  }
+
+  // ── Utilisateur connecté → lien direct vers le générateur ─────────────────
+  if (isLoggedIn) {
+    return (
+      <div className="max-w-xl mx-auto">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-4">
+            <Zap className="h-3.5 w-3.5 text-primary" />
+            <span className="text-xs font-semibold text-primary">Compte actif</span>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">
+            Votre générateur IA est prêt
+          </h3>
+          <p className="text-sm text-text-muted">
+            Accédez à votre tableau de bord pour générer votre ticket personnalisé.
+          </p>
+        </div>
+        <Button size="lg" variant="gradient" className="w-full" asChild>
+          <Link href="/dashboard/generate">
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            Accéder à mon générateur
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+        <Button size="sm" variant="ghost" className="w-full text-text-muted mt-2" asChild>
+          <Link href="/dashboard">Mon tableau de bord</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  // ── Visiteur non connecté → flow d'essai ──────────────────────────────────
   return (
     <>
       <div className="max-w-xl mx-auto">
@@ -115,7 +164,6 @@ export function HomepageTrial() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-surface border border-primary/25 rounded-2xl overflow-hidden mb-4"
             >
-              {/* Card header */}
               <div className="bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-primary" />
@@ -131,26 +179,25 @@ export function HomepageTrial() {
                 </div>
               </div>
 
-              {/* Matches */}
               <div className="divide-y divide-surface-light">
                 {ticket.matches.slice(0, 3).map((m, i) => (
                   <div key={i} className="px-4 py-3 flex items-center justify-between">
                     <div>
                       <p className="text-xs text-text-muted">{m.league}</p>
                       <p className="text-sm font-semibold text-white">
-                        {m.homeTeam} vs {m.awayTeam}
+                        {getHome(m)} vs {getAway(m)}
                       </p>
-                      <p className="text-xs text-text-secondary mt-0.5">{m.pick}</p>
+                      <p className="text-xs text-text-secondary mt-0.5">{getPick(m)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-base font-bold text-primary">{m.odds}</p>
+                      <p className="text-base font-bold text-primary">{getOdds(m).toFixed(2)}</p>
                       <p className="text-xs text-text-muted">cote</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Blurred analysis — teaser for registered users */}
+              {/* Blurred analysis teaser */}
               {ticket.analysis?.summary && (
                 <div className="px-4 pb-4">
                   <div className="relative mt-3 rounded-xl overflow-hidden">
@@ -201,15 +248,9 @@ export function HomepageTrial() {
               disabled={loading}
             >
               {loading ? (
-                <>
-                  <span className="animate-spin mr-2">⚡</span>
-                  Génération en cours…
-                </>
+                <><span className="animate-spin mr-2">⚡</span>Génération en cours…</>
               ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Générer mon ticket démo gratuit
-                </>
+                <><Sparkles className="mr-2 h-4 w-4" />Générer mon ticket démo gratuit</>
               )}
             </Button>
           )
