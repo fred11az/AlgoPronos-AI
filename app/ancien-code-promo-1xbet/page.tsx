@@ -53,7 +53,17 @@ const articleJsonLd = {
   headline: `Pourquoi votre ancien code promo 1xBet ne fonctionne plus en ${CURRENT_YEAR}`,
   description: `Les codes promo 1xBet génériques expirent rapidement. Seul le code AlgoPronos lie votre compte 1xBet à l'écosystème IA AlgoPronos pour activer le Compte Optimisé IA.`,
   author: { '@type': 'Organization', name: 'AlgoPronos AI', url: 'https://algopronos.com' },
-  publisher: { '@type': 'Organization', name: 'AlgoPronos AI', logo: { '@type': 'ImageObject', url: 'https://algopronos.com/favicon.svg' } },
+  publisher: {
+    '@type': 'Organization',
+    name: 'AlgoPronos AI',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://algopronos.com/algopronos-logo.png',
+      width: '512',
+      height: '512',
+      caption: 'AlgoPronos AI Logo',
+    },
+  },
   datePublished: '2025-01-01',
   dateModified: new Date().toISOString().split('T')[0],
   mainEntityOfPage: { '@type': 'WebPage', '@id': 'https://algopronos.com/ancien-code-promo-1xbet' },

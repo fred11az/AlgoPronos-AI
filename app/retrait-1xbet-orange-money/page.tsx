@@ -152,7 +152,17 @@ const articleJsonLd = {
   '@type': 'Article',
   headline: `Comment retirer ses gains 1xBet par Orange Money ou Wave en ${CURRENT_YEAR}`,
   author: { '@type': 'Organization', name: 'AlgoPronos AI', url: 'https://algopronos.com' },
-  publisher: { '@type': 'Organization', name: 'AlgoPronos AI', logo: { '@type': 'ImageObject', url: 'https://algopronos.com/favicon.svg' } },
+  publisher: {
+    '@type': 'Organization',
+    name: 'AlgoPronos AI',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://algopronos.com/algopronos-logo.png',
+      width: '512',
+      height: '512',
+      caption: 'AlgoPronos AI Logo',
+    },
+  },
   datePublished: '2025-01-01',
   dateModified: new Date().toISOString().split('T')[0],
   mainEntityOfPage: { '@type': 'WebPage', '@id': 'https://algopronos.com/retrait-1xbet-orange-money' },

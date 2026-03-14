@@ -96,14 +96,24 @@ export function generateMetadata(): Metadata {
       siteName: 'AlgoPronos AI',
       type: 'website',
       locale: 'fr_FR',
+      images: [
+        {
+          url: 'https://algopronos.com/code-promo-1xbet/opengraph-image',
+          width: 1200,
+          height: 630,
+          alt: `Code Promo 1xBet ${CURRENT_YEAR} Afrique : ${PROMO_CODE} — Bonus 200% + Compte Optimisé IA AlgoPronos`,
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: `Code Promo 1xBet ${CURRENT_YEAR} Afrique : ${PROMO_CODE} | Bonus 200%`,
       description: `Utilisez ${PROMO_CODE} sur 1xBet en Afrique — Bonus 200% + Compte Optimisé IA AlgoPronos gratuit.`,
+      images: ['https://algopronos.com/code-promo-1xbet/opengraph-image'],
     },
   };
 }
+
 
 // ─── Schémas JSON-LD ───────────────────────────────────────────────────────────
 

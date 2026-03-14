@@ -93,7 +93,13 @@ const articleJsonLd = {
   publisher: {
     '@type': 'Organization',
     name: 'AlgoPronos AI',
-    logo: { '@type': 'ImageObject', url: 'https://algopronos.com/favicon.svg' },
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://algopronos.com/algopronos-logo.png',
+      width: '512',
+      height: '512',
+      caption: 'AlgoPronos AI Logo',
+    },
   },
   datePublished: `${CURRENT_YEAR}-01-01`,
   dateModified: new Date().toISOString().split('T')[0],

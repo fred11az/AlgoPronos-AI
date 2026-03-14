@@ -72,6 +72,7 @@ export const metadata: Metadata = {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/icon', type: 'image/png', sizes: '192x192' },
+      { url: '/algopronos-logo.png', type: 'image/png', sizes: '512x512' },
     ],
     apple: [
       { url: '/apple-icon', type: 'image/png', sizes: '180x180' },
@@ -91,8 +92,19 @@ const organizationJsonLd = {
   '@type': 'Organization',
   name: 'AlgoPronos AI',
   url: 'https://algopronos.com',
-  logo: 'https://algopronos.com/favicon.svg',
-  sameAs: ['https://algopronos.com'],
+  logo: {
+    '@type': 'ImageObject',
+    url: 'https://algopronos.com/algopronos-logo.png',
+    width: 512,
+    height: 512,
+    caption: 'AlgoPronos AI — N°1 Intelligence Artificielle Paris Sportifs',
+  },
+  image: 'https://algopronos.com/algopronos-logo.png',
+  sameAs: [
+    'https://algopronos.com',
+    'https://algopronos.com/code-promo-1xbet',
+    'https://algopronos.com/compte-optimise-ia',
+  ],
   description:
     "AlgoPronos AI est la seule plateforme d'intelligence artificielle pour les paris sportifs proposant un système exclusif de Compte Optimisé IA en partenariat avec les bookmakers africains (1xBet et autres). Création d'un vrai compte Optimisé IA uniquement via algopronos.com.",
   foundingDate: '2024',
@@ -157,7 +169,7 @@ const appJsonLd = {
   applicationCategory: 'SportsApplication',
   operatingSystem: 'Web, Android, iOS',
   url: 'https://algopronos.com',
-  image: 'https://algopronos.com/og-image.png',
+  image: 'https://algopronos.com/algopronos-logo.png',
   description:
     "Seule plateforme d'intelligence artificielle pour les paris sportifs avec Compte Optimisé IA exclusif. Algorithme analyse xG, Value Betting, forme des équipes et cotes en temps réel sur +50 championnats.",
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'XOF', availability: 'https://schema.org/InStock' },
