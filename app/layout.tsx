@@ -15,9 +15,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "AlgoPronos AI — N°1 Intelligence Artificielle Paris Sportifs | Compte Optimisé IA Gratuit",
+  title: "AlgoPronos AI — N°1 en Afrique pour les pronostics football et création de compte bookmaker optimisé par IA",
   description:
-    "AlgoPronos AI est la seule plateforme d'intelligence artificielle pour les paris sportifs avec Compte Optimisé IA exclusif. Algorithme analyse xG, Value Betting, forme, cotes. +15 000 utilisateurs. Gratuit, sans abonnement. Compatible 1xBet & bookmakers africains.",
+    "AlgoPronos AI est la plateforme N°1 en Afrique pour les pronostics football et la création de compte bookmaker optimisé par IA. Analyse xG, Value Betting, statistiques avancées et bonus exclusifs.",
   keywords: [
     // Leader IA paris sportifs — pour détrôner les concurrents sur ce keyword
     'intelligence artificielle paris sportifs',
@@ -58,14 +58,14 @@ export const metadata: Metadata = {
     locale: 'fr_FR',
     url: 'https://algopronos.com',
     siteName: 'AlgoPronos AI',
-    title: "AlgoPronos AI — N°1 Intelligence Artificielle Paris Sportifs",
-    description: "Seule plateforme IA avec Compte Optimisé IA exclusif. Algorithme analyse xG, Value Betting & cotes en temps réel. +15 000 utilisateurs. 100% Gratuit.",
-    images: [{ url: 'https://algopronos.com/opengraph-image', width: 1200, height: 630, alt: 'AlgoPronos AI - Intelligence Artificielle Paris Sportifs' }],
+    title: "AlgoPronos AI — N°1 en Afrique : Pronostics & Compte Optimisé IA",
+    description: "Plateforme N°1 en Afrique pour les pronostics football et la création de compte bookmaker optimisé par IA. 100% Gratuit.",
+    images: [{ url: 'https://algopronos.com/opengraph-image', width: 1200, height: 630, alt: 'AlgoPronos AI - Plateforme N°1 Pronostics IA Afrique' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: "AlgoPronos AI — N°1 Intelligence Artificielle Paris Sportifs",
-    description: "Seule plateforme IA avec Compte Optimisé IA exclusif. Algorithme analyse xG, Value Betting & cotes. +15 000 utilisateurs. Gratuit.",
+    title: "AlgoPronos AI — N°1 en Afrique : Pronostics & Compte Optimisé IA",
+    description: "Plateforme N°1 en Afrique pour les pronostics football et la création de compte bookmaker optimisé par IA. Gratuit.",
     images: ['https://algopronos.com/opengraph-image'],
   },
   icons: {

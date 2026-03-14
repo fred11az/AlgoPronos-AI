@@ -25,26 +25,31 @@ export async function middleware(request: NextRequest) {
 
   // Geo-redirect: only for homepage, only when no geo-cookie is set yet
   if (pathname === '/' && !request.cookies.has(GEO_COOKIE)) {
-    // Vercel sets x-vercel-ip-country automatically on edge.
-    // Other platforms may use CF-IPCountry (Cloudflare) or similar.
-    const countryCode =
-      request.headers.get('x-vercel-ip-country') ||
-      request.headers.get('cf-ipcountry') ||
-      '';
+    // Skip geo-redirect for bots/scrapers so they see the original homepage metadata
+    const userAgent = request.headers.get('user-agent')?.toLowerCase() || '';
+    const isBot = /bot|googlebot|crawler|spider|robot|crawling|whatsapp|facebookexternalhit|twitterbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterest\/0\.|bingbot|msnbot|applebot|yandexbot|baiduspider|skypeuripreview/i.test(userAgent);
 
-    const slug = GEO_COUNTRY_MAP[countryCode.toUpperCase()];
+    if (!isBot) {
+      // Vercel sets x-vercel-ip-country automatically on edge.
+      const countryCode =
+        request.headers.get('x-vercel-ip-country') ||
+        request.headers.get('cf-ipcountry') ||
+        '';
 
-    if (slug) {
-      const url = request.nextUrl.clone();
-      url.pathname = `/1xbet/${slug}`;
-      const response = NextResponse.redirect(url, { status: 302 });
-      // Set cookie for 7 days so the user can still navigate to "/" freely
-      response.cookies.set(GEO_COOKIE, '1', {
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-        sameSite: 'lax',
-      });
-      return response;
+      const slug = GEO_COUNTRY_MAP[countryCode.toUpperCase()];
+
+      if (slug) {
+        const url = request.nextUrl.clone();
+        url.pathname = `/1xbet/${slug}`;
+        const response = NextResponse.redirect(url, { status: 302 });
+        // Set cookie for 7 days so the user can still navigate to "/" freely
+        response.cookies.set(GEO_COOKIE, '1', {
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+          sameSite: 'lax',
+        });
+        return response;
+      }
     }
   }
 
