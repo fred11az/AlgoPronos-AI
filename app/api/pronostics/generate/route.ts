@@ -177,15 +177,30 @@ export async function POST(req: NextRequest) {
   const apiDebug: Record<string, number> = {};
   for (const [d, m] of Object.entries(matchesByDate)) apiDebug[d] = m.length;
 
+  const totalMatchesFromApi = Object.values(matchesByDate).reduce((sum, m) => sum + m.length, 0);
+  if (totalMatchesFromApi === 0) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'API returned 0 matches for the entire 7-day window. Check FOOTBALL_API_KEY validity and API quota.',
+        debug_matches_per_day: apiDebug,
+        hint: 'Verify FOOTBALL_API_KEY in Vercel env vars and check your API-Football quota at https://dashboard.api-football.com/',
+      },
+      { status: 503 },
+    );
+  }
+
   for (const [dateStr, matches] of Object.entries(matchesByDate)) {
     for (const match of matches) {
-      const slug = createMatchSlug(match.homeTeam, match.awayTeam);
+      // Include date in slug to prevent collisions when same teams play on different days
+      const slug = createMatchSlug(match.homeTeam, match.awayTeam, dateStr);
 
-      // Skip if already generated and not expired
+      // Skip if already generated for this exact date and not expired
       const { data: existing } = await supabase
         .from('match_predictions')
         .select('id, expires_at')
         .eq('slug', slug)
+        .eq('match_date', dateStr)
         .single();
 
       if (existing && existing.expires_at && new Date(existing.expires_at) > new Date()) {

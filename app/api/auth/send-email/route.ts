@@ -92,7 +92,7 @@ function baseLayout(content: string, previewText: string): string {
         <tr>
           <td style="padding-top:28px;text-align:center;">
             <p style="margin:0 0 6px;color:#3d5a7a;font-size:12px;line-height:1.6;">
-              © ${new Date().getFullYear()} AlgoPronos AI · Jouez responsable · 18+
+              © ${new Date().getFullYear()} AlgoPronos AI · Plateforme d'analyse sportive
             </p>
             <p style="margin:0;font-size:12px;">
               <a href="${APP_URL}" style="color:#00D4FF;text-decoration:none;">algopronos.com</a>
@@ -130,7 +130,7 @@ function verificationEmail(name: string, link: string): string {
         Confirmez votre email
       </h1>
       <p style="margin:0;color:#6b8cad;font-size:15px;line-height:1.6;">
-        Plus qu'une étape avant de commencer à gagner
+        Plus qu'une étape pour activer votre accès
       </p>
     </div>
 
@@ -166,10 +166,9 @@ function verificationEmail(name: string, link: string): string {
           <td style="padding:18px 20px;">
             <p style="margin:0 0 12px;color:#00D4FF;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Ce qui vous attend</p>
             <table width="100%" cellpadding="0" cellspacing="0">
-              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">🎯&nbsp;&nbsp;<strong style="color:#c8ddf0;">Ticket IA du Jour</strong> · 3 picks sélectionnés par l'algorithme</td></tr>
-              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">⚡&nbsp;&nbsp;<strong style="color:#c8ddf0;">2 coupons combinés</strong> · 100% gratuit chaque jour</td></tr>
-              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">📊&nbsp;&nbsp;<strong style="color:#c8ddf0;">Analyse en temps réel</strong> · Probabilités & cotes optimisées</td></tr>
-              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">🏆&nbsp;&nbsp;<strong style="color:#c8ddf0;">Classement des paris</strong> · Suivez votre progression</td></tr>
+              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">🎯&nbsp;&nbsp;<strong style="color:#c8ddf0;">Analyses IA quotidiennes</strong> · Matchs sélectionnés par l'algorithme</td></tr>
+              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">📊&nbsp;&nbsp;<strong style="color:#c8ddf0;">Statistiques en temps réel</strong> · Probabilités & données optimisées</td></tr>
+              <tr><td style="padding:4px 0;color:#8aabcc;font-size:13px;line-height:1.5;">🏆&nbsp;&nbsp;<strong style="color:#c8ddf0;">Classement des membres</strong> · Suivez votre progression</td></tr>
             </table>
           </td>
         </tr>

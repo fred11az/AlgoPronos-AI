@@ -14,9 +14,10 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/** Generates the match slug: "arsenal-vs-chelsea" */
-export function createMatchSlug(homeTeam: string, awayTeam: string): string {
-  return `${slugify(homeTeam)}-vs-${slugify(awayTeam)}`;
+/** Generates the match slug: "arsenal-vs-chelsea-2026-03-14" */
+export function createMatchSlug(homeTeam: string, awayTeam: string, date?: string): string {
+  const base = `${slugify(homeTeam)}-vs-${slugify(awayTeam)}`;
+  return date ? `${base}-${date}` : base;
 }
 
 /** Generates the league slug: "premier-league" */
