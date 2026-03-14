@@ -165,8 +165,13 @@ export async function POST(req: NextRequest) {
 
   // Fetch ALL 7 days in 2 API calls (fixtures + odds)
   let matchesByDate: Record<string, RealMatch[]>;
+  let fetchApiErrors: string[] = [];
+  let rawFixturesCount = 0;
   try {
-    matchesByDate = await matchService.getMatchesForRange(fromStr, toStr);
+    const result = await matchService.getMatchesForRange(fromStr, toStr);
+    matchesByDate = result.byDate;
+    fetchApiErrors = result.apiErrors;
+    rawFixturesCount = result.rawFixturesCount;
   } catch (err) {
     return NextResponse.json(
       { success: false, error: String(err), hint: 'Check FOOTBALL_API_KEY in Vercel env vars' },
@@ -182,9 +187,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'API returned 0 matches for the entire 7-day window. Check FOOTBALL_API_KEY validity and API quota.',
+        error: 'API returned 0 matches for the entire 7-day window.',
+        api_errors: fetchApiErrors,
+        raw_fixtures_fetched: rawFixturesCount,
         debug_matches_per_day: apiDebug,
-        hint: 'Verify FOOTBALL_API_KEY in Vercel env vars and check your API-Football quota at https://dashboard.api-football.com/',
+        hint: fetchApiErrors.length > 0
+          ? 'API errors detected — check FOOTBALL_API_KEY validity and quota at https://dashboard.api-football.com/'
+          : `API returned ${rawFixturesCount} raw fixtures but none matched supported leagues. Check mapAPIFootballLeague() in match-service.ts.`,
       },
       { status: 503 },
     );

@@ -36,16 +36,16 @@ class MatchService {
   /**
    * Fetch all matches for a date range in 2 API calls total (fixtures + odds).
    * Much more efficient than one call per day.
-   * Returns matches grouped by date: { "2026-03-09": [...], "2026-03-10": [...] }
+   * Returns { byDate, apiErrors, rawFixturesCount }
    */
   async getMatchesForRange(
     from: string,
     to: string,
-  ): Promise<Record<string, RealMatch[]>> {
+  ): Promise<{ byDate: Record<string, RealMatch[]>; apiErrors: string[]; rawFixturesCount: number }> {
     const apiKey = process.env.FOOTBALL_API_KEY;
     if (!apiKey) {
       console.warn('[MatchService] FOOTBALL_API_KEY not set — returning empty matches. Add it to your Vercel environment variables.');
-      return {};
+      return { byDate: {}, apiErrors: ['FOOTBALL_API_KEY environment variable is not set'], rawFixturesCount: 0 };
     }
 
     // Build list of dates in range
@@ -61,22 +61,32 @@ class MatchService {
 
     // ── 1. Fixtures day by day (free plan doesn't support from/to range) ──────
     const allFixtures: RawFixture[] = [];
+    const apiErrors: string[] = [];
     for (const date of dates) {
       try {
         const res = await fetch(
           `https://v3.football.api-sports.io/fixtures?date=${date}`,
           { headers: { 'x-apisports-key': apiKey } }
         );
-        if (!res.ok) { console.warn(`[API-Football] HTTP ${res.status} for ${date}`); continue; }
+        if (!res.ok) {
+          const errMsg = `HTTP ${res.status} for ${date}`;
+          console.warn(`[API-Football] ${errMsg}`);
+          apiErrors.push(errMsg);
+          continue;
+        }
         const data = await res.json();
         if (data.errors && Object.keys(data.errors).length > 0) {
-          console.warn(`[API-Football] API error for ${date}:`, JSON.stringify(data.errors));
+          const errMsg = `API error for ${date}: ${JSON.stringify(data.errors)}`;
+          console.warn(`[API-Football] ${errMsg}`);
+          apiErrors.push(errMsg);
           continue;
         }
         allFixtures.push(...(data.response ?? []));
         console.log(`[API-Football] ${date}: ${(data.response ?? []).length} fixtures`);
       } catch (e) {
-        console.warn(`[API-Football] fetch error for ${date}:`, e);
+        const errMsg = `fetch error for ${date}: ${String(e)}`;
+        console.warn(`[API-Football] ${errMsg}`);
+        apiErrors.push(errMsg);
       }
     }
 
@@ -147,7 +157,7 @@ class MatchService {
     }
 
     console.log(`[API-Football] Grouped into ${Object.keys(byDate).length} days, ${fixtures.length} total`);
-    return byDate;
+    return { byDate, apiErrors, rawFixturesCount: allFixtures.length };
   }
 
   // Single-date fetch (reads from cache first, falls back to range fetch)
@@ -165,7 +175,7 @@ class MatchService {
     }
 
     // Fetch just this date if not cached
-    const byDate = await this.getMatchesForRange(date, date);
+    const { byDate } = await this.getMatchesForRange(date, date);
     const matches = byDate[date] ?? [];
     if (!leagueCodes || leagueCodes.length === 0) return matches;
     return matches.filter((m) => leagueCodes.includes(m.leagueCode));
