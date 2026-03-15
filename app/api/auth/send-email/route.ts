@@ -17,36 +17,14 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createAdminClient } from '@/lib/supabase/server';
+import { notifyAdmin } from '@/lib/services/notification-service';
 
 const FROM    = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-// Use server-only SITE_URL for redirect links in emails.
-// NEVER fall back to NEXT_PUBLIC_APP_URL: it may point to *.vercel.app preview deployments.
-// SITE_URL MUST be set to https://algopronos.com in the Vercel production environment variables.
 const RAW_URL = process.env.SITE_URL || 'https://algopronos.com';
 const APP_URL = RAW_URL.replace(/\/$/, '');
 
-// Logo SVG inline (compatible Gmail / Outlook / Apple Mail)
-const LOGO_SVG = `<svg viewBox="0 0 220 56" fill="none" xmlns="http://www.w3.org/2000/svg" width="220" height="56">
-  <circle cx="28" cy="28" r="25" stroke="#00D4FF" stroke-width="1.5" fill="none"/>
-  <line x1="14" y1="20" x2="28" y2="28" stroke="#00D4FF" stroke-width="1.5"/>
-  <line x1="28" y1="28" x2="42" y2="20" stroke="#00D4FF" stroke-width="1.5"/>
-  <line x1="14" y1="20" x2="25" y2="14" stroke="#00D4FF" stroke-width="1.5"/>
-  <line x1="25" y1="14" x2="42" y2="20" stroke="#00D4FF" stroke-width="1.5"/>
-  <line x1="28" y1="28" x2="17" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
-  <line x1="28" y1="28" x2="39" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
-  <line x1="17" y1="37" x2="39" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
-  <line x1="14" y1="20" x2="17" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
-  <line x1="42" y1="20" x2="39" y2="37" stroke="#00D4FF" stroke-width="1.5"/>
-  <circle cx="14" cy="20" r="3.5" fill="#00D4FF"/>
-  <circle cx="25" cy="14" r="3" fill="#00D4FF"/>
-  <circle cx="42" cy="20" r="3.5" fill="#00D4FF"/>
-  <circle cx="28" cy="28" r="4" fill="#00D4FF"/>
-  <circle cx="17" cy="37" r="3" fill="#00D4FF"/>
-  <circle cx="39" cy="37" r="3" fill="#00D4FF"/>
-  <text x="63" y="26" font-family="Arial,Helvetica,sans-serif" font-size="16" font-weight="700" fill="#FFFFFF">AlgoPronos</text>
-  <text x="170" y="26" font-family="Arial,Helvetica,sans-serif" font-size="16" font-weight="700" fill="#00D4FF">AI</text>
-  <text x="64" y="42" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="500" fill="#00D4FF" letter-spacing="2.5">DATA &gt; EMOTION</text>
-</svg>`;
+// Simplified Logo (Text-based for better deliverability)
+const LOGO_HTML = `<div style="font-size:24px;font-weight:bold;color:#FFFFFF;font-family:Arial,sans-serif;">AlgoPronos <span style="color:#00D4FF">AI</span></div>`;
 
 // ─── Layout de base ──────────────────────────────────────────────────────────
 
@@ -76,7 +54,7 @@ function baseLayout(content: string, previewText: string): string {
         <tr>
           <td align="center" style="padding-bottom:24px;">
             <a href="${APP_URL}" style="display:inline-block;text-decoration:none;">
-              ${LOGO_SVG}
+              ${LOGO_HTML}
             </a>
           </td>
         </tr>
@@ -326,6 +304,9 @@ export async function POST(req: Request) {
         html: verificationEmail(displayName, actionLink),
         text: `Bonjour ${displayName},\n\nConfirmez votre email AlgoPronos AI en cliquant sur ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas créé ce compte, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
+
+      // 🔥 Alerte Admin : Nouvelle inscription
+      await notifyAdmin('signup', { email, fullName, phone, country });
 
     } else if (type === 'resend') {
       const confirmRedirect = redirectTo || `${APP_URL}/auth/callback?next=/dashboard`;

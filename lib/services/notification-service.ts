@@ -98,8 +98,7 @@ function buildTicketEmailHtml(p: TicketNotificationPayload): string {
     <!-- Footer -->
     <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
       <p style="margin:0;color:#4a4a6a;font-size:11px">
-        Vous recevez cet email car vous avez activé les notifications résultats sur AlgoPronos AI.
-        <br>Pour vous désabonner, rendez-vous dans vos <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai'}/dashboard/settings" style="color:#7c3aed">paramètres</a>.
+        AlgoPronos AI — Intelligence Artificielle.
       </p>
     </div>
   </div>
@@ -114,7 +113,8 @@ export async function sendTicketResultEmail(p: TicketNotificationPayload): Promi
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@algopronos.ai>';
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const replyTo = 'support@algopronos.com';
   const statusLabel = p.status === 'won' ? '✅ Ticket GAGNÉ' : p.status === 'lost' ? '❌ Ticket PERDU' : '⚪ Ticket annulé';
 
   try {
@@ -122,7 +122,10 @@ export async function sendTicketResultEmail(p: TicketNotificationPayload): Promi
       from: fromEmail,
       to: p.userEmail,
       subject: `${statusLabel} — Ticket du ${new Date(p.date).toLocaleDateString('fr-FR')} | AlgoPronos AI`,
+      replyTo,
+      headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
       html: buildTicketEmailHtml(p),
+      text: `${statusLabel} pour votre ticket du ${new Date(p.date).toLocaleDateString('fr-FR')}.\nCote totale : ${p.totalOdds.toFixed(2)}\n\nConsultez vos sélections sur : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard/history`,
     });
 
     if (error) {
@@ -356,13 +359,16 @@ function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): st
 export async function sendActivationEmail(p: ActivationPayload): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) return false;
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@algopronos.ai>';
+  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const replyTo = 'support@algopronos.com';
   try {
     const { error } = await resend.emails.send({
       from,
       to: p.userEmail,
       subject: '🎉 Votre compte Full Access AlgoPronos AI est activé !',
+      replyTo,
       html: buildActivationEmailHtml(p),
+      text: `Félicitations ${p.userName || 'Parieur'} !\nVotre compte Full Access AlgoPronos AI est désormais activé.\n\nAccédez à votre tableau de bord : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard`,
     });
     if (error) { console.error('[Notification] Activation email error:', error); return false; }
     return true;
@@ -375,13 +381,16 @@ export async function sendActivationEmail(p: ActivationPayload): Promise<boolean
 export async function sendRejectionEmail(p: ActivationPayload & { reason?: string }): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) return false;
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@algopronos.ai>';
+  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const replyTo = 'support@algopronos.com';
   try {
     const { error } = await resend.emails.send({
       from,
       to: p.userEmail,
       subject: 'Votre demande de vérification AlgoPronos AI',
+      replyTo,
       html: buildRejectionEmailHtml(p),
+      text: `Bonjour ${p.userName || 'Parieur'},\nNous n'avons pas pu valider votre demande d'activation pour le moment.\n\nMotif : ${p.reason || 'Données non valides'}\n\nVous pouvez soumettre une nouvelle demande ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
     });
     if (error) { console.error('[Notification] Rejection email error:', error); return false; }
     return true;
@@ -434,4 +443,47 @@ export async function notifyActivation(p: ActivationPayload) {
 export async function notifyRejection(p: ActivationPayload & { reason?: string }) {
   const emailOk = await sendRejectionEmail(p);
   return { email: emailOk, whatsapp: false };
+}
+
+// ─── Admin Notifications ────────────────────────────────────────────────────
+
+export async function notifyAdmin(type: 'signup' | 'vip_request', data: any): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
+  const adminEmail = 'fgambakpo@gmail.com';
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+
+  const subject = type === 'signup' 
+    ? `🆕 Nouvelle inscription : ${data.email}`
+    : `⭐ Nouvelle demande VIP : ${data.identifier}`;
+
+  const html = `
+    <div style="font-family:sans-serif;padding:20px;border:1px solid #ddd;border-radius:10px;">
+      <h2 style="color:#7c3aed">${type === 'signup' ? 'Nouvel Utilisateur' : 'Demande VIP Reçue'}</h2>
+      <p><strong>Email :</strong> ${data.email || 'N/A'}</p>
+      ${data.fullName ? `<p><strong>Nom :</strong> ${data.fullName}</p>` : ''}
+      ${data.phone ? `<p><strong>Téléphone :</strong> ${data.phone}</p>` : ''}
+      ${data.country ? `<p><strong>Pays :</strong> ${data.country}</p>` : ''}
+      ${data.identifier ? `<p><strong>ID Bookmaker :</strong> ${data.identifier}</p>` : ''}
+      <p style="margin-top:20px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/admin" 
+           style="background:#7c3aed;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">
+           Gérer dans l'Admin
+        </a>
+      </p>
+    </div>
+  `;
+
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: adminEmail,
+      subject,
+      html,
+    });
+    return !error;
+  } catch (err) {
+    console.error('[Notification] Admin alert failed:', err);
+    return false;
+  }
 }

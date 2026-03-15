@@ -129,15 +129,20 @@ export default function ActivatePage() {
         }
       }
 
-      // Create verification request
-      const { error } = await supabase.from('vip_verifications').insert({
-        user_id: user?.id,
-        bookmaker_identifier: identifier.trim(),
-        screenshot_url: screenshotUrl,
-        status: 'pending',
+      // Create verification request via our API (handles admin notification)
+      const res = await fetch('/api/vip/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          screenshotUrl: screenshotUrl,
+        }),
       });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Erreur lors de l\'envoi');
+      }
 
       toast.success('Demande envoyée ! Vérification sous 24h maximum.');
       setPendingVerification(true);
