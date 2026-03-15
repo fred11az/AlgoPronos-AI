@@ -38,10 +38,10 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Facebook, href: '#', label: 'Facebook' },
-  { icon: Twitter, href: '#', label: 'Twitter' },
-  { icon: Instagram, href: '#', label: 'Instagram' },
-  { icon: Youtube, href: '#', label: 'Youtube' },
+  { icon: Facebook, href: 'https://facebook.com/algopronos', label: 'Facebook' },
+  { icon: Twitter, href: 'https://twitter.com/algopronos', label: 'Twitter' },
+  { icon: Instagram, href: 'https://instagram.com/algopronos', label: 'Instagram' },
+  { icon: Youtube, href: 'https://t.me/algopronos', label: 'Telegram' },
 ];
 
 export function Footer() {

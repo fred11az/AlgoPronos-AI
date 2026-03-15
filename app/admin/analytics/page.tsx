@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart3, TrendingUp, Users } from 'lucide-react';
+import { BarChart3, TrendingUp } from 'lucide-react';
 
 export default function AdminAnalyticsPage() {
   return (
@@ -18,10 +18,18 @@ export default function AdminAnalyticsPage() {
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4">
               <TrendingUp className="h-8 w-8" />
             </div>
-            <p className="text-lg text-white font-medium">Analytics en cours de connexion</p>
+            <p className="text-xl text-white font-bold">En attente de données SEO</p>
             <p className="text-text-muted mt-2 max-w-sm">
-              Connectez votre compte Google Search Console pour voir les impressions et clics SEO directement ici.
+              Une fois votre site indexé par Google (sous 2 à 7 jours), les données de trafic Multiplicateurs et Pronostics apparaîtront ici. 
             </p>
+            <div className="mt-8 p-4 bg-surface-light border border-surface-light rounded-2xl text-left max-w-md">
+              <p className="text-xs font-semibold text-primary uppercase mb-2">Actions requises :</p>
+              <ul className="text-xs text-text-secondary space-y-2">
+                <li>• Ajouter le domaine sur <strong>Google Search Console</strong></li>
+                <li>• Soumettre l&apos;URL du sitemap : <code className="text-white">/sitemap.xml</code></li>
+                <li>• Attendre le premier passage du Googlebot (24-48h)</li>
+              </ul>
+            </div>
           </div>
         </CardContent>
       </Card>
