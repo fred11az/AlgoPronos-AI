@@ -1,0 +1,11 @@
+﻿Testing Europe Segment...
+URL: http://localhost:18789/v1/chat/completions
+TOKEN defined: true
+[MatchService] Raw OpenClaw content: Pour pouvoir extraire les matchs d'aujourd'hui et leurs cotes, il me faut configurer une cl├® API Brave (Brave Search) ou utiliser une source alternative ├®quivalente. Actuellement, l'outil web_search renvoie une erreur:
+
+"missing_brave_api_key"
+
+Options:
+- Fournir une cl├® Brave API et me permettre de lÔÇÖenregistrer (commande/OpenClaw: openclaw configure --section web et ajouter BRAVE_API_KEY=your_key).
+- Ou autoriser lÔÇÖutilisation d une autre source accessible sans cl├® Brave (par exemple via des s...
+Results length: 0

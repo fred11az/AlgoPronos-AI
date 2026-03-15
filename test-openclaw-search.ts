@@ -1,5 +1,6 @@
 import { matchService } from './lib/services/match-service';
-import { createAdminClient } from './lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import 'dotenv/config';
 
 process.env.FOOTBALL_API_KEY = 'invalid_key_to_force_fallback';
 

@@ -1,0 +1,4 @@
+﻿Testing Europe Segment...
+URL: http://localhost:18789/v1/chat/completions
+TOKEN defined: true
+Results length: 0
