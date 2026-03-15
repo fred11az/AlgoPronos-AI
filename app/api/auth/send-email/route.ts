@@ -333,10 +333,6 @@ export async function POST(req: Request) {
       }
 
       let actionLink = data.properties.action_link;
-      // 🛡️ PRODUCTION DOMAIN FORCING
-      if (actionLink.includes('.vercel.app') || actionLink.includes('localhost')) {
-        actionLink = actionLink.replace(/^https?:\/\/[^\/]+/, APP_URL);
-      }
 
       const entityId = `resend_${email}_${Date.now()}`;
 
@@ -371,10 +367,6 @@ export async function POST(req: Request) {
       }
 
       let actionLink = data.properties.action_link;
-      // 🛡️ PRODUCTION DOMAIN FORCING
-      if (actionLink.includes('.vercel.app') || actionLink.includes('localhost')) {
-        actionLink = actionLink.replace(/^https?:\/\/[^\/]+/, APP_URL);
-      }
 
       const entityId = `recovery_${email}_${Date.now()}`;
 
