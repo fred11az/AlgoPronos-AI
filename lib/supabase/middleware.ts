@@ -79,16 +79,23 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protect dashboard routes
-  // Allow access if user is authenticated OR has an anonymous session
+  // Allow access if user is authenticated (and confirmed) OR has an anonymous session
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     const hasAnonymousSession = hasAnonymousSessionCookie(request);
 
+    // No authenticated user AND no anonymous session
     if (!user && !hasAnonymousSession) {
-      // No authenticated user AND no anonymous session
-      // Redirect to a special entry point that creates anonymous session
       return NextResponse.redirect(new URL('/try-free', request.url));
     }
-    // If user is authenticated OR has anonymous session, allow access
+
+    // Authenticated but NOT confirmed (and not on an anonymous session)
+    if (user && !user.email_confirmed_at && !hasAnonymousSession) {
+      // Redirect to verify-email with their email as a param
+      const url = new URL('/verify-email', request.url);
+      url.searchParams.set('email', user.email || '');
+      return NextResponse.redirect(url);
+    }
+    // If user is authenticated & confirmed OR has anonymous session, allow access
   }
 
   // Protect admin routes

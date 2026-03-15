@@ -295,12 +295,17 @@ export async function POST(req: Request) {
       }
 
       const displayName = fullName || email.split('@')[0];
+      const entityId = `signup_${email}_${Date.now()}`;
+
       await resend.emails.send({
         from: FROM,
         to: email,
         subject: 'Confirmez votre compte AlgoPronos AI',
         replyTo: 'support@algopronos.com',
-        headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
+        headers: { 
+          'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
+          'X-Entity-Ref-ID': entityId,
+        },
         html: verificationEmail(displayName, actionLink),
         text: `Bonjour ${displayName},\n\nConfirmez votre email AlgoPronos AI en cliquant sur ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas créé ce compte, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
@@ -321,12 +326,17 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Impossible de générer le lien' }, { status: 500 });
       }
 
+      const entityId = `resend_${email}_${Date.now()}`;
+
       await resend.emails.send({
         from: FROM,
         to: email,
         subject: 'Votre lien de connexion AlgoPronos AI',
         replyTo: 'support@algopronos.com',
-        headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
+        headers: { 
+          'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
+          'X-Entity-Ref-ID': entityId,
+        },
         html: verificationEmail('', data.properties.action_link),
         text: `Bonjour,\n\nConnectez-vous à AlgoPronos AI avec ce lien :\n${data.properties.action_link}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas fait cette demande, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
@@ -344,12 +354,17 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Impossible de générer le lien de récupération' }, { status: 500 });
       }
 
+      const entityId = `recovery_${email}_${Date.now()}`;
+
       await resend.emails.send({
         from: FROM,
         to: email,
         subject: 'Réinitialisation de votre mot de passe AlgoPronos AI',
         replyTo: 'support@algopronos.com',
-        headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
+        headers: { 
+          'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
+          'X-Entity-Ref-ID': entityId,
+        },
         html: recoveryEmail(email, data.properties.action_link),
         text: `Bonjour,\n\nUne demande de réinitialisation a été effectuée pour le compte ${email}.\n\nCliquez sur ce lien pour créer un nouveau mot de passe :\n${data.properties.action_link}\n\nCe lien expire dans 1 heure.\n\nSi vous n'avez pas fait cette demande, ignorez cet email — votre mot de passe restera inchangé.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
