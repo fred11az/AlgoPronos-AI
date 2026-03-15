@@ -31,7 +31,7 @@ export function ImmersiveRedirect({ url, bookmaker = '1xBet' }: ImmersiveRedirec
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
+    let timer: NodeJS.Timeout | undefined = undefined;
 
     const runSteps = async () => {
       for (let i = 0; i < steps.length; i++) {
@@ -52,14 +52,16 @@ export function ImmersiveRedirect({ url, bookmaker = '1xBet' }: ImmersiveRedirec
       setIsComplete(true);
       
       // Final delay before redirection
-      setTimeout(() => {
+      timer = setTimeout(() => {
         window.location.href = url;
       }, 800);
     };
 
     runSteps();
 
-    return () => clearTimeout(timeout);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [url]);
 
   return (
