@@ -19,7 +19,7 @@ import { Resend } from 'resend';
 import { createAdminClient } from '@/lib/supabase/server';
 import { notifyAdmin } from '@/lib/services/notification-service';
 
-const FROM    = process.env.RESEND_FROM_EMAIL || 'no-reply@algopronos.com';
+const FROM    = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@algopronos.com>';
 const RAW_URL = process.env.SITE_URL || 'https://www.algopronos.com';
 const APP_URL = RAW_URL.includes('vercel.app') ? 'https://www.algopronos.com' : RAW_URL.replace(/\/$/, '');
 

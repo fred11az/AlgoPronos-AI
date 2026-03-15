@@ -83,7 +83,8 @@ function RegisterForm() {
 
     try {
       const nextPath = intent === 'vip' || intent === 'activate' ? '/unlock-vip' : '/dashboard';
-      const redirectTo = `${window.location.origin}/auth/callback?next=${nextPath}`;
+      // 🔥 HARDCODE PRODUCTION URL to avoid Vercel redirects
+      const redirectTo = `https://www.algopronos.com/auth/callback?next=${nextPath}`;
 
       const fullPhone = `${formData.dialCode}${formData.phone.replace(/^\+/, '')}`;
 
