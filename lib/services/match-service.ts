@@ -87,7 +87,7 @@ class MatchService {
           
           if (data.errors && data.errors.access) {
             console.error(`[Sync] API-Football Error: ${data.errors.access}`);
-            return [];
+            return { byDate: {}, apiErrors: [`API-Football Error: ${data.errors.access}`], rawFixturesCount: 0 };
           }
 
           const fixtures = data.response ?? [];
@@ -146,10 +146,12 @@ class MatchService {
 
     let allMatches: RealMatch[] = [];
 
-    // Process segments sequentially or in parallel? Parallel is faster but might hit gateway limits. 
-    // Sequential for stability.
+    // Use OpenRouter Direct Search if key is available (Option 3)
+    const orApiKey = process.env.OPENROUTER_API_KEY;
+    const useDirectSearch = !!orApiKey;
+
     for (const segment of segments) {
-      console.log(`[MatchService] Querying segment: ${segment.name}...`);
+      console.log(`[MatchService] Querying segment: ${segment.name} (${useDirectSearch ? 'OpenRouter Direct' : 'OpenClaw Gateway'})...`);
       const matches = await this.fetchOpenClawSegment(date, segment.prompt);
       allMatches = [...allMatches, ...matches];
       console.log(`[MatchService] Segment ${segment.name} returned ${matches.length} matches.`);
@@ -170,24 +172,25 @@ class MatchService {
   }
 
   private async fetchOpenClawSegment(date: string, regionalPrompt: string): Promise<RealMatch[]> {
-    const url = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18789/v1/chat/completions';
-    const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+    const orApiKey = process.env.OPENROUTER_API_KEY;
+    const url = orApiKey ? 'https://openrouter.ai/api/v1/chat/completions' : (process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18789/v1/chat/completions');
+    const token = orApiKey || process.env.OPENCLAW_GATEWAY_TOKEN;
 
     if (!token) {
-      console.warn('[MatchService] OPENCLAW_GATEWAY_TOKEN not set — cannot search web.');
+      console.warn('[MatchService] No OpenRouter or OpenClaw token set — cannot search web.');
       return [];
     }
 
     const fullPrompt = `MISSION : Tu es un spécialiste de l'extraction de données sportives en temps réel. Ta tâche est de trouver une liste exhaustive des matchs de football RÉELS pour le ${date} dans cette zone : ${regionalPrompt}.
 
 INSTRUCTIONS CRITIQUES :
-1. UTILISE TES OUTILS DE RECHERCHE (Google Search, Bing, ou navigation web) pour trouver les matchs d'aujourd'hui. 
+1. UTILISE TES OUTILS DE RECHERCHE (Web Search) pour trouver les matchs d'aujourd'hui. 
 2. NE REPRENDS PAS LES EXEMPLES "..." CI-DESSOUS. Remplis chaque champ avec des données RÉELLES trouvées sur le web.
-3. Si un site (comme Flashscore) est complexe, utilise les résultats de recherche Google ou d'autres sites plus simples (Eurosport, L'Équipe, BBC, etc.).
+3. Si un site (comme Flashscore) est complexe, utilise les résultats de recherche ou d'autres sites plus simples (Eurosport, L'Équipe, BBC, etc.).
 4. Pour CHAQUE match, récupère : l'équipe à domicile, l'équipe à l'extérieur, le nom de la ligue, l'heure exacte et les cotes 1N2.
 5. Réponds UNIQUEMENT avec un tableau JSON d'objets, AUCUN texte avant ou après.
 
-FORMAT DE RÉPONSE ATTENDU (Exemple à remplir avec du RÉEL) :
+FORMAT DE RÉPONSE ATTENDU :
 [
   { 
     "homeTeam": "Nom Réel Team A", 
@@ -200,25 +203,31 @@ FORMAT DE RÉPONSE ATTENDU (Exemple à remplir avec du RÉEL) :
 SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de football tous les jours.`;
 
     try {
+      const body: any = {
+        model: orApiKey ? 'perplexity/sonar' : 'openclaw',
+        messages: [
+          { role: 'system', content: 'Tu es un agent expert en recherche de données web. Ta mission est de fournir des informations précises au format JSON.' },
+          { role: 'user', content: fullPrompt }
+        ],
+        temperature: 0.1,
+      };
+
+      if (orApiKey) {
+        body.max_tokens = 2000; // Important: stay within credit limits
+      }
+
       const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          model: 'openclaw',
-          messages: [
-            { role: 'system', content: 'Tu es un agent expert en recherche de données web. Ta mission est de fournir des informations précises au format JSON.' },
-            { role: 'user', content: fullPrompt }
-          ],
-          temperature: 0.1,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error(`[MatchService] OpenClaw segment error: ${res.status} - ${errText}`);
+        console.error(`[MatchService] Fetch error (${orApiKey ? 'OpenRouter' : 'OpenClaw'}): ${res.status} - ${errText}`);
         return [];
       }
 
@@ -227,8 +236,9 @@ SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de fo
       
       if (!content) return [];
 
+      // Detect common tool failures
       if (content.includes('missing_brave_api_key') || content.includes('technique avec les outils de recherche')) {
-        console.error('[MatchService] OpenClaw failure: Missing Brave API Key for web search.');
+        console.error('[MatchService] OpenClaw failure detected in response content.');
         return [];
       }
 
