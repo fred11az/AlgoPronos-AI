@@ -294,12 +294,6 @@ export async function POST(req: Request) {
         actionLink = data.properties.action_link;
       }
 
-      // 🛡️ PRODUCTION DOMAIN FORCING
-      // Ensure the link ALWAYS uses algopronos.com even if Supabase/Vercel defaults to .vercel.app
-      if (actionLink.includes('.vercel.app') || actionLink.includes('localhost')) {
-        actionLink = actionLink.replace(/^https?:\/\/[^\/]+/, APP_URL);
-      }
-
       const displayName = fullName || email.split('@')[0];
       const entityId = `signup_${email}_${Date.now()}`;
 
