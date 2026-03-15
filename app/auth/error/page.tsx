@@ -185,7 +185,7 @@ export default function AuthErrorPage() {
       </main>
 
       {/* Footer */}
-      <footer className="p-6 text-center text-text-muted text-sm">
+      <footer className="p-6 text-center text-text-muted text-sm" suppressHydrationWarning>
         &copy; {new Date().getFullYear()} AlgoPronos AI. Tous droits réservés.
       </footer>
     </div>

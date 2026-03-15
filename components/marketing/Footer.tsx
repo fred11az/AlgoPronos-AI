@@ -167,7 +167,7 @@ export function Footer() {
         {/* Bottom */}
         <div className="mt-12 pt-8 border-t border-surface-light">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-text-muted text-sm text-center md:text-left">
+            <p className="text-text-muted text-sm text-center md:text-left" suppressHydrationWarning>
               &copy; {new Date().getFullYear()} AlgoPronos AI. Tous droits réservés.
             </p>
             <p className="text-text-muted text-xs text-center md:text-right max-w-xl">

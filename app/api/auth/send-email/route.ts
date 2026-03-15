@@ -318,6 +318,7 @@ export async function POST(req: Request) {
 
       if (result.error) {
         console.error('[auth/send-email] Resend signup error:', result.error);
+        return NextResponse.json({ error: 'Échec de l\'envoi de l\'email de confirmation', details: result.error }, { status: 500 });
       } else {
         console.log('[auth/send-email] Signup email sent successfully to:', email);
       }
@@ -346,7 +347,7 @@ export async function POST(req: Request) {
 
       const entityId = `resend_${email}_${Date.now()}`;
 
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: FROM,
         to: email,
         subject: 'Votre lien de connexion AlgoPronos AI',
@@ -358,6 +359,11 @@ export async function POST(req: Request) {
         html: verificationEmail('', actionLink),
         text: `Bonjour,\n\nConnectez-vous à AlgoPronos AI avec ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas fait cette demande, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
+
+      if (result.error) {
+        console.error('[auth/send-email] Resend magic-link error:', result.error);
+        return NextResponse.json({ error: 'Échec de l\'envoi du lien de connexion', details: result.error }, { status: 500 });
+      }
 
     } else if (type === 'recovery') {
       const resetRedirect = redirectTo || `${APP_URL}/auth/callback?next=/reset-password`;
@@ -380,7 +386,7 @@ export async function POST(req: Request) {
 
       const entityId = `recovery_${email}_${Date.now()}`;
 
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: FROM,
         to: email,
         subject: 'Réinitialisation de votre mot de passe AlgoPronos AI',
@@ -392,6 +398,11 @@ export async function POST(req: Request) {
         html: recoveryEmail(email, actionLink),
         text: `Bonjour,\n\nUne demande de réinitialisation a été effectuée pour le compte ${email}.\n\nCliquez sur ce lien pour créer un nouveau mot de passe :\n${actionLink}\n\nCe lien expire dans 1 heure.\n\nSi vous n'avez pas fait cette demande, ignorez cet email — votre mot de passe restera inchangé.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
+
+      if (result.error) {
+        console.error('[auth/send-email] Resend recovery error:', result.error);
+        return NextResponse.json({ error: 'Échec de l\'envoi de l\'email de récupération', details: result.error }, { status: 500 });
+      }
 
     } else {
       return NextResponse.json({ error: 'type invalide' }, { status: 400 });
