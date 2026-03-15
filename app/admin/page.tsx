@@ -41,6 +41,14 @@ async function getAdminStats() {
     .select('*', { count: 'exact', head: true })
     .gte('created_at', today.toISOString());
 
+  // Get recent pending verifications
+  const { data: recentVerifications } = await supabase
+    .from('vip_verifications')
+    .select('*, user:profiles(full_name, email)')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(5);
+
   return {
     totalUsers: totalUsers || 0,
     verifiedUsers: verifiedUsers || 0,
