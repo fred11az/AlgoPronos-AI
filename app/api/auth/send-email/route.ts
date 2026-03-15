@@ -19,7 +19,7 @@ import { Resend } from 'resend';
 import { createAdminClient } from '@/lib/supabase/server';
 import { notifyAdmin } from '@/lib/services/notification-service';
 
-const FROM    = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+const FROM    = process.env.RESEND_FROM_EMAIL || 'no-reply@mail.algopronos.com';
 const RAW_URL = process.env.SITE_URL || 'https://algopronos.com';
 const APP_URL = RAW_URL.replace(/\/$/, '');
 
@@ -310,7 +310,6 @@ export async function POST(req: Request) {
         replyTo: 'support@algopronos.com',
         headers: { 
           'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
-          'X-Entity-Ref-ID': entityId,
         },
         html: verificationEmail(displayName, actionLink),
         text: `Bonjour ${displayName},\n\nConfirmez votre email AlgoPronos AI en cliquant sur ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas créé ce compte, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
@@ -354,7 +353,6 @@ export async function POST(req: Request) {
         replyTo: 'support@algopronos.com',
         headers: { 
           'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
-          'X-Entity-Ref-ID': entityId,
         },
         html: verificationEmail('', actionLink),
         text: `Bonjour,\n\nConnectez-vous à AlgoPronos AI avec ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas fait cette demande, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
@@ -393,7 +391,6 @@ export async function POST(req: Request) {
         replyTo: 'support@algopronos.com',
         headers: { 
           'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
-          'X-Entity-Ref-ID': entityId,
         },
         html: recoveryEmail(email, actionLink),
         text: `Bonjour,\n\nUne demande de réinitialisation a été effectuée pour le compte ${email}.\n\nCliquez sur ce lien pour créer un nouveau mot de passe :\n${actionLink}\n\nCe lien expire dans 1 heure.\n\nSi vous n'avez pas fait cette demande, ignorez cet email — votre mot de passe restera inchangé.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,

@@ -113,13 +113,13 @@ export async function sendTicketResultEmail(p: TicketNotificationPayload): Promi
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const from = process.env.RESEND_FROM_EMAIL || 'no-reply@mail.algopronos.com';
   const replyTo = 'support@algopronos.com';
   const statusLabel = p.status === 'won' ? '✅ Ticket GAGNÉ' : p.status === 'lost' ? '❌ Ticket PERDU' : '⚪ Ticket annulé';
 
   try {
     const { error } = await resend.emails.send({
-      from: fromEmail,
+      from,
       to: p.userEmail,
       subject: `${statusLabel} — Ticket du ${new Date(p.date).toLocaleDateString('fr-FR')} | AlgoPronos AI`,
       replyTo,
