@@ -123,27 +123,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'RESEND_API_KEY non configuré' }, { status: 500 });
     }
 
+    // 🔥 FORCE PRODUCTION REDIRECTS - Stop Vercel domain leak
+    let finalRedirect = `https://www.algopronos.com/auth/callback?next=/dashboard`;
+    if (body.redirectTo && body.redirectTo.includes('unlock-vip')) {
+      finalRedirect = `https://www.algopronos.com/auth/callback?next=/unlock-vip`;
+    }
+
     const resend        = new Resend(apiKey);
     const adminSupabase = createAdminClient();
 
     if (type === 'signup') {
       if (!password) return NextResponse.json({ error: 'password requis pour signup' }, { status: 400 });
 
-      const confirmRedirect = redirectTo || `${APP_URL}/auth/callback?next=/dashboard`;
-
-      const { data, error } = await adminSupabase.auth.admin.generateLink({
+      const { data, error: linkError } = await adminSupabase.auth.admin.generateLink({
         type: 'signup',
         email,
         password,
         options: {
-          redirectTo: confirmRedirect,
+          redirectTo: finalRedirect,
           data: { full_name: fullName, phone, country },
         },
       });
 
       let actionLink: string;
 
-      if (error || !data?.properties?.action_link) {
+      if (linkError || !data?.properties?.action_link) {
         // Utilisateur déjà existant → magic link
         const ml = await adminSupabase.auth.admin.generateLink({
           type: 'magiclink',
