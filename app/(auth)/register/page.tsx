@@ -110,7 +110,9 @@ function RegisterForm() {
           toast.error('Cet email est déjà utilisé. Veuillez vous connecter.');
           router.push('/login');
         } else {
-          toast.error(msg || 'Une erreur est survenue lors de la création du compte');
+          // Show technical details if available (e.g., Domain not verified)
+          const detailedMsg = result?.details?.message || result?.details || '';
+          toast.error(`${msg}${detailedMsg ? ` : ${detailedMsg}` : ''}`);
         }
         return;
       }
