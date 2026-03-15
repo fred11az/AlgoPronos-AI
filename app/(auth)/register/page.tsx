@@ -18,16 +18,20 @@ import { Loader2, Mail, Lock, User, Phone, ArrowRight, Sparkles, CheckCircle2 } 
 import toast from 'react-hot-toast';
 
 const countries = [
-  { code: 'BJ', name: 'Bénin' },
-  { code: 'TG', name: 'Togo' },
-  { code: 'CI', name: "Côte d'Ivoire" },
-  { code: 'SN', name: 'Sénégal' },
-  { code: 'ML', name: 'Mali' },
-  { code: 'BF', name: 'Burkina Faso' },
-  { code: 'NE', name: 'Niger' },
-  { code: 'GN', name: 'Guinée' },
-  { code: 'CM', name: 'Cameroun' },
-  { code: 'GA', name: 'Gabon' },
+  { code: 'BJ', name: 'Bénin', flag: '🇧🇯', dial: '+229' },
+  { code: 'TG', name: 'Togo', flag: '🇹🇬', dial: '+228' },
+  { code: 'CI', name: "Côte d'Ivoire", flag: '🇨🇮', dial: '+225' },
+  { code: 'SN', name: 'Sénégal', flag: '🇸🇳', dial: '+221' },
+  { code: 'ML', name: 'Mali', flag: '🇲🇱', dial: '+223' },
+  { code: 'BF', name: 'Burkina Faso', flag: '🇧🇫', dial: '+226' },
+  { code: 'NE', name: 'Niger', flag: '🇳🇪', dial: '+227' },
+  { code: 'GN', name: 'Guinée', flag: '🇬🇳', dial: '+224' },
+  { code: 'CM', name: 'Cameroun', flag: '🇨🇲', dial: '+237' },
+  { code: 'GA', name: 'Gabon', flag: '🇬🇦', dial: '+241' },
+  { code: 'CG', name: 'Congo', flag: '🇨🇬', dial: '+242' },
+  { code: 'CD', name: 'RDC', flag: '🇨🇩', dial: '+243' },
+  { code: 'TD', name: 'Tchad', flag: '🇹🇩', dial: '+235' },
+  { code: 'KM', name: 'Comores', flag: '🇰🇲', dial: '+269' },
 ];
 
 export default function RegisterPage() {
@@ -39,6 +43,7 @@ export default function RegisterPage() {
     fullName: '',
     email: '',
     phone: '',
+    dialCode: '+229',
     country: 'BJ',
     password: '',
     confirmPassword: '',
@@ -68,6 +73,8 @@ export default function RegisterPage() {
       const nextPath = intent === 'vip' || intent === 'activate' ? '/unlock-vip' : '/dashboard';
       const redirectTo = `${window.location.origin}/auth/callback?next=${nextPath}`;
 
+      const fullPhone = `${formData.dialCode}${formData.phone.replace(/^\+/, '')}`;
+
       // Création du compte + envoi email via notre API (bypass SMTP Supabase)
       const res = await fetch('/api/auth/send-email', {
         method: 'POST',
@@ -77,7 +84,7 @@ export default function RegisterPage() {
           email: formData.email,
           password: formData.password,
           fullName: formData.fullName,
-          phone: formData.phone,
+          phone: fullPhone,
           country: formData.country,
           redirectTo,
         }),
@@ -168,25 +175,60 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="col-span-2 space-y-2">
             <Label htmlFor="phone">Téléphone</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+229 97 00 00 00"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="pl-10"
-              />
+            <div className="flex gap-2">
+              <Select 
+                value={formData.dialCode} 
+                onValueChange={(v) => {
+                  const country = countries.find(c => c.dial === v);
+                  setFormData({ 
+                    ...formData, 
+                    dialCode: v,
+                    country: country?.code || formData.country
+                  });
+                }}
+              >
+                <SelectTrigger className="w-[110px] h-12 rounded-xl">
+                  <SelectValue placeholder="+xxx" />
+                </SelectTrigger>
+                <SelectContent>
+                  {countries.map((c) => (
+                    <SelectItem key={c.code} value={c.dial}>
+                      {c.flag} {c.dial}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="relative flex-1">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="97 00 00 00"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="pl-10 h-12 rounded-xl"
+                  required
+                />
+              </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="country">Pays</Label>
-            <Select value={formData.country} onValueChange={(v) => setFormData({ ...formData, country: v })}>
-              <SelectTrigger id="country">
+            <Label htmlFor="country">Pays de résidence</Label>
+            <Select 
+              value={formData.country} 
+              onValueChange={(v) => {
+                const country = countries.find(c => c.code === v);
+                setFormData({ 
+                  ...formData, 
+                  country: v,
+                  dialCode: country?.dial || formData.dialCode
+                });
+              }}
+            >
+              <SelectTrigger id="country" className="h-12 rounded-xl">
                 <SelectValue placeholder="Sélectionner..." />
               </SelectTrigger>
               <SelectContent>

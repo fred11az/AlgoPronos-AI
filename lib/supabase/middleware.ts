@@ -83,17 +83,17 @@ export async function updateSession(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     const hasAnonymousSession = hasAnonymousSessionCookie(request);
 
-    // No authenticated user AND no anonymous session
-    if (!user && !hasAnonymousSession) {
-      return NextResponse.redirect(new URL('/try-free', request.url));
-    }
-
-    // Authenticated but NOT confirmed (and not on an anonymous session)
-    if (user && !user.email_confirmed_at && !hasAnonymousSession) {
+    // Authenticated but NOT confirmed
+    if (user && !user.email_confirmed_at) {
       // Redirect to verify-email with their email as a param
       const url = new URL('/verify-email', request.url);
       url.searchParams.set('email', user.email || '');
       return NextResponse.redirect(url);
+    }
+
+    // No authenticated user AND no anonymous session
+    if (!user && !hasAnonymousSession) {
+      return NextResponse.redirect(new URL('/try-free', request.url));
     }
     // If user is authenticated & confirmed OR has anonymous session, allow access
   }

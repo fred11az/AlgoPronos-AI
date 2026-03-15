@@ -1,14 +1,15 @@
 import Link from 'next/link';
-import { Logo } from '@/components/shared/Logo';
 import {
   Facebook,
   Twitter,
-  Instagram,
   Youtube,
   Mail,
   Phone,
   MapPin,
+  Send,
+  MessageCircle,
 } from 'lucide-react';
+import { Logo } from '@/components/shared/Logo';
 
 const footerLinks = {
   product: [
@@ -38,10 +39,11 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Facebook, href: 'https://facebook.com/algopronos', label: 'Facebook' },
-  { icon: Twitter, href: 'https://twitter.com/algopronos', label: 'Twitter' },
-  { icon: Instagram, href: 'https://instagram.com/algopronos', label: 'Instagram' },
-  { icon: Youtube, href: 'https://t.me/algopronos', label: 'Telegram' },
+  { icon: Facebook,      href: 'https://facebook.com/profile.php?id=61583768136277', label: 'Facebook' },
+  { icon: Twitter,       href: 'https://x.com/algopronos_ai?s=21',                label: 'Twitter' },
+  { icon: Youtube,       href: 'https://youtube.com/@algopronos_ai?si=_L_yVbJrXNkahAJ6', label: 'Youtube' },
+  { icon: Send,          href: 'https://t.me/AlgoPronosAI',                       label: 'Telegram' },
+  { icon: MessageCircle, href: 'https://wa.me/22956991777',                        label: 'WhatsApp' },
 ];
 
 export function Footer() {
@@ -144,11 +146,15 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-center gap-3 text-text-secondary text-sm">
                 <Mail className="h-4 w-4 text-primary flex-shrink-0" />
-                <span>contact@algopronos.ai</span>
+                <a href="mailto:algo@buubronasu.resend.app" className="hover:text-primary transition-colors">
+                  Contactez-nous
+                </a>
               </li>
               <li className="flex items-center gap-3 text-text-secondary text-sm">
-                <Phone className="h-4 w-4 text-primary flex-shrink-0" />
-                <span>+229 97 00 00 00</span>
+                <MessageCircle className="h-4 w-4 text-primary flex-shrink-0" />
+                <a href="https://wa.me/22956991777" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                  WhatsApp Support
+                </a>
               </li>
               <li className="flex items-start gap-3 text-text-secondary text-sm">
                 <MapPin className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />

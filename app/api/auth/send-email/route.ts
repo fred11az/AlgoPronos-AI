@@ -294,6 +294,12 @@ export async function POST(req: Request) {
         actionLink = data.properties.action_link;
       }
 
+      // 🛡️ PRODUCTION DOMAIN FORCING
+      // Ensure the link ALWAYS uses algopronos.com even if Supabase/Vercel defaults to .vercel.app
+      if (actionLink.includes('.vercel.app') || actionLink.includes('localhost')) {
+        actionLink = actionLink.replace(/^https?:\/\/[^\/]+/, APP_URL);
+      }
+
       const displayName = fullName || email.split('@')[0];
       const entityId = `signup_${email}_${Date.now()}`;
 
@@ -326,6 +332,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Impossible de générer le lien' }, { status: 500 });
       }
 
+      let actionLink = data.properties.action_link;
+      // 🛡️ PRODUCTION DOMAIN FORCING
+      if (actionLink.includes('.vercel.app') || actionLink.includes('localhost')) {
+        actionLink = actionLink.replace(/^https?:\/\/[^\/]+/, APP_URL);
+      }
+
       const entityId = `resend_${email}_${Date.now()}`;
 
       await resend.emails.send({
@@ -337,8 +349,8 @@ export async function POST(req: Request) {
           'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
           'X-Entity-Ref-ID': entityId,
         },
-        html: verificationEmail('', data.properties.action_link),
-        text: `Bonjour,\n\nConnectez-vous à AlgoPronos AI avec ce lien :\n${data.properties.action_link}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas fait cette demande, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
+        html: verificationEmail('', actionLink),
+        text: `Bonjour,\n\nConnectez-vous à AlgoPronos AI avec ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas fait cette demande, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
 
     } else if (type === 'recovery') {
@@ -354,6 +366,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Impossible de générer le lien de récupération' }, { status: 500 });
       }
 
+      let actionLink = data.properties.action_link;
+      // 🛡️ PRODUCTION DOMAIN FORCING
+      if (actionLink.includes('.vercel.app') || actionLink.includes('localhost')) {
+        actionLink = actionLink.replace(/^https?:\/\/[^\/]+/, APP_URL);
+      }
+
       const entityId = `recovery_${email}_${Date.now()}`;
 
       await resend.emails.send({
@@ -365,8 +383,8 @@ export async function POST(req: Request) {
           'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
           'X-Entity-Ref-ID': entityId,
         },
-        html: recoveryEmail(email, data.properties.action_link),
-        text: `Bonjour,\n\nUne demande de réinitialisation a été effectuée pour le compte ${email}.\n\nCliquez sur ce lien pour créer un nouveau mot de passe :\n${data.properties.action_link}\n\nCe lien expire dans 1 heure.\n\nSi vous n'avez pas fait cette demande, ignorez cet email — votre mot de passe restera inchangé.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
+        html: recoveryEmail(email, actionLink),
+        text: `Bonjour,\n\nUne demande de réinitialisation a été effectuée pour le compte ${email}.\n\nCliquez sur ce lien pour créer un nouveau mot de passe :\n${actionLink}\n\nCe lien expire dans 1 heure.\n\nSi vous n'avez pas fait cette demande, ignorez cet email — votre mot de passe restera inchangé.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
 
     } else {

@@ -4,15 +4,15 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/shared/Logo';
-import { Menu, X, Sparkles, LogIn } from 'lucide-react';
+import { Menu, X, Sparkles, LogIn, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { label: 'Comment ça marche', href: '#how-it-works' },
+  { label: 'Comment ça marche', href: '/#how-it-works' },
   { label: 'Matchs du jour', href: '/matchs' },
   { label: 'Pronostics', href: '/pronostics' },
   { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
-  { label: 'Bookmakers', href: '#bookmakers' },
+  { label: 'Bookmakers', href: '/#bookmakers' },
 ];
 
 export function Header() {
@@ -39,14 +39,24 @@ export function Header() {
           </nav>
 
           {/* Desktop CTAs */}
-          <div className="hidden lg:flex items-center gap-4">
-            <Button variant="ghost" asChild>
+          <div className="hidden lg:flex items-center gap-3">
+            <a
+              href="https://wa.me/22956991777"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 text-[#25D366] hover:bg-[#25D366]/10 rounded-full transition-all"
+              title="Chat WhatsApp"
+            >
+              <MessageCircle className="h-6 w-6" />
+            </a>
+            <div className="w-[1px] h-6 bg-surface-light mx-1" />
+            <Button variant="ghost" size="sm" asChild>
               <Link href="/login">
                 <LogIn className="mr-2 h-4 w-4" />
                 Connexion
               </Link>
             </Button>
-            <Button variant="gradient" asChild>
+            <Button variant="gradient" size="sm" asChild>
               <Link href="/onboarding">
                 <Sparkles className="mr-2 h-4 w-4" />
                 Activer Gratuitement
@@ -86,7 +96,16 @@ export function Header() {
               {item.label}
             </Link>
           ))}
-          <div className="pt-4 space-y-3">
+          <div className="pt-4 space-y-3 border-t border-surface-light">
+            <a
+              href="https://wa.me/22956991777"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#25D366]/10 text-[#25D366] font-bold transition-all"
+            >
+              <MessageCircle className="h-5 w-5" />
+              WhatsApp Support
+            </a>
             <Button variant="outline" className="w-full" asChild>
               <Link href="/login">
                 <LogIn className="mr-2 h-4 w-4" />
