@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { ANONYMOUS_COOKIE_CONFIG } from '@/lib/anonymous/types';
 import { createAdminClient } from '@/lib/supabase/server';
+import { notifyAdmin } from '@/lib/services/notification-service';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -116,7 +117,19 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Success! Redirect to intended destination
+    // 🏆 Success! Redirect to intended destination
+    const user = sessionData?.user;
+    if (user?.email) {
+      // Notify Admin that registration is now COMPLETED
+      await notifyAdmin('signup', { 
+        email: user.email, 
+        fullName: user.user_metadata?.full_name,
+        phone: user.user_metadata?.phone,
+        country: user.user_metadata?.country
+      }, 'confirmed');
+      console.log('[auth/callback] Email confirmed for user:', user.email);
+    }
+
     const successUrl = new URL('/auth/success', requestUrl.origin);
     successUrl.searchParams.set('next', next);
 

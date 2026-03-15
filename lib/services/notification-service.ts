@@ -447,19 +447,28 @@ export async function notifyRejection(p: ActivationPayload & { reason?: string }
 
 // ─── Admin Notifications ────────────────────────────────────────────────────
 
-export async function notifyAdmin(type: 'signup' | 'vip_request', data: any): Promise<boolean> {
+export async function notifyAdmin(
+  type: 'signup' | 'vip_request', 
+  data: any, 
+  status?: 'pending' | 'confirmed'
+): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) return false;
   const adminEmail = 'fgambakpo@gmail.com';
   const resend = new Resend(process.env.RESEND_API_KEY);
   const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
 
-  const subject = type === 'signup' 
-    ? `🆕 Nouvelle inscription : ${data.email}`
-    : `⭐ Nouvelle demande VIP : ${data.identifier}`;
+  let subject = '';
+  if (type === 'signup') {
+    const statusText = status === 'confirmed' ? '✅ COMPLÉTÉE' : '⏳ EN ATTENTE';
+    subject = `🆕 Inscription [${statusText}] : ${data.email}`;
+  } else {
+    subject = `⭐ Nouvelle demande VIP : ${data.identifier}`;
+  }
 
   const html = `
-    <div style="font-family:sans-serif;padding:20px;border:1px solid #ddd;border-radius:10px;">
-      <h2 style="color:#7c3aed">${type === 'signup' ? 'Nouvel Utilisateur' : 'Demande VIP Reçue'}</h2>
+    <div style="font-family:sans-serif;padding:20px;border:1px solid #ddd;border-radius:10px;background-color:#161b22;color:#c9d1d9;">
+      <h2 style="color:#7c3aed">${type === 'signup' ? 'Détails Utilisateur' : 'Demande VIP Reçue'}</h2>
+      <p><strong>Statut :</strong> ${status === 'confirmed' ? '<span style="color:#238636">Email Confirmé</span>' : '<span style="color:#f85149">Email non confirmé</span>'}</p>
       <p><strong>Email :</strong> ${data.email || 'N/A'}</p>
       ${data.fullName ? `<p><strong>Nom :</strong> ${data.fullName}</p>` : ''}
       ${data.phone ? `<p><strong>Téléphone :</strong> ${data.phone}</p>` : ''}

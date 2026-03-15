@@ -303,7 +303,7 @@ export async function POST(req: Request) {
       const displayName = fullName || email.split('@')[0];
       const entityId = `signup_${email}_${Date.now()}`;
 
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: FROM,
         to: email,
         subject: 'Confirmez votre compte AlgoPronos AI',
@@ -316,8 +316,14 @@ export async function POST(req: Request) {
         text: `Bonjour ${displayName},\n\nConfirmez votre email AlgoPronos AI en cliquant sur ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas créé ce compte, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
       });
 
-      // 🔥 Alerte Admin : Nouvelle inscription
-      await notifyAdmin('signup', { email, fullName, phone, country });
+      if (result.error) {
+        console.error('[auth/send-email] Resend signup error:', result.error);
+      } else {
+        console.log('[auth/send-email] Signup email sent successfully to:', email);
+      }
+
+      // 🔥 Alerte Admin : Nouvelle inscription (Attente confirmation)
+      await notifyAdmin('signup', { email, fullName, phone, country }, 'pending');
 
     } else if (type === 'resend') {
       const confirmRedirect = redirectTo || `${APP_URL}/auth/callback?next=/dashboard`;
