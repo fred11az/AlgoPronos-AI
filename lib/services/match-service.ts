@@ -117,9 +117,53 @@ class MatchService {
   }
 
   /**
-   * Use OpenClaw to search the web for matches and odds.
+   * Use OpenClaw to search the web for matches and odds in a segmented way.
+   * This prevents AI response truncation.
    */
   private async searchMatchesWithOpenClaw(date: string): Promise<RealMatch[]> {
+    console.log(`[MatchService] Starting REGIONALIZED OpenClaw search for ${date}...`);
+
+    const segments = [
+      {
+        name: 'Europe & Grands Championnats',
+        prompt: `TOUS les matchs de football en Europe (Ligue des Champions, Europa League, Conference League, Premier League, Liga, Serie A, Bundesliga, Ligue 1, Liga Portugal, Eredivisie, Pro League, Super Lig, EFL Championship, Ligue 2, etc.) ainsi que TOUS les championnats de D1, D2 et Coupes nationales du continent européen pour la date du ${date}.`
+      },
+      {
+        name: 'Afrique Intégrale',
+        prompt: `TOUS les matchs de football en Afrique pour la date du ${date}. Inclure impérativement toutes les ligues de : Bénin, Côte d'Ivoire, Sénégal, Cameroun, Mali, Togo, Burkina Faso, Niger, Gabon, Congo, Guinée, RD Congo, Afrique du Sud, Maroc, Algérie, Tunisie, Égypte, Nigeria, Ghana, Madagascar.`
+      },
+      {
+        name: 'Amériques, Asie & Monde',
+        prompt: `TOUS les matchs de football dans le reste du monde (MLS, Brésil Série A/B, Argentine, Mexique, Arabie Saoudite, Japon, Corée du Sud, Australie, Matchs Internationaux/Amicaux) pour la date du ${date}.`
+      }
+    ];
+
+    let allMatches: RealMatch[] = [];
+
+    // Process segments sequentially or in parallel? Parallel is faster but might hit gateway limits. 
+    // Sequential for stability.
+    for (const segment of segments) {
+      console.log(`[MatchService] Querying segment: ${segment.name}...`);
+      const matches = await this.fetchOpenClawSegment(date, segment.prompt);
+      allMatches = [...allMatches, ...matches];
+      console.log(`[MatchService] Segment ${segment.name} returned ${matches.length} matches.`);
+    }
+
+    // Deduplicate by teams + time (since a match might appear in two segments sometimes)
+    const uniqueMatchesMap = new Map();
+    allMatches.forEach(m => {
+      const key = `${m.homeTeam}-${m.awayTeam}-${m.time}`.toLowerCase().replace(/\s/g, '');
+      if (!uniqueMatchesMap.has(key)) {
+        uniqueMatchesMap.set(key, m);
+      }
+    });
+
+    const finalMatches = Array.from(uniqueMatchesMap.values());
+    console.log(`[MatchService] Total unique matches found via OpenClaw: ${finalMatches.length}`);
+    return finalMatches;
+  }
+
+  private async fetchOpenClawSegment(date: string, regionalPrompt: string): Promise<RealMatch[]> {
     const url = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18790/v1/chat/completions';
     const token = process.env.OPENCLAW_GATEWAY_TOKEN;
 
@@ -128,15 +172,10 @@ class MatchService {
       return [];
     }
 
-    const prompt = `PARCOURS EXHAUSTIF : Consulte les sites Flashscore.com ou Flashscore.fr pour trouver ABSOLUMENT TOUS les matchs de football du ${date} dans le monde entier. 
-Ne te limite pas aux grandes ligues. Je veux des milliers de matchs si nécessaire.
-Inclus impérativement : 
-- TOUTES les ligues européennes (Div 1, Div 2, Div 3, Coupes).
-- TOUTES les ligues africaines sans exception (Bénin, Côte d'Ivoire, Sénégal, Cameroun, Mali, Togo, Burkina, Niger, Congo, Gabon, Guinée, Madagascar, etc.).
-- TOUTES les ligues d'Amérique Latine, Asie et Océanie.
-- Matchs amicaux, compétitions de jeunes et football féminin.
-Pour CHAQUE match trouvé, récupère : l'équipe à domicile, l'équipe à l'extérieur, la ligue exacte, l'heure locale (HH:mm) et les VRAIES COTES (1, N, 2) de Flashscore.
-Réponds UNIQUEMENT en JSON sous la forme d'un tableau d'objets (si la liste est trop longue, fournis au moins les 500 premiers les plus importants) : 
+    const fullPrompt = `${regionalPrompt} 
+Consulte les sites Flashscore.com ou Flashscore.fr pour trouver ABSOLUMENT TOUS les matchs correspondants.
+Inclus pour CHAQUE match trouvé : l'équipe à domicile, l'équipe à l'extérieur, la ligue exacte, l'heure locale (HH:mm) et les VRAIES COTES (1, N, 2) de Flashscore.
+Réponds UNIQUEMENT en JSON sous la forme d'un tableau d'objets : 
 [
   { 
     "homeTeam": "...", 
@@ -156,13 +195,13 @@ Réponds UNIQUEMENT en JSON sous la forme d'un tableau d'objets (si la liste est
         },
         body: JSON.stringify({
           model: 'openclaw',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.1, // Low temp for more stable JSON
+          messages: [{ role: 'user', content: fullPrompt }],
+          temperature: 0.1,
         }),
       });
 
       if (!res.ok) {
-        console.error(`[MatchService] OpenClaw search error: ${res.status}`);
+        console.error(`[MatchService] OpenClaw segment error: ${res.status}`);
         return [];
       }
 
@@ -170,18 +209,17 @@ Réponds UNIQUEMENT en JSON sous la forme d'un tableau d'objets (si la liste est
       const content = data.choices?.[0]?.message?.content;
       if (!content) return [];
 
-      // Extract JSON if AI wrapped it in markdown
       const jsonStr = content.match(/\[[\s\S]*\]/)?.[0] || content;
       const results = JSON.parse(jsonStr);
 
       if (!Array.isArray(results)) return [];
 
       return results.map((r: any, index: number) => ({
-        id: `openclaw-${date}-${index}`,
+        id: `openclaw-${date}-${Math.random().toString(36).substr(2, 9)}`,
         homeTeam: r.homeTeam,
         awayTeam: r.awayTeam,
         league: r.league,
-        leagueCode: 'TOP',
+        leagueCode: this.inferLeagueCode(r.league),
         country: '',
         date: date,
         time: r.time,
@@ -189,9 +227,28 @@ Réponds UNIQUEMENT en JSON sous la forme d'un tableau d'objets (si la liste est
         odds: (r.odds && r.odds.home > 0) ? r.odds : this.generateRealisticOdds(),
       }));
     } catch (err) {
-      console.error('[MatchService] OpenClaw search failed:', err);
+      console.error('[MatchService] OpenClaw segment failed:', err);
       return [];
     }
+  }
+
+  /**
+   * Simple helper to map common league names to codes for filtering
+   */
+  private inferLeagueCode(leagueName: string): string {
+    const l = leagueName.toUpperCase();
+    if (l.includes('PREMIER LEAGUE')) return 'PL';
+    if (l.includes('LALIGA') || l.includes('LA LIGA')) return 'LA';
+    if (l.includes('SERIE A')) return 'SA';
+    if (l.includes('BUNDESLIGA')) return 'BL';
+    if (l.includes('LIGUE 1')) return 'FL';
+    if (l.includes('CHAMPIONS LEAGUE')) return 'CL';
+    if (l.includes('EUROPA LEAGUE')) return 'EL';
+    if (l.includes('MLS')) return 'US1';
+    if (l.includes('SÉNÉGAL')) return 'SN1';
+    if (l.includes('CÔTE D\'IVOIRE')) return 'CI1';
+    if (l.includes('BÉNIN')) return 'BJ1';
+    return 'TOP'; // Default category
   }
 
   // Single-date fetch (reads from cache first, falls back to range fetch)

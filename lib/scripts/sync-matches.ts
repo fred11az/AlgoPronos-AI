@@ -52,27 +52,33 @@ async function syncMatches() {
 
     const predictionsToUpsert: any[] = [];
     
-    // Process in batches or sequential to respect AI limits
-    for (const match of allMatchesBatch) {
-      try {
-        console.log(`[Sync] AI Analysis: ${match.homeTeam} vs ${match.awayTeam} (${match.league})...`);
-        const pred = await generatePrediction({
-          homeTeam: match.homeTeam,
-          awayTeam: match.awayTeam,
-          league: match.league,
-          leagueCode: match.leagueCode,
-          date: match.date,
-          time: match.time,
-          odds: match.odds || { home: 1.8, draw: 3.3, away: 4.0 }
-        });
-
-        if (pred) {
-          predictionsToUpsert.push(pred);
-          console.log(`[Sync] OK: ${match.homeTeam} analyzed.`);
+    // Process in batches of 5 to remain efficient but stable
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < allMatchesBatch.length; i += BATCH_SIZE) {
+      const batch = allMatchesBatch.slice(i, i + BATCH_SIZE);
+      console.log(`[Sync] Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(allMatchesBatch.length/BATCH_SIZE)}...`);
+      
+      const batchResults = await Promise.all(batch.map(async (match) => {
+        try {
+          console.log(`[Sync] AI Analysis: ${match.homeTeam} vs ${match.awayTeam} (${match.league})...`);
+          const pred = await generatePrediction({
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            league: match.league,
+            leagueCode: match.leagueCode,
+            date: match.date,
+            time: match.time,
+            odds: match.odds || { home: 1.8, draw: 3.3, away: 4.0 }
+          });
+          if (pred) console.log(`[Sync] OK: ${match.homeTeam} analyzed.`);
+          return pred;
+        } catch (e) {
+          console.error(`[Sync] Failed AI for ${match.homeTeam}:`, e);
+          return null;
         }
-      } catch (e) {
-        console.error(`[Sync] Failed AI for ${match.homeTeam}:`, e);
-      }
+      }));
+
+      predictionsToUpsert.push(...batchResults.filter(p => p !== null));
     }
 
     if (predictionsToUpsert.length > 0) {
