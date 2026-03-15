@@ -84,6 +84,12 @@ class MatchService {
         );
         if (res.ok) {
           const data = await res.json();
+          
+          if (data.errors && data.errors.access) {
+            console.error(`[Sync] API-Football Error: ${data.errors.access}`);
+            return [];
+          }
+
           const fixtures = data.response ?? [];
           rawFixturesCount += fixtures.length;
           
@@ -164,7 +170,7 @@ class MatchService {
   }
 
   private async fetchOpenClawSegment(date: string, regionalPrompt: string): Promise<RealMatch[]> {
-    const url = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18790/v1/chat/completions';
+    const url = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18789/v1/chat/completions';
     const token = process.env.OPENCLAW_GATEWAY_TOKEN;
 
     if (!token) {
@@ -172,42 +178,59 @@ class MatchService {
       return [];
     }
 
-    const fullPrompt = `${regionalPrompt} 
-Consulte les sites Flashscore.com ou Flashscore.fr pour trouver ABSOLUMENT TOUS les matchs correspondants.
-Inclus pour CHAQUE match trouvé : l'équipe à domicile, l'équipe à l'extérieur, la ligue exacte, l'heure locale (HH:mm) et les VRAIES COTES (1, N, 2) de Flashscore.
-Réponds UNIQUEMENT en JSON sous la forme d'un tableau d'objets : 
+    const fullPrompt = `MISSION : Tu es un spécialiste de l'extraction de données sportives en temps réel. Ta tâche est de trouver une liste exhaustive des matchs de football RÉELS pour le ${date} dans cette zone : ${regionalPrompt}.
+
+INSTRUCTIONS CRITIQUES :
+1. UTILISE TES OUTILS DE RECHERCHE (Google Search, Bing, ou navigation web) pour trouver les matchs d'aujourd'hui. 
+2. NE REPRENDS PAS LES EXEMPLES "..." CI-DESSOUS. Remplis chaque champ avec des données RÉELLES trouvées sur le web.
+3. Si un site (comme Flashscore) est complexe, utilise les résultats de recherche Google ou d'autres sites plus simples (Eurosport, L'Équipe, BBC, etc.).
+4. Pour CHAQUE match, récupère : l'équipe à domicile, l'équipe à l'extérieur, le nom de la ligue, l'heure exacte et les cotes 1N2.
+5. Réponds UNIQUEMENT avec un tableau JSON d'objets, AUCUN texte avant ou après.
+
+FORMAT DE RÉPONSE ATTENDU (Exemple à remplir avec du RÉEL) :
 [
   { 
-    "homeTeam": "...", 
-    "awayTeam": "...", 
-    "league": "...", 
-    "time": "...", 
-    "odds": { "home": 1.5, "draw": 3.4, "away": 5.2 } 
+    "homeTeam": "Nom Réel Team A", 
+    "awayTeam": "Nom Réel Team B", 
+    "league": "Nom de la Ligue", 
+    "time": "HH:mm", 
+    "odds": { "home": 2.1, "draw": 3.2, "away": 3.5 } 
   }
-]`;
+]
+SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de football tous les jours.`;
 
     try {
       const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           model: 'openclaw',
-          messages: [{ role: 'user', content: fullPrompt }],
+          messages: [
+            { role: 'system', content: 'Tu es un agent expert en recherche de données web. Ta mission est de fournir des informations précises au format JSON.' },
+            { role: 'user', content: fullPrompt }
+          ],
           temperature: 0.1,
         }),
       });
 
       if (!res.ok) {
-        console.error(`[MatchService] OpenClaw segment error: ${res.status}`);
+        const errText = await res.text();
+        console.error(`[MatchService] OpenClaw segment error: ${res.status} - ${errText}`);
         return [];
       }
 
       const data = await res.json();
       const content = data.choices?.[0]?.message?.content;
+      
       if (!content) return [];
+
+      if (content.includes('missing_brave_api_key') || content.includes('technique avec les outils de recherche')) {
+        console.error('[MatchService] OpenClaw failure: Missing Brave API Key for web search.');
+        return [];
+      }
 
       const jsonStr = content.match(/\[[\s\S]*\]/)?.[0] || content;
       const results = JSON.parse(jsonStr);
