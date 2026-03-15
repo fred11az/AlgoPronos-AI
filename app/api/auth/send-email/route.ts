@@ -311,7 +311,11 @@ export async function POST(req: Request) {
 
       if (result.error) {
         console.error('[auth/send-email] Resend signup error:', result.error);
-        return NextResponse.json({ error: 'Échec de l\'envoi de l\'email de confirmation', details: result.error }, { status: 500 });
+        return NextResponse.json({ 
+          error: 'Échec de l\'envoi de l\'email de confirmation', 
+          details: result.error,
+          code: (result.error as any)?.name || 'UNKNOWN_ERROR'
+        }, { status: 500 });
       } else {
         console.log('[auth/send-email] Signup email sent successfully to:', email);
       }
@@ -350,7 +354,11 @@ export async function POST(req: Request) {
 
       if (result.error) {
         console.error('[auth/send-email] Resend magic-link error:', result.error);
-        return NextResponse.json({ error: 'Échec de l\'envoi du lien de connexion', details: result.error }, { status: 500 });
+        return NextResponse.json({ 
+          error: 'Échec de l\'envoi du lien de connexion', 
+          details: result.error,
+          code: (result.error as any)?.name || 'UNKNOWN_ERROR'
+        }, { status: 500 });
       }
 
     } else if (type === 'recovery') {
@@ -384,7 +392,11 @@ export async function POST(req: Request) {
 
       if (result.error) {
         console.error('[auth/send-email] Resend recovery error:', result.error);
-        return NextResponse.json({ error: 'Échec de l\'envoi de l\'email de récupération', details: result.error }, { status: 500 });
+        return NextResponse.json({ 
+          error: 'Échec de l\'envoi de l\'email de récupération', 
+          details: result.error,
+          code: (result.error as any)?.name || 'UNKNOWN_ERROR'
+        }, { status: 500 });
       }
 
     } else {
