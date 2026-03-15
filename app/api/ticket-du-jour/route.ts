@@ -70,6 +70,16 @@ function pickForMatch(
   const safePool = candidates.filter(c => c.impliedPct >= MIN_PICK_IMPLIED_PCT);
   const pool = safePool.length >= 1 ? safePool : candidates;
 
+  if (!pool || pool.length === 0) {
+    return {
+      type: '1X2',
+      value: '1',
+      odds: ho || 1.85,
+      impliedPct: ho ? Math.round((1/ho)*100) : 54,
+      reasoning: 'Fallback selection due to empty analysis pool'
+    };
+  }
+
   const best = pool.reduce((a, b) => {
     const score = (c: PickCandidate) =>
       c.impliedPct * 2
@@ -81,8 +91,8 @@ function pickForMatch(
   return {
     type: best.type,
     value: best.value,
-    odds: best.odds,
-    impliedPct: best.impliedPct,
+    odds: best.odds || 1.85,
+    impliedPct: best.impliedPct || 54,
     reasoning: stats?.advice ? `Conseil API-Football: "${stats.advice}"` : null,
   };
 }
@@ -179,7 +189,8 @@ export async function GET() {
       };
     });
 
-    const totalOdds = Math.round(picks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
+    const totalOddsRaw = picks.reduce((acc, p) => acc * (p.selection.odds || 1), 1);
+    const totalOdds = isNaN(totalOddsRaw) ? 1.00 : Math.round(totalOddsRaw * 100) / 100;
     // Confiance = moyenne des probabilités implicites par pick (affichage clair, jamais < 55%)
     const confidencePct = Math.round(
       picks.reduce((acc, p) => acc + p.selection.impliedPct, 0) / picks.length

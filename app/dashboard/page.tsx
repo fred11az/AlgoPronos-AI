@@ -407,7 +407,7 @@ export default async function DashboardPage() {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="font-medium text-white">
-                        Cote: {combine.totalOdds.toFixed(2)}
+                        Cote: {(combine.totalOdds || 0).toFixed(2)}
                       </p>
                       <Badge
                         variant={

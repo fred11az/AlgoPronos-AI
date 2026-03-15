@@ -13,10 +13,14 @@ import {
   Shield,
   Target,
   ChevronRight,
+  Info,
+  BrainCircuit,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PronosPaywall } from '@/components/pronostics/PronosPaywall';
 import { PageBottomCTA } from '@/components/pronostics/PageBottomCTA';
+import { VerificateurWidget } from '@/components/landing/VerificateurWidget';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -220,27 +224,7 @@ export default async function MatchPredictionPage({
 
               {/* VS + Odds */}
               <div className="text-center">
-                <div className="text-4xl font-bold text-text-muted mb-4">VS</div>
-                <div className="grid grid-cols-3 gap-1 text-center">
-                  <div className={`rounded-lg p-2 ${p.prediction_type === 'home' ? 'bg-primary/20 border border-primary' : 'bg-surface-light'}`}>
-                    <div className="text-xs text-text-muted mb-1">1</div>
-                    <div className={`font-bold ${p.prediction_type === 'home' ? 'text-primary' : 'text-white'}`}>
-                      {p.odds_home?.toFixed(2)}
-                    </div>
-                  </div>
-                  <div className={`rounded-lg p-2 ${p.prediction_type === 'draw' ? 'bg-primary/20 border border-primary' : 'bg-surface-light'}`}>
-                    <div className="text-xs text-text-muted mb-1">N</div>
-                    <div className={`font-bold ${p.prediction_type === 'draw' ? 'text-primary' : 'text-white'}`}>
-                      {p.odds_draw?.toFixed(2)}
-                    </div>
-                  </div>
-                  <div className={`rounded-lg p-2 ${p.prediction_type === 'away' ? 'bg-primary/20 border border-primary' : 'bg-surface-light'}`}>
-                    <div className="text-xs text-text-muted mb-1">2</div>
-                    <div className={`font-bold ${p.prediction_type === 'away' ? 'text-primary' : 'text-white'}`}>
-                      {p.odds_away?.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
+                <div className="text-4xl font-bold text-text-muted mb-4 uppercase tracking-widest text-primary/50">Analysé IA</div>
               </div>
 
               {/* Away Team */}
@@ -277,8 +261,6 @@ export default async function MatchPredictionPage({
                   <div className="bg-gradient-to-r from-primary/10 to-[#00D4FF]/10 rounded-xl p-5 border border-primary/20 mb-4">
                     <div className="text-2xl font-bold text-white mb-1">{p.prediction}</div>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-primary font-semibold">Cote : {p.recommended_odds?.toFixed(2)}</span>
-                      <span className="text-text-muted">·</span>
                       <span className="text-text-secondary">Probabilité modèle : <span className="text-white font-semibold">{p.probability}%</span></span>
                     </div>
                   </div>
@@ -320,8 +302,6 @@ export default async function MatchPredictionPage({
                   <div className="bg-gradient-to-r from-primary/10 to-[#00D4FF]/10 rounded-xl p-5 border border-primary/20 mb-4">
                     <div className="text-2xl font-bold text-white mb-1">{p.prediction}</div>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-primary font-semibold">Cote : {p.recommended_odds?.toFixed(2)}</span>
-                      <span className="text-text-muted">·</span>
                       <span className="text-text-secondary">Probabilité modèle : <span className="text-white font-semibold">{p.probability}%</span></span>
                     </div>
                   </div>
@@ -389,11 +369,9 @@ export default async function MatchPredictionPage({
               <p className="text-sm text-text-muted mb-4">Ouvrez un compte optimisé pour profiter de cotes boostées</p>
               <div className="space-y-3">
                 {BOOKMAKERS.map((bm) => (
-                  <a
+                  <Link
                     key={bm.name}
-                    href={bm.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`/redirect?url=${encodeURIComponent(bm.url)}&bookmaker=${encodeURIComponent(bm.name)}`}
                     className="flex items-center gap-3 bg-surface-light hover:bg-white/10 rounded-xl p-3 transition-colors group"
                   >
                     <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -404,7 +382,7 @@ export default async function MatchPredictionPage({
                       <div className="text-xs text-green-400">{bm.bonus}</div>
                     </div>
                     <ArrowRight className="h-4 w-4 text-text-muted group-hover:text-primary transition-colors flex-shrink-0" />
-                  </a>
+                  </Link>
                 ))}
               </div>
               <div className="mt-4 pt-4 border-t border-surface-light">
@@ -414,6 +392,51 @@ export default async function MatchPredictionPage({
                   </Button>
                 </Link>
               </div>
+            </div>
+
+            {/* Verificateur Widget Sidebar */}
+            <div className="bg-surface rounded-2xl border border-surface-light p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <BrainCircuit className="h-5 w-5 text-primary" />
+                <h2 className="text-base font-bold text-white">Vérification IA</h2>
+              </div>
+              <p className="text-sm text-text-muted mb-6">Testez l'éligibilité de votre compte actuel à l'IA.</p>
+              <VerificateurWidget compact />
+            </div>
+
+            {/* Educational SEO Content */}
+            <div className="bg-surface rounded-2xl border border-surface-light p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Info className="h-5 w-5 text-secondary" />
+                <h2 className="text-base font-bold text-white">C'est quoi un Compte Optimisé IA ?</h2>
+              </div>
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Zap className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Reconnaissance de l'Algo</h4>
+                    <p className="text-xs text-text-muted mt-1 leading-relaxed">
+                      L'algorithme AlgoPronos identifie vos paris en temps réel pour affiner ses prédictions.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
+                    <BarChart2 className="h-4 w-4 text-secondary" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Accès aux Cotes Boostées</h4>
+                    <p className="text-xs text-text-muted mt-1 leading-relaxed">
+                      Seuls les comptes créés via notre protocole bénéficient du bonus de 200% et des cotes optimisées.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <Link href="/compte-optimise-ia" className="block text-center text-xs font-bold text-primary hover:underline mt-6">
+                En savoir plus sur l'IA d'AlgoPronos →
+              </Link>
             </div>
 
             {/* Disclaimer */}
@@ -438,7 +461,7 @@ export default async function MatchPredictionPage({
                       <div className="text-sm font-medium text-white">{r.home_team} vs {r.away_team}</div>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-primary">{r.prediction}</span>
-                        <span className="text-xs text-text-muted">· Cote {r.recommended_odds?.toFixed(2)}</span>
+                        <span className="text-xs text-text-muted">· Probabilité {r.probability}%</span>
                       </div>
                     </Link>
                   ))}

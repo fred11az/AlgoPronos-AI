@@ -103,13 +103,32 @@ export default async function TeamPage({
     .order('match_date', { ascending: true })
     .limit(20);
 
-  if (error || !predictions || predictions.length === 0) {
-    notFound();
+  // Persistence logic: Check if team EVER existed to avoid 404ing valid teams
+  let teamName = slugToTitle(slug);
+  let teamExists = false;
+
+  if (predictions && predictions.length > 0) {
+    const firstMatch = predictions[0];
+    teamName = firstMatch.home_team_slug === slug ? firstMatch.home_team : firstMatch.away_team;
+    teamExists = true;
+  } else {
+    // Try to find ANY record for this team to confirm existence and get name
+    const { data: anyMatch } = await supabase
+      .from('match_predictions')
+      .select('home_team, away_team, home_team_slug, away_team_slug')
+      .or(`home_team_slug.eq.${slug},away_team_slug.eq.${slug}`)
+      .limit(1)
+      .single();
+
+    if (anyMatch) {
+      teamName = anyMatch.home_team_slug === slug ? anyMatch.home_team : anyMatch.away_team;
+      teamExists = true;
+    }
   }
 
-  const firstMatch = predictions[0] as PredictionSummary;
-  const teamName =
-    firstMatch.home_team_slug === slug ? firstMatch.home_team : firstMatch.away_team;
+  if (!teamExists) {
+    notFound();
+  }
 
   // Past results for win rate
   const { data: resolved } = await supabase
@@ -186,7 +205,7 @@ export default async function TeamPage({
                 <h1 className="text-2xl md:text-3xl font-bold text-white">{teamName}</h1>
               </div>
               <p className="text-text-secondary">
-                {predictions.length} pronostic{predictions.length > 1 ? 's' : ''} à venir
+                {(predictions ?? []).length} pronostic{(predictions ?? []).length > 1 ? 's' : ''} à venir
               </p>
             </div>
             {totalResolved > 0 && (
@@ -208,61 +227,78 @@ export default async function TeamPage({
           <TrendingUp className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-bold text-white">Prochains matchs</h2>
         </div>
-        <div className="space-y-3">
-          {predictions.map((p) => {
-            const pred = p as PredictionSummary;
-            const isHome = pred.home_team_slug === slug;
-            const opponent = isHome ? pred.away_team : pred.home_team;
-            const venue = isHome ? 'Domicile' : 'Extérieur';
-            return (
-              <Link
-                key={pred.slug}
-                href={`/pronostic/${pred.slug}`}
-                className="block bg-surface hover:bg-surface-light rounded-2xl border border-surface-light hover:border-primary/30 p-5 transition-all group"
-              >
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-base font-semibold text-white group-hover:text-primary transition-colors">
-                      {isHome ? `${teamName}` : `${opponent}`}
-                      <span className="text-text-muted font-normal"> vs </span>
-                      {isHome ? `${opponent}` : `${teamName}`}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1">
-                      <Link
-                        href={`/ligue/${pred.league_slug}`}
-                        className="text-xs text-text-muted hover:text-primary transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {pred.league}
-                      </Link>
-                      <span className="text-xs text-text-muted">·</span>
-                      <span className="text-xs text-text-muted capitalize">{formatDate(pred.match_date)} · {pred.match_time}</span>
-                      <span className="text-xs text-text-muted">·</span>
-                      <span className={`text-xs ${isHome ? 'text-blue-400' : 'text-orange-400'}`}>{venue}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5">
-                      <div className="text-xs text-text-muted">Pronostic</div>
-                      <div className="text-sm font-semibold text-primary">{pred.prediction}</div>
-                    </div>
-                    <div className="bg-surface-light rounded-lg px-3 py-1.5 text-center">
-                      <div className="text-xs text-text-muted">Prob.</div>
-                      <div className="text-sm font-bold text-white">{pred.probability}%</div>
-                    </div>
-                    {pred.value_edge > 0 && (
-                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-1.5">
-                        <div className="text-xs text-text-muted">Value</div>
-                        <div className="text-sm font-bold text-green-400">+{pred.value_edge}%</div>
+        
+        {predictions && predictions.length > 0 ? (
+          <div className="space-y-3">
+            {predictions.map((p) => {
+              const pred = p as PredictionSummary;
+              const isHome = pred.home_team_slug === slug;
+              const opponent = isHome ? pred.away_team : pred.home_team;
+              const venue = isHome ? 'Domicile' : 'Extérieur';
+              return (
+                <Link
+                  key={pred.slug}
+                  href={`/pronostic/${pred.slug}`}
+                  className="block bg-surface hover:bg-surface-light rounded-2xl border border-surface-light hover:border-primary/30 p-5 transition-all group"
+                >
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-base font-semibold text-white group-hover:text-primary transition-colors">
+                        {isHome ? `${teamName}` : `${opponent}`}
+                        <span className="text-text-muted font-normal"> vs </span>
+                        {isHome ? `${opponent}` : `${teamName}`}
                       </div>
-                    )}
-                    <ChevronRight className="h-5 w-5 text-text-muted group-hover:text-primary flex-shrink-0 transition-colors" />
+                      <div className="flex items-center gap-3 mt-1">
+                        <Link
+                          href={`/ligue/${pred.league_slug}`}
+                          className="text-xs text-text-muted hover:text-primary transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {pred.league}
+                        </Link>
+                        <span className="text-xs text-text-muted">·</span>
+                        <span className="text-xs text-text-muted capitalize">{formatDate(pred.match_date)} · {pred.match_time}</span>
+                        <span className="text-xs text-text-muted">·</span>
+                        <span className={`text-xs ${isHome ? 'text-blue-400' : 'text-orange-400'}`}>{venue}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5">
+                        <div className="text-xs text-text-muted">Pronostic</div>
+                        <div className="text-sm font-semibold text-primary">{pred.prediction}</div>
+                      </div>
+                      <div className="bg-surface-light rounded-lg px-3 py-1.5 text-center">
+                        <div className="text-xs text-text-muted">Prob.</div>
+                        <div className="text-sm font-bold text-white">{pred.probability}%</div>
+                      </div>
+                      {pred.value_edge > 0 && (
+                        <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-1.5">
+                          <div className="text-xs text-text-muted">Value</div>
+                          <div className="text-sm font-bold text-green-400">+{pred.value_edge}%</div>
+                        </div>
+                      )}
+                      <ChevronRight className="h-5 w-5 text-text-muted group-hover:text-primary flex-shrink-0 transition-colors" />
+                    </div>
                   </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-16 bg-surface rounded-3xl border border-dashed border-surface-light">
+            <Users className="h-12 w-12 text-text-muted mx-auto mb-4 opacity-20" />
+            <h3 className="text-xl font-semibold text-white mb-2">Pas de match en vue</h3>
+            <p className="text-text-secondary max-w-sm mx-auto px-4">
+              {teamName} ne joue pas dans les prochains jours. 
+              Nos pronostics IA s'activent dès que le calendrier est mis à jour !
+            </p>
+            <div className="mt-8">
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href="/pronostics">Explorer d'autres matchs</Link>
+              </Button>
+            </div>
+          </div>
+        )}
       </section>
 
       <PageBottomCTA />

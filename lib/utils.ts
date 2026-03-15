@@ -52,7 +52,8 @@ export function formatRelativeTime(date: Date | string): string {
   return formatDate(d);
 }
 
-export function formatOdds(odds: number): string {
+export function formatOdds(odds: number | null | undefined): string {
+  if (odds === null || odds === undefined || isNaN(odds)) return '1.00';
   return odds.toFixed(2);
 }
 

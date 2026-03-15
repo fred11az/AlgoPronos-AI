@@ -56,11 +56,9 @@ export function PageBottomCTA() {
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {BOOKMAKERS.map((bm) => (
-            <a
+            <Link
               key={bm.name}
-              href={bm.url}
-              target="_blank"
-              rel="noopener noreferrer sponsored"
+              href={`/redirect?url=${encodeURIComponent(bm.url)}&bookmaker=${encodeURIComponent(bm.name)}`}
               className="flex items-center justify-between gap-3 bg-surface-light hover:bg-white/10 border border-surface-light hover:border-primary/30 rounded-xl px-4 py-3 transition-colors group flex-1 max-w-xs mx-auto sm:mx-0"
             >
               <div>
@@ -71,7 +69,7 @@ export function PageBottomCTA() {
                 Ouvrir
                 <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
               </div>
-            </a>
+            </Link>
           ))}
         </div>
         <p className="text-xs text-text-muted text-center mt-4">

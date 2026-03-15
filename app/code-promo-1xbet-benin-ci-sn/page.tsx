@@ -168,13 +168,13 @@ export default function CodePromoBeninCiSnPage() {
             <p className="text-xs text-text-muted uppercase tracking-widest mb-3">Code officiel — Bénin · CI · Sénégal</p>
             <CopyButton code={PROMO_CODE} />
             <div className="mt-6">
-              <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+              <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
                 <Button variant="gradient" size="lg" className="w-full">
                   <Gift className="mr-2 h-5 w-5" />
                   Créer mon compte 1xBet
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-              </a>
+              </Link>
             </div>
           </div>
 

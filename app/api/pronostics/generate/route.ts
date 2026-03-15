@@ -99,7 +99,11 @@ function computePrediction(
   };
 }
 
-async function callGroqAnalysis(
+/**
+ * Calls the local OpenClaw AI gateway (OpenAI-compatible endpoint).
+ * Falls back to Groq if OpenClaw is not reachable.
+ */
+async function callAIAnalysis(
   homeTeam: string,
   awayTeam: string,
   league: string,
@@ -108,25 +112,55 @@ async function callGroqAnalysis(
   homeForm: string,
   awayForm: string,
 ): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return '';
-
   const prompt = `Tu es un analyste football professionnel. Rédige une courte analyse (3-4 phrases) du match ${homeTeam} vs ${awayTeam} en ${league}.
 Forme ${homeTeam}: ${homeForm} (5 derniers matchs: W=victoire, D=nul, L=défaite)
 Forme ${awayTeam}: ${awayForm}
 Pronostic IA: ${prediction} (probabilité modèle: ${probability}%)
 Rédige en français, ton neutre et professionnel, sans mentionner d'IA ou d'algorithme.`;
 
+  const messages = [{ role: 'user', content: prompt }];
+
+  // --- 1. Try OpenClaw (local AI engine) ---
+  const openClawUrl = process.env.OPENCLAW_GATEWAY_URL;
+  const openClawToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (openClawUrl && openClawToken) {
+    try {
+      const res = await fetch(openClawUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openClawToken}`,
+        },
+        body: JSON.stringify({
+          model: 'openclaw',
+          messages,
+          max_tokens: 200,
+        }),
+        signal: AbortSignal.timeout(30000), // 30s timeout for local AI
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content?.trim();
+        if (content) return content;
+      }
+    } catch {
+      // OpenClaw unavailable — fall through to Groq
+    }
+  }
+
+  // --- 2. Fallback: Groq ---
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) return '';
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: prompt }],
+        messages,
         temperature: 0.5,
         max_tokens: 200,
       }),
@@ -232,7 +266,7 @@ export async function POST(req: NextRequest) {
       const homeForm = generateForm();
       const awayForm = generateForm();
 
-      const aiAnalysis = await callGroqAnalysis(
+      const aiAnalysis = await callAIAnalysis(
         match.homeTeam,
         match.awayTeam,
         match.league,

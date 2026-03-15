@@ -204,8 +204,19 @@ const SECTIONS = [
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
-export default function AutresLiensPage() {
-  const totalLinks = SECTIONS.reduce((acc, s) => acc + s.links.length, 0);
+import { createClient } from '@/lib/supabase/server';
+
+export default async function AutresLiensPage() {
+  const supabase = await createClient();
+  
+  // Fetch latest 100 predictions for SEO flooding
+  const { data: latestPredictions } = await supabase
+    .from('match_predictions')
+    .select('slug, home_team, away_team, league, match_date')
+    .order('match_date', { ascending: false })
+    .limit(100);
+
+  const totalLinks = SECTIONS.reduce((acc, s) => acc + s.links.length, 0) + (latestPredictions?.length || 0);
 
   return (
     <main className="min-h-screen bg-background">
@@ -282,6 +293,46 @@ export default function AutresLiensPage() {
       {/* ─── LINK SECTIONS ───────────────────────────────────────────────────── */}
       <section className="py-8 px-4">
         <div className="max-w-5xl mx-auto space-y-6">
+          {/* ─── DYNAMIC PRONOSTICS SECTIONS ─────────────────────────────────── */}
+          {latestPredictions && latestPredictions.length > 0 && (
+            <div className="border border-primary/25 rounded-2xl overflow-hidden">
+              <div className="bg-primary/5 border-b border-primary/25 px-5 py-4 flex items-center gap-3">
+                <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                  <Zap className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="font-bold text-white text-sm">Derniers Pronostics IA Générés</h2>
+                </div>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full border bg-primary/15 text-primary border-primary/30">
+                  Nouveaux
+                </span>
+                <span className="text-xs text-text-muted">
+                  {latestPredictions.length} liens
+                </span>
+              </div>
+              
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-surface-light/20">
+                {latestPredictions.map((pred) => (
+                  <Link
+                    key={pred.slug}
+                    href={`/pronostic/${pred.slug}`}
+                    className="group bg-background hover:bg-surface transition-colors px-4 py-3 flex items-start gap-2"
+                  >
+                    <ChevronRight className="h-4 w-4 text-primary shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-transform" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-semibold text-white group-hover:text-primary transition-colors block truncate">
+                        {pred.home_team} vs {pred.away_team}
+                      </span>
+                      <p className="text-[10px] text-text-muted mt-0.5">
+                        {pred.league} · {new Date(pred.match_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           {SECTIONS.map((section) => (
             <div
               key={section.id}

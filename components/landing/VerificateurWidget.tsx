@@ -40,8 +40,11 @@ const AFFILIATE_URL =
   'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599';
 
 // ─── Widget ───────────────────────────────────────────────────────────────
+interface VerificateurWidgetProps {
+  compact?: boolean;
+}
 
-export function VerificateurWidget() {
+export function VerificateurWidget({ compact }: VerificateurWidgetProps) {
   const [bookmaker, setBookmaker]     = useState('');
   const [accountId, setAccountId]     = useState('');
   const [step, setStep]               = useState<Step>('idle');
@@ -110,7 +113,7 @@ export function VerificateurWidget() {
 
           {/* ─── FORMULAIRE ─────────────────────────────────── */}
           {step === 'idle' && (
-            <div className="p-6 space-y-5">
+            <div className={compact ? "p-4 space-y-3" : "p-6 space-y-5"}>
               {/* Bookmaker */}
               <div className="space-y-2">
                 <Label>Votre bookmaker actuel</Label>
@@ -172,6 +175,7 @@ export function VerificateurWidget() {
                 className="w-full"
                 onClick={handleVerify}
                 disabled={!bookmaker || !accountId.trim()}
+                size={compact ? "sm" : "lg"}
               >
                 <Shield className="mr-2 h-4 w-4" />
                 Vérifier mon compte
@@ -312,13 +316,13 @@ export function VerificateurWidget() {
                   )}
                   <div className="flex flex-col gap-2">
                     {reason !== 'pending_review' && (
-                      <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+                      <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`} className="w-full">
                         <Button variant="gradient" className="w-full">
                           <Zap className="mr-2 h-4 w-4" />
                           Créer un compte Optimisé IA
                           <ExternalLink className="ml-2 h-3 w-3" />
                         </Button>
-                      </a>
+                      </Link>
                     )}
                     <Button variant="outline" className="w-full" onClick={reset}>
                       Vérifier un autre compte
@@ -357,12 +361,12 @@ export function VerificateurWidget() {
                     et obtenez un accès <strong className="text-white">illimité</strong> à l&apos;algorithme.
                   </p>
                   <div className="flex gap-2 flex-wrap">
-                    <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer" className="flex-1">
+                    <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`} className="flex-1">
                       <Button variant="gradient" className="w-full" size="sm">
                         Créer mon compte
                         <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                       </Button>
-                    </a>
+                    </Link>
                     <Button variant="outline" size="sm" onClick={() => setShowPopup(false)}>
                       Plus tard
                     </Button>

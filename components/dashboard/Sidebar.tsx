@@ -75,10 +75,8 @@ export function Sidebar({ user, collapsed, onToggle, onLinkClick, onSignOut, isA
   const isVerified = user?.tier === 'verified';
 
   // Ferme le menu mobile quand on clique sur un lien
-  const handleLinkClick = (e?: React.MouseEvent) => {
-    if (onLinkClick) {
-      onLinkClick();
-    }
+  const handleLinkClick = () => {
+    if (onLinkClick) onLinkClick();
   };
 
   // Ferme le menu mobile
@@ -107,7 +105,7 @@ export function Sidebar({ user, collapsed, onToggle, onLinkClick, onSignOut, isA
         'h-screen bg-surface border-r border-surface-light transition-all duration-300',
         // En mobile, le parent gère le positionnement fixed + transform
         // En desktop, on utilise fixed pour que le sidebar reste en place
-        isMobile ? 'relative w-64' : 'fixed left-0 top-0 z-40',
+        isMobile ? 'relative w-64' : 'fixed left-0 top-0 z-50',
         !isMobile && (collapsed ? 'w-20' : 'w-64')
       )}
     >

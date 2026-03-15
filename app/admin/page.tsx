@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Users, CheckCircle, Zap, TrendingUp, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { SyncButton } from './SyncButton';
 
 async function getAdminStats() {
   const supabase = await createClient();
@@ -34,22 +35,18 @@ async function getAdminStats() {
     .select('*', { count: 'exact', head: true })
     .gte('created_at', today.toISOString());
 
-  // Get recent verifications
-  const { data: recentVerifications } = await supabase
-    .from('vip_verifications')
-    .select(`
-      *,
-      user:profiles(id, email, full_name)
-    `)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false })
-    .limit(5);
+  // Get matches synchronized today
+  const { count: matchesSyncedToday } = await supabase
+    .from('matches_cache')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', today.toISOString());
 
   return {
     totalUsers: totalUsers || 0,
     verifiedUsers: verifiedUsers || 0,
     pendingVerifications: pendingVerifications || 0,
     combinesGenerated: combinesGenerated || 0,
+    matchesSyncedToday: matchesSyncedToday || 0,
     recentVerifications: recentVerifications || [],
   };
 }
@@ -59,11 +56,14 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">Dashboard Admin</h1>
-        <p className="text-text-secondary">
-          Vue d&apos;ensemble de la plateforme AlgoPronos AI
-        </p>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Dashboard Admin</h1>
+          <p className="text-text-secondary">
+            Vue d&apos;ensemble de la plateforme AlgoPronos AI
+          </p>
+        </div>
+        <SyncButton />
       </div>
 
       {/* KPI Cards */}
@@ -73,13 +73,12 @@ export default async function AdminDashboardPage() {
           value={stats.totalUsers}
           subtitle={`${stats.verifiedUsers} activés`}
           icon={<Users className="h-6 w-6" />}
-          trend="+12%"
         />
         <StatCard
-          title="Comptes Activés"
-          value={stats.verifiedUsers}
-          subtitle="Utilisateurs vérifiés"
-          icon={<CheckCircle className="h-6 w-6" />}
+          title="Matchs Synchro"
+          value={stats.matchesSyncedToday}
+          subtitle="Aujourd'hui"
+          icon={<TrendingUp className="h-6 w-6" />}
         />
         <StatCard
           title="Activations en attente"

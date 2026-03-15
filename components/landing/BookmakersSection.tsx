@@ -95,45 +95,43 @@ export function BookmakersSection() {
         {/* Logo grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
           {BOOKMAKERS.map((bm, i) => (
-            <ScrollReveal key={bm.name} delay={i * 0.08}>
-              <motion.a
-                href={bm.url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                key={bm.name}
+                href={`/redirect?url=${encodeURIComponent(bm.url)}&bookmaker=${encodeURIComponent(bm.name)}`}
                 className={`group relative flex flex-col items-center rounded-2xl border ${bm.borderColor} transition-all duration-300 hover:-translate-y-2 hover:shadow-xl ${bm.shadowColor} overflow-hidden`}
-                whileTap={{ scale: 0.97 }}
               >
-                {/* Logo area */}
-                <div className={`w-full ${bm.bgColor} flex items-center justify-center p-5 h-28 relative`}>
-                  <Image
-                    src={bm.logo}
-                    alt={bm.name}
-                    width={140}
-                    height={60}
-                    className="object-contain max-h-16 w-auto"
-                    unoptimized
-                  />
-                  {/* Visit arrow */}
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ExternalLink className="h-3.5 w-3.5 text-white/60" />
+                <ScrollReveal delay={i * 0.08}>
+                  {/* Logo area */}
+                  <div className={`w-full ${bm.bgColor} flex items-center justify-center p-5 h-28 relative`}>
+                    <Image
+                      src={bm.logo}
+                      alt={bm.name}
+                      width={140}
+                      height={60}
+                      className="object-contain max-h-16 w-auto"
+                      unoptimized
+                    />
+                    {/* Visit arrow */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ExternalLink className="h-3.5 w-3.5 text-white/60" />
+                    </div>
                   </div>
-                </div>
 
-                {/* Info area */}
-                <div className="w-full bg-surface px-4 py-3">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-sm font-bold text-white">{bm.name}</span>
-                    {bm.badge && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${bm.badgeColor}`}>
-                        ★
-                      </span>
-                    )}
+                  {/* Info area */}
+                  <div className="w-full bg-surface px-4 py-3">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-sm font-bold text-white">{bm.name}</span>
+                      {bm.badge && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${bm.badgeColor}`}>
+                          ★
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-text-muted">{bm.description}</div>
+                    <div className="mt-2 text-xs font-semibold text-primary">{bm.bonus}</div>
                   </div>
-                  <div className="text-xs text-text-muted">{bm.description}</div>
-                  <div className="mt-2 text-xs font-semibold text-primary">{bm.bonus}</div>
-                </div>
-              </motion.a>
-            </ScrollReveal>
+                </ScrollReveal>
+              </Link>
           ))}
         </div>
 

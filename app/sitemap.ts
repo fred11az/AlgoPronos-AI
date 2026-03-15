@@ -61,7 +61,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .select('slug, match_date, created_at')
       .gte('match_date', today)
       .order('match_date', { ascending: true })
-      .limit(500);
+      .limit(2000);
 
     if (matches) {
       matchPages = matches.map((m) => ({

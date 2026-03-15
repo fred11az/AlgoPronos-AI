@@ -95,18 +95,42 @@ export default async function LeaguePage({
   const { data: predictions, error } = await supabase
     .from('match_predictions')
     .select(
-      'slug, home_team, away_team, league, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away'
+      'slug, home_team, away_team, league, country, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away'
     )
     .eq('league_slug', slug)
     .gte('match_date', today)
     .order('match_date', { ascending: true })
     .limit(30);
 
-  if (error || !predictions || predictions.length === 0) {
-    notFound();
+  // If no upcoming, check if league EVER existed to avoid 404ing valid leagues
+  let leagueName = slugToTitle(slug);
+  let country = '';
+  let leagueExists = false;
+
+  if (predictions && predictions.length > 0) {
+    leagueName = predictions[0].league;
+    country = (predictions as any)[0].country || '';
+    leagueExists = true;
+  } else {
+    // Try to find ANY record for this league to get the official name and confirm existence
+    const { data: anyMatch } = await supabase
+      .from('match_predictions')
+      .select('league, country')
+      .eq('league_slug', slug)
+      .limit(1)
+      .single();
+
+    if (anyMatch) {
+      leagueName = anyMatch.league;
+      country = anyMatch.country || '';
+      leagueExists = true;
+    }
   }
 
-  const leagueName = predictions[0].league || slugToTitle(slug);
+  if (!leagueExists) {
+    // Truly unknown league slug
+    notFound();
+  }
 
   // Get also recently resolved to show win rate
   const { data: resolved } = await supabase
@@ -121,7 +145,7 @@ export default async function LeaguePage({
   const winRate = totalResolved > 0 ? Math.round((winCount / totalResolved) * 100) : null;
 
   // Group predictions by date
-  const byDate = predictions.reduce<Record<string, PredictionSummary[]>>((acc, p) => {
+  const byDate = (predictions ?? []).reduce<Record<string, PredictionSummary[]>>((acc, p) => {
     if (!acc[p.match_date]) acc[p.match_date] = [];
     acc[p.match_date].push(p as PredictionSummary);
     return acc;
@@ -155,8 +179,8 @@ export default async function LeaguePage({
     name: `Pronostics ${leagueName} — AlgoPronos AI`,
     description: `Liste des pronostics IA pour ${leagueName}. Analyse algorithmique de chaque match avec probabilités et value edge.`,
     url: `https://algopronos.com/ligue/${slug}`,
-    numberOfItems: predictions.length,
-    itemListElement: predictions.slice(0, 10).map((p, i) => ({
+    numberOfItems: (predictions ?? []).length,
+    itemListElement: (predictions ?? []).slice(0, 10).map((p, i) => ({
       '@type': 'ListItem',
       position: i + 1,
       url: `https://algopronos.com/pronostic/${p.slug}`,
@@ -189,7 +213,7 @@ export default async function LeaguePage({
                 <h1 className="text-2xl md:text-3xl font-bold text-white">{leagueName}</h1>
               </div>
               <p className="text-text-secondary">
-                {predictions.length} pronostic{predictions.length > 1 ? 's' : ''} à venir · Analyse IA
+                {(predictions ?? []).length} pronostic{(predictions ?? []).length > 1 ? 's' : ''} à venir · Analyse IA
               </p>
             </div>
             {winRate !== null && (
@@ -205,60 +229,76 @@ export default async function LeaguePage({
 
       {/* Predictions by Date */}
       <section className="max-w-5xl mx-auto px-4 pb-16 space-y-8">
-        {Object.entries(byDate).map(([date, preds]) => (
-          <div key={date}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-surface-light" />
-              <span className="text-sm font-medium text-text-secondary capitalize">
-                {formatDate(date)}
-              </span>
-              <div className="h-px flex-1 bg-surface-light" />
-            </div>
+        {predictions && predictions.length > 0 ? (
+          Object.entries(byDate).map(([date, preds]) => (
+            <div key={date}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-px flex-1 bg-surface-light" />
+                <span className="text-sm font-medium text-text-secondary capitalize">
+                  {formatDate(date)}
+                </span>
+                <div className="h-px flex-1 bg-surface-light" />
+              </div>
 
-            <div className="space-y-3">
-              {preds.map((p) => (
-                <Link
-                  key={p.slug}
-                  href={`/pronostic/${p.slug}`}
-                  className="block bg-surface hover:bg-surface-light rounded-2xl border border-surface-light hover:border-primary/30 p-5 transition-all group"
-                >
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    {/* Teams */}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-base md:text-lg font-semibold text-white group-hover:text-primary transition-colors">
-                        {p.home_team} vs {p.away_team}
-                      </div>
-                      <div className="text-sm text-text-muted mt-0.5">{p.match_time}</div>
-                    </div>
-
-                    {/* Prediction */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <div className="bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5 text-center">
-                        <div className="text-xs text-text-muted">Pronostic</div>
-                        <div className="text-sm font-semibold text-primary">{p.prediction}</div>
-                      </div>
-                      <div className="bg-surface-light rounded-lg px-3 py-1.5 text-center">
-                        <div className="text-xs text-text-muted">Cote</div>
-                        <div className="text-sm font-bold text-white">{p.recommended_odds?.toFixed(2)}</div>
-                      </div>
-                      <div className="bg-surface-light rounded-lg px-3 py-1.5 text-center">
-                        <div className="text-xs text-text-muted">Prob.</div>
-                        <div className="text-sm font-bold text-white">{p.probability}%</div>
-                      </div>
-                      {p.value_edge > 0 && (
-                        <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-1.5 text-center">
-                          <div className="text-xs text-text-muted">Value</div>
-                          <div className="text-sm font-bold text-green-400">+{p.value_edge}%</div>
+              <div className="space-y-3">
+                {preds.map((p) => (
+                  <Link
+                    key={p.slug}
+                    href={`/pronostic/${p.slug}`}
+                    className="block bg-surface hover:bg-surface-light rounded-2xl border border-surface-light hover:border-primary/30 p-5 transition-all group"
+                  >
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      {/* Teams */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-base md:text-lg font-semibold text-white group-hover:text-primary transition-colors">
+                          {p.home_team} vs {p.away_team}
                         </div>
-                      )}
-                      <ChevronRight className="h-5 w-5 text-text-muted group-hover:text-primary transition-colors flex-shrink-0" />
+                        <div className="text-sm text-text-muted mt-0.5">{p.match_time}</div>
+                      </div>
+
+                      {/* Prediction */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5 text-center">
+                          <div className="text-xs text-text-muted">Pronostic</div>
+                          <div className="text-sm font-semibold text-primary">{p.prediction}</div>
+                        </div>
+                        <div className="bg-surface-light rounded-lg px-3 py-1.5 text-center">
+                          <div className="text-xs text-text-muted">Cote</div>
+                          <div className="text-sm font-bold text-white">{p.recommended_odds?.toFixed(2)}</div>
+                        </div>
+                        <div className="bg-surface-light rounded-lg px-3 py-1.5 text-center">
+                          <div className="text-xs text-text-muted">Prob.</div>
+                          <div className="text-sm font-bold text-white">{p.probability}%</div>
+                        </div>
+                        {p.value_edge > 0 && (
+                          <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-1.5 text-center">
+                            <div className="text-xs text-text-muted">Value</div>
+                            <div className="text-sm font-bold text-green-400">+{p.value_edge}%</div>
+                          </div>
+                        )}
+                        <ChevronRight className="h-5 w-5 text-text-muted group-hover:text-primary transition-colors flex-shrink-0" />
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-20 bg-surface rounded-3xl border border-dashed border-surface-light">
+            <Target className="h-12 w-12 text-text-muted mx-auto mb-4 opacity-20" />
+            <h3 className="text-xl font-semibold text-white mb-2">Aucun match prévu</h3>
+            <p className="text-text-secondary max-w-md mx-auto px-4">
+              Il n&apos;y a actuellement aucun pronostic IA disponible pour la {leagueName}. 
+              Nos algorithmes analysent les prochaines rencontres en temps réel, revenez très bientôt !
+            </p>
+            <div className="mt-8">
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href="/pronostics">Voir tous les pronostics</Link>
+              </Button>
             </div>
           </div>
-        ))}
+        )}
       </section>
 
       <PageBottomCTA />

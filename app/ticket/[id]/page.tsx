@@ -96,8 +96,8 @@ export async function generateMetadata(
     day: 'numeric', month: 'long',
   });
   const label = ticket.type === 'daily' ? 'Ticket IA du Jour' : 'Combiné IA';
-  const title = `${label} — Cote ${ticket.total_odds.toFixed(2)} | AlgoPronos AI`;
-  const description = `${ticket.matches.length} sélections · Cote totale ${ticket.total_odds.toFixed(2)} · Confiance IA ${ticket.confidence_pct}% · ${dateLabel}`;
+  const title = `${label} — Cote ${(ticket.total_odds || 0).toFixed(2)} | AlgoPronos AI`;
+  const description = `${ticket.matches.length} sélections · Cote totale ${(ticket.total_odds || 0).toFixed(2)} · Confiance IA ${ticket.confidence_pct}% · ${dateLabel}`;
 
   return {
     title,

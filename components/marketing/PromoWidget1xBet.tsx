@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { LogoIcon } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
 import {
@@ -161,15 +162,13 @@ export function PromoWidget1xBet({
           className="w-full bg-gradient-to-r from-[#00D4FF] to-primary hover:opacity-90 text-white font-bold shadow-xl shadow-[#00D4FF]/25"
           asChild
         >
-          <a
-            href={process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599'}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href={`/redirect?url=${encodeURIComponent(process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599')}&bookmaker=1xBet`}
           >
             <Rocket className="mr-2 h-5 w-5" />
             Créer Mon Compte Optimisé (Gratuit)
             <ArrowRight className="ml-2 h-5 w-5" />
-          </a>
+          </Link>
         </Button>
 
         {/* Trust indicators */}

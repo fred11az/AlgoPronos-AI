@@ -77,12 +77,12 @@ export async function GrandesAffichesPreview() {
               )}
             </div>
           </div>
-          <Link href="/grandes-affiches">
-            <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/grandes-affiches">
               Voir l&apos;analyse complète
               <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
 
         {/* Hero match */}
@@ -145,13 +145,13 @@ export async function GrandesAffichesPreview() {
 
         {/* CTA */}
         <div className="text-center">
-          <Link href="/grandes-affiches">
-            <Button variant="gradient" size="lg">
+          <Button variant="gradient" size="lg" asChild>
+            <Link href="/grandes-affiches">
               <Star className="mr-2 h-4 w-4 fill-current" />
               Voir toutes les grandes affiches
               <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </div>
     </section>

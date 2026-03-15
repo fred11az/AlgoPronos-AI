@@ -1,5 +1,4 @@
-'use client';
-
+import Link from 'next/link';
 import { useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -248,10 +247,8 @@ export function BookmakerSelector() {
             </div>
 
             {/* ── Lien d'activation ───────────────────────────────────────── */}
-            <a
-              href={selectedBm.affiliateUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href={`/redirect?url=${encodeURIComponent(selectedBm.affiliateUrl)}&bookmaker=${encodeURIComponent(selectedBm.name)}`}
               className="block"
             >
               <Button size="lg" variant="gradient" className="w-full group">
@@ -259,7 +256,7 @@ export function BookmakerSelector() {
                 Créer mon compte optimisé {selectedBm.name}
                 <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
-            </a>
+            </Link>
 
             <p className="text-xs text-text-muted text-center">
               Une fois le compte créé, revenez sur AlgoPronos pour générer votre
@@ -291,13 +288,10 @@ export function BookmakerAffiliateButtons() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
       {BOOKMAKERS.map((bm) => (
-        <motion.a
+        <Link
           key={bm.id}
-          href={bm.affiliateUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`/redirect?url=${encodeURIComponent(bm.affiliateUrl)}&bookmaker=${encodeURIComponent(bm.name)}`}
           className="group flex flex-col items-center rounded-2xl border border-surface-light hover:border-primary/50 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-          whileTap={{ scale: 0.97 }}
         >
           <div className={`${bm.bgColor} w-full h-20 flex items-center justify-center px-4 relative`}>
             <Image
@@ -321,7 +315,7 @@ export function BookmakerAffiliateButtons() {
             </div>
             <ExternalLink className="h-4 w-4 text-text-muted group-hover:text-primary transition-colors" />
           </div>
-        </motion.a>
+        </Link>
       ))}
     </div>
   );

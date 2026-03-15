@@ -165,12 +165,13 @@ export function TopBar({ user, onMenuClick, isAdmin = false }: TopBarProps) {
           {/* Admin Link */}
           {isAdmin && (
             <Link
-              href="/admin/verifications"
-              className="relative p-2 rounded-lg hover:bg-surface-light text-text-muted hover:text-white transition-colors"
+              href="/admin"
+              className="relative p-2 rounded-lg hover:bg-surface-light text-primary hover:text-white transition-colors z-50"
+              title="Administration"
             >
               <ShieldCheck className="h-5 w-5" />
               {pendingVerifications > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-warning rounded-full text-xs text-white flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-warning rounded-full text-[10px] text-white flex items-center justify-center border-2 border-background">
                   {pendingVerifications}
                 </span>
               )}

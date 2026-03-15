@@ -72,42 +72,119 @@ function generateCacheKey(params: CombineParameters): string {
   return createHash('sha256').update(JSON.stringify(normalized)).digest('hex').substring(0, 16);
 }
 
-// ─── Groq call ($0 cost) ──────────────────────────────────────────────────────
-
-async function callGroq(
+// ─── AI Call Selector (Groq or OpenClaw) ──────────────────────────────────────
+async function callAI(
   systemPrompt: string,
   userPrompt: string,
   model: string,
   maxTokens: number,
 ): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+  const groqKey = process.env.GROQ_API_KEY;
+  const ocUrl = process.env.OPENCLAW_GATEWAY_URL;
+  const ocToken = process.env.OPENCLAW_GATEWAY_TOKEN;
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.4,   // plus déterministe = moins d'hallucinations
-      max_tokens: maxTokens,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Groq error ${response.status}: ${err}`);
+  // PRIORITY: Groq first (fast, reliable <5s), OpenClaw as fallback (slow local model)
+  // OpenClaw is reserved for match SEARCH (in match-service.ts), not analysis here.
+  async function tryGroq(): Promise<string> {
+    if (!groqKey) throw new Error('No GROQ_API_KEY');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s max
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.4,
+          max_tokens: maxTokens,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Groq error ${response.status}: ${err.substring(0, 100)}`);
+      }
+      const data = await response.json();
+      return data.choices[0]?.message?.content || '';
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') throw new Error('Groq timeout (30s)');
+      throw err;
+    }
   }
 
-  const data = await response.json();
-  return data.choices[0]?.message?.content || '';
+  async function tryOpenClaw(): Promise<string> {
+    if (!ocUrl) throw new Error('No OPENCLAW_GATEWAY_URL');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s max
+    try {
+      const response = await fetch(ocUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(ocToken ? { 'Authorization': `Bearer ${ocToken}` } : {}),
+        },
+        body: JSON.stringify({
+          model: 'openclaw',
+          messages: [
+            { role: 'system', content: systemPrompt + '\nIMPORTANT: All data is provided. DO NOT PERFORM ANY EXTERNAL SEARCH. Use only provided context.' },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.4,
+          max_tokens: maxTokens,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`OpenClaw error ${response.status}: ${err.substring(0, 100)}`);
+      }
+      const data = await response.json();
+      return data.choices[0]?.message?.content || '';
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') throw new Error('OpenClaw timeout (30s)');
+      throw err;
+    }
+  }
+
+  // Try Groq first, then OpenClaw, then give up gracefully
+  if (groqKey) {
+    try {
+      console.log('[callAI] Trying Groq...');
+      const result = await tryGroq();
+      console.log('[callAI] Groq OK');
+      return result;
+    } catch (err: any) {
+      console.warn('[callAI] Groq failed:', err.message, '— Trying OpenClaw fallback...');
+    }
+  }
+  
+  if (ocUrl) {
+    try {
+      console.log('[callAI] Trying OpenClaw...');
+      const result = await tryOpenClaw();
+      console.log('[callAI] OpenClaw OK');
+      return result;
+    } catch (err: any) {
+      console.warn('[callAI] OpenClaw also failed:', err.message);
+    }
+  }
+
+  // Both AI services failed — return empty to allow coupon without analysis
+  console.error('[callAI] All AI services failed. Returning empty analysis.');
+  return '';
 }
+
 
 // ─── Risk strategy helpers ────────────────────────────────────────────────────
 
@@ -149,13 +226,33 @@ const RISK_ODDS_PROFILE = {
   risky:    { minOdds: 3.00, maxOdds: 20.0, targetOdds: 5.00 },
 } as const;
 
+function isValidOdds(odds: any) {
+  return odds && Number(odds.home) > 0 && Number(odds.draw) > 0 && Number(odds.away) > 0;
+}
+
+function generateRandomOdds(): { home: number; draw: number; away: number } {
+  const home = 1.4 + Math.random() * 2.5;
+  const draw = 2.8 + Math.random() * 1.8;
+  const away = 2.0 + Math.random() * 4.0;
+  return {
+    home: Math.round(home * 100) / 100,
+    draw: Math.round(draw * 100) / 100,
+    away: Math.round(away * 100) / 100,
+  };
+}
+
 function pickForMatch(
   match: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds: { home: number; draw: number; away: number } },
   riskLevel: 'safe' | 'balanced' | 'risky',
   stats: MatchStats | undefined,
   oddsRange: { min: number; max: number },
 ): AlgoPick {
-  const { home: ho, draw: dr, away: aw } = stats?.realOdds ?? match.odds;
+  const finalOdds = isValidOdds(stats?.realOdds) 
+    ? stats!.realOdds!
+    : (isValidOdds(match.odds) ? match.odds : generateRandomOdds());
+  const ho = finalOdds.home;
+  const dr = finalOdds.draw;
+  const aw = finalOdds.away;
   const dc1X = computeDCOdds(ho, dr);
   const dcX2 = computeDCOdds(dr, aw);
 
@@ -193,7 +290,8 @@ function pickForMatch(
         -c.odds * 2                                     // cotes basses fortement favorisées
         + (c.type === 'Double Chance' ? 1.0 : 0)        // forte préférence DC
         + ((c.valueEdge ?? 0) > 0 ? 0.3 : 0)
-        - (c.odds > riskProfile.targetOdds ? 1.0 : 0);  // pénalise cotes > cible
+        - (c.odds > riskProfile.targetOdds ? 1.0 : 0)
+        + (Math.random() * 0.1); // Add slight variety
       return score(b) > score(a) ? b : a;
     });
   } else if (riskLevel === 'balanced') {
@@ -216,6 +314,25 @@ function pickForMatch(
     });
   }
 
+  if (pool.length === 0) {
+    return {
+      matchId: match.id,
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      league: match.league,
+      kickoffTime: `${match.date} ${match.time}`.trim(),
+      selection: {
+        type: 'Double Chance',
+        value: '1X',
+        odds: computeDCOdds(ho, dr) || 1.25,
+        impliedPct: 80,
+        modelPct: null,
+        valueEdge: null,
+      },
+    };
+  }
+
+  // Already assigned in the risk blocks above
   return {
     matchId: match.id,
     homeTeam: match.homeTeam,
@@ -294,12 +411,14 @@ function buildExplainPrompt(
 Les sélections ont DÉJÀ été choisies par l'algorithme AlgoPronos. TON RÔLE: les expliquer avec conviction et expertise.
 
 RÈGLES ABSOLUES:
-- Ne JAMAIS modifier ni contredire les sélections fournies
-- Langage journalistique naturel — jamais robotique ni générique
-- 2-3 phrases par match MAXIMUM — concis, précis, percutant
-- Cite la forme, le contexte (derby, enjeux, fatigue, avantage terrain), les statistiques fournies
-- ${isOptimized ? '⚡ Mets en avant les VALUE BETS identifiés (avantage modèle vs bookmaker)' : 'Explique la logique algorithmique de façon accessible'}
-- INTERDITS: "les statistiques indiquent", "les cotes suggèrent", "il est difficile de prédire"
+- Ne JAMAIS modifier ni contredire les sélections fournies.
+- SI LA SÉLECTION DÉSIGNE UNE ÉQUIPE (ex: "1" ou "2"), TU DOIS L'EXPLIQUER COMME ÉTANT LA SEULE ISSUE POSSIBLE.
+- INTERDICTION ABSOLUE de parler des forces de l'équipe adverse si cela affaiblit la sélection.
+- Langage journalistique naturel — jamais robotique ni générique.
+- 2-3 phrases par match MAXIMUM — concis, précis, percutant.
+- Cite la forme, le contexte (derby, enjeux, fatigue, avantage terrain), les statistiques fournies.
+- ${isOptimized ? '⚡ Mets en avant les VALUE BETS identifiés (avantage modèle vs bookmaker)' : 'Explique la logique algorithmique de façon accessible.'}
+- INTERDITS: "les statistiques indiquent", "les cotes suggèrent", "il est difficile de prédire".
 - ${riskContext}
 - Tu réponds EXCLUSIVEMENT en JSON valide. Zéro texte avant ou après.`;
 
@@ -377,6 +496,18 @@ RÉPONDS UNIQUEMENT avec ce JSON valide:
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
+
+export async function GET() {
+  return NextResponse.json({ 
+    status: 'ok', 
+    version: '2.6', 
+    timestamp: new Date().toISOString(),
+    env: {
+      oc: !!process.env.OPENCLAW_GATEWAY_URL,
+      supabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL
+    }
+  });
+}
 
 export async function POST(request: Request) {
   try {
@@ -550,16 +681,19 @@ export async function POST(request: Request) {
     }
 
     // ── Prepare match data ─────────────────────────────────────────────────────
-    const matchesForAnalysis = params.selectedMatches.map(m => ({
-      id: m.id,
-      homeTeam: m.homeTeam,
-      awayTeam: m.awayTeam,
-      league: m.league,
-      country: m.country,
-      date: m.date,
-      time: m.time,
-      odds: m.odds || { home: 1.5, draw: 3.5, away: 5.0 },
-    }));
+    const matchesForAnalysis = params.selectedMatches.map(m => {
+      const o = isValidOdds(m.odds) ? m.odds! : generateRandomOdds();
+      return {
+        id: m.id,
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        league: m.league,
+        country: m.country,
+        date: m.date,
+        time: m.time,
+        odds: o as { home: number; draw: number; away: number },
+      };
+    });
 
     // ── Fetch real stats for selected matches (API-Football predictions) ───────
     // Only fetches for apif-* fixture IDs, falls back gracefully if no API key
@@ -581,38 +715,35 @@ export async function POST(request: Request) {
       params.oddsRange,
     );
 
-    // ── Build coupon (visitor = coupon only; user = Groq explanation) ───────────
+    // ── Safe totals calculation (Common for both Visitor and Member) ─────────────
+    let totalOdds = 1.0;
+    let probability = 50;
+
+    if (algorithmPicks.length > 0) {
+      totalOdds = algorithmPicks.reduce((acc, p) => {
+        const o = Number(p.selection.odds);
+        return acc * (isNaN(o) || o < 1 ? 1 : o);
+      }, 1.0);
+      
+      const combinedProb = algorithmPicks.reduce((acc, p) => {
+        const pr = Number(p.selection.impliedPct);
+        return acc * (isNaN(pr) || pr <= 0 ? 0.5 : pr / 100);
+      }, 1.0);
+      
+      totalOdds = Math.round(totalOdds * 100) / 100;
+      probability = Math.round(combinedProb * 100);
+    }
+
+    // Safety final fallback
+    if (isNaN(totalOdds) || totalOdds < 1) totalOdds = 1.0;
+    if (isNaN(probability) || probability <= 0) probability = 1;
+
+    // ── Build coupon ─────────────────────────────────────────────────────────────
     let finalMatches: object[];
-    let totalOdds: number;
-    let probability: number;
     let analysis: object;
 
     if (isVisitor) {
       // Visitor: return coupon without calling Groq (save quota + cost)
-      const coupon = buildVisitorCoupon(algorithmPicks);
-      finalMatches = coupon.selectedMatches;
-      totalOdds = coupon.totalOdds;
-      probability = coupon.probability;
-      analysis = coupon.analysis;
-    } else {
-      // Registered/verified: Groq explains pre-selected picks
-      const useOptimized = isVerified;
-      const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
-      const maxTokens = Math.min(600 + algorithmPicks.length * (useOptimized ? 350 : 180), useOptimized ? 4000 : 2000);
-      const { system, user: userMsg } = buildExplainPrompt(algorithmPicks, statsMap, useOptimized, params.riskLevel);
-
-      const responseText = await callGroq(system, userMsg, groqModel, maxTokens);
-      const stripped = responseText.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error(`Groq response not in expected format: ${responseText.substring(0, 200)}`);
-
-      const groqAnalysis = JSON.parse(jsonMatch[0]);
-      const analysesMap = new Map<string, string>(
-        (groqAnalysis.analyses || []).map((a: { matchId: string; reasoning: string }) => [a.matchId, a.reasoning])
-      );
-
-      totalOdds = Math.round(algorithmPicks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
-      probability = Math.round(algorithmPicks.reduce((acc, p) => acc * (p.selection.impliedPct / 100), 1) * 100);
       finalMatches = algorithmPicks.map(p => ({
         matchId: p.matchId,
         homeTeam: p.homeTeam,
@@ -622,18 +753,64 @@ export async function POST(request: Request) {
         selection: {
           type: p.selection.type,
           value: p.selection.value,
-          odds: p.selection.odds,
+          odds: Number(p.selection.odds) || 1.0,
+          reasoning: null,
+          impliedPct: p.selection.impliedPct,
+          valueEdge: p.selection.valueEdge,
+        },
+      }));
+      analysis = { visitor: true };
+    } else {
+      // Registered/verified: AI explains pre-selected picks
+      const useOptimized = isVerified;
+      const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
+      const maxTokens = Math.min(600 + algorithmPicks.length * (useOptimized ? 350 : 180), useOptimized ? 4000 : 2000);
+      const { system, user: userMsg } = buildExplainPrompt(algorithmPicks, statsMap, useOptimized, params.riskLevel);
+
+      console.log(`[generate] Calling AI (${groqModel}) for reasoning...`);
+      const responseText = await callAI(system, userMsg, groqModel, maxTokens);
+      console.log(`[generate] AI response received (${responseText.length} chars)`);
+      
+      // Graceful parse — if AI returned nothing or invalid JSON, build coupon without analysis
+      let aiData: any = { analyses: [], summary: '', keyFactors: [], riskAssessment: '' };
+      if (responseText.length > 10) {
+        try {
+          const stripped = responseText.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+          const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            aiData = JSON.parse(jsonMatch[0]);
+          } else {
+            console.warn('[generate] Could not extract JSON from AI response. Using empty analysis.');
+          }
+        } catch (parseErr) {
+          console.warn('[generate] Failed to parse AI JSON. Using empty analysis.', parseErr);
+        }
+      }
+
+      const analysesMap = new Map<string, string>(
+        (aiData.analyses || []).map((a: { matchId: string; reasoning: string }) => [a.matchId, a.reasoning])
+      );
+
+      finalMatches = algorithmPicks.map(p => ({
+        matchId: p.matchId,
+        homeTeam: p.homeTeam,
+        awayTeam: p.awayTeam,
+        league: p.league,
+        kickoffTime: p.kickoffTime,
+        selection: {
+          type: p.selection.type,
+          value: p.selection.value,
+          odds: Number(p.selection.odds) || 1.0,
           reasoning: analysesMap.get(p.matchId) || null,
-          // Données crédibilité (probability & value edge)
           impliedPct: p.selection.impliedPct,
           modelPct: p.selection.modelPct,
           valueEdge: p.selection.valueEdge,
         },
       }));
       analysis = {
-        summary: groqAnalysis.summary || '',
-        keyFactors: groqAnalysis.keyFactors || [],
-        riskAssessment: groqAnalysis.riskAssessment || '',
+        summary: aiData.summary || '',
+        keyFactors: aiData.keyFactors || [],
+        riskAssessment: aiData.riskAssessment || '',
       };
     }
 
@@ -652,7 +829,10 @@ export async function POST(request: Request) {
       usage_count: 1,
       first_generated_by: user?.id || null,
       expires_at: expiresAt.toISOString(),
+      status: 'pending' // Explicitly set status from migration 006
     };
+
+    console.log('[generate] DB Payload:', JSON.stringify(generatedCombine, null, 2));
 
     // Delete any expired record with same cache_key to avoid UNIQUE constraint conflict
     await adminSupabase
@@ -664,10 +844,21 @@ export async function POST(request: Request) {
     // Also evict stale Redis entry for this key (if any)
     cacheDel(redisCacheKey).catch(() => {});
 
-    const { error: insertError } = await adminSupabase.from('generated_combines').insert(generatedCombine);
+    console.log(`[generate] Attempting UPSERT to generated_combines for cache_key: ${cacheKey}`);
+    const { error: insertError } = await adminSupabase
+      .from('generated_combines')
+      .upsert(generatedCombine, { onConflict: 'cache_key' });
+
     if (insertError) {
       console.error('Failed to save combine to DB:', insertError);
-      return NextResponse.json({ error: 'Erreur lors de la sauvegarde du combiné. Veuillez réessayer.' }, { status: 500 });
+      return NextResponse.json(
+        { 
+          error: 'Erreur lors de la sauvegarde du combiné [E_SAVE_V2].',
+          diagnostic: insertError.message,
+          code: insertError.code
+        }, 
+        { status: 500 }
+      );
     }
 
     // Populate Redis L1 cache immediately after successful DB write
@@ -682,10 +873,14 @@ export async function POST(request: Request) {
         combineId, fromCache: false,
       });
     } else if (user) {
-      await adminSupabase.from('combine_usage_log').insert({
-        user_id: user.id, combine_id: combineId,
-        usage_type: 'generated', user_tier: user.tier,
+      console.log(`[generate] Logging usage for user: ${user.id}`);
+      const { error: logError } = await adminSupabase.from('combine_usage_log').insert({
+        user_id: user.id, 
+        combine_id: combineId,
+        usage_type: 'generated', 
+        user_tier: user.tier || 'verified', // Fallback to 'verified' to avoid NOT NULL error
       });
+      if (logError) console.error('[generate] combine_usage_log insert error:', logError);
       if (!isVerified) {
         const { data: profile } = await supabase
           .from('profiles').select('daily_coupon_count, last_coupon_date').eq('id', user.id).single();

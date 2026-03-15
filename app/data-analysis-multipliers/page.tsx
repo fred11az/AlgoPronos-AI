@@ -360,12 +360,12 @@ export default function DataAnalysisMultipliersPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+            <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
               <Button variant="gradient" size="lg">
                 <Zap className="mr-2 h-5 w-5" />
                 Créer mon Compte Optimisé IA
               </Button>
-            </a>
+            </Link>
             <Link href="/dashboard/generate">
               <Button variant="outline" size="lg">
                 Accéder au générateur
@@ -759,12 +759,12 @@ export default function DataAnalysisMultipliersPage() {
 
           <ScrollReveal delay={0.3}>
             <div className="text-center">
-              <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+              <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
                 <Button variant="gradient" size="lg" className="mr-4">
                   <Zap className="mr-2 h-5 w-5" />
                   Créer mon Compte Optimisé IA — Code {PROMO_CODE}
                 </Button>
-              </a>
+              </Link>
             </div>
           </ScrollReveal>
         </div>

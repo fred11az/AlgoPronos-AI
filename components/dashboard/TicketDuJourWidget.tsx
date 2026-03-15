@@ -117,14 +117,6 @@ export default function TicketDuJourWidget() {
             </CardTitle>
             <CardDescription className="capitalize">{today}</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="text-right">
-              <div className="flex items-center gap-1 text-primary justify-end">
-                <TrendingUp className="h-3.5 w-3.5" />
-                <span className="font-bold text-white">{ticket.total_odds.toFixed(2)}</span>
-              </div>
-              <p className="text-xs text-text-muted">Cote totale</p>
-            </div>
             <div className="text-right">
               <div className="flex items-center gap-1 justify-end">
                 <Target className="h-3.5 w-3.5 text-secondary" />
@@ -132,7 +124,6 @@ export default function TicketDuJourWidget() {
               </div>
               <p className="text-xs text-text-muted">Confiance IA</p>
             </div>
-          </div>
         </div>
       </CardHeader>
 
@@ -151,10 +142,6 @@ export default function TicketDuJourWidget() {
               <div className="text-right">
                 <p className="text-xs text-text-muted">{m.selection.type}</p>
                 <p className="font-bold text-white">{m.selection.value}</p>
-              </div>
-              <div className="px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 min-w-[52px] text-center">
-                <p className="text-xs text-text-muted leading-none">Cote</p>
-                <p className="font-bold text-primary text-sm">{m.selection.odds.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -190,16 +177,14 @@ export default function TicketDuJourWidget() {
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <span className="text-xs text-text-muted">Parier sur :</span>
           {BOOKMAKERS.map(bm => (
-            <a
+            <Link
               key={bm.name}
-              href={bm.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`/redirect?url=${encodeURIComponent(bm.url)}&bookmaker=${encodeURIComponent(bm.name)}`}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border font-medium transition-all ${bm.color}`}
             >
               {bm.name}
               <ExternalLink className="h-3 w-3" />
-            </a>
+            </Link>
           ))}
         </div>
 

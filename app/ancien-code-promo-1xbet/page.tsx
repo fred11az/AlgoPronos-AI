@@ -228,13 +228,13 @@ export default function AncienCodePromoPage() {
             </p>
             <CopyButton code={PROMO_CODE} />
             <div className="mt-5">
-              <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+              <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
                 <Button variant="gradient" size="lg" className="w-full">
                   <Gift className="mr-2 h-5 w-5" />
                   Créer mon compte 1xBet avec {PROMO_CODE}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -370,13 +370,13 @@ export default function AncienCodePromoPage() {
             ))}
           </ol>
           <div className="mt-8 text-center">
-            <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+            <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
               <Button variant="gradient" size="lg">
                 <Gift className="mr-2 h-5 w-5" />
                 Créer mon compte 1xBet — Code {PROMO_CODE}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-            </a>
+            </Link>
           </div>
         </div>
       </section>

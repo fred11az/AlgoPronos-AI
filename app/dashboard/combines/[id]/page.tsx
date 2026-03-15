@@ -268,13 +268,6 @@ export default function CombineDetailPage() {
 
             <div className="flex flex-wrap items-center gap-6">
               <div className="text-center">
-                <div className="flex items-center gap-1 text-primary">
-                  <TrendingUp className="h-4 w-4" />
-                  <span className="text-2xl font-bold">{formatOdds(combine.total_odds)}</span>
-                </div>
-                <p className="text-xs text-text-muted">Cote totale</p>
-              </div>
-              <div className="text-center">
                 <div className="flex items-center gap-1 text-secondary">
                   <Target className="h-4 w-4" />
                   <span className="text-2xl font-bold">{combine.estimated_probability}%</span>
@@ -406,10 +399,6 @@ export default function CombineDetailPage() {
                         <p className="text-xs text-text-muted">{match.selection.type}</p>
                         <p className="font-bold text-white">{match.selection.value}</p>
                       </div>
-                      <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-center min-w-[60px]">
-                        <p className="text-xs text-text-muted">Cote</p>
-                        <p className="font-bold text-primary">{formatOdds(match.selection.odds)}</p>
-                      </div>
                       {/* Probability data */}
                       {match.selection.impliedPct !== undefined && (
                         <div className="text-center px-2 py-1.5 rounded-lg bg-surface-light min-w-[56px]">
@@ -483,13 +472,7 @@ export default function CombineDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Bankroll IA */}
-      {!combine.analysis?.visitor && (
-        <BankrollIA
-          totalOdds={combine.total_odds}
-          riskLevel={combine.parameters?.riskLevel}
-        />
-      )}
+      {/* Bankroll IA - Hidden due to hidden odds */}
 
       {/* Full Access Guarantee Badges (verified users only) */}
       {userTier === 'verified' && (
@@ -536,16 +519,14 @@ export default function CombineDetailPage() {
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {BOOKMAKERS.map(bm => (
-              <a
+              <Link
                 key={bm.name}
-                href={bm.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={`/redirect?url=${encodeURIComponent(bm.url)}&bookmaker=${encodeURIComponent(bm.name)}`}
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border font-semibold text-sm transition-all ${bm.color}`}
               >
                 {bm.name}
                 <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              </Link>
             ))}
           </div>
           <p className="text-xs text-text-muted mt-3 text-center">

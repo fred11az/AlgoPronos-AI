@@ -460,7 +460,42 @@ RÉPONDS avec ce JSON exact:
 
   let text = '';
 
-  // — Primary: Claude Haiku (fast, cheap, excellent French) ——————————————
+  // — Primary: OpenClaw gateway (requested by user) ———————————————————————
+  const ocUrl = process.env.OPENCLAW_GATEWAY_URL;
+  const ocToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (ocUrl && !text) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout
+
+      const res = await fetch(ocUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': ocToken ? `Bearer ${ocToken}` : '',
+        },
+        body: JSON.stringify({
+          model: 'openclaw',
+          messages: [
+            { role: 'system', content: systemPrompt + "\nIMPORTANT: All data is provided. DO NOT PERFORM ANY EXTERNAL SEARCH. Use only provided context." },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.4,
+          max_tokens: 600,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        text = data.choices[0]?.message?.content ?? '';
+      }
+    } catch (err) {
+      console.warn('[analysis-engine] OpenClaw failed, trying Claude:', err);
+    }
+  }
+
+  // — Fallback: Claude Haiku (excellent French) ——————————————
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (anthropicKey && !text) {
     try {

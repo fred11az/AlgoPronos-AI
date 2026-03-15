@@ -226,16 +226,14 @@ function TicketRow({ ticket, rank, hot = false }: { ticket: DailyTicket; rank: n
           <div className="flex items-center gap-1.5 ml-auto">
             <span className="text-xs text-text-muted">Parier :</span>
             {BOOKMAKERS.map(bm => (
-              <a
+              <Link
                 key={bm.name}
-                href={bm.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={`/redirect?url=${encodeURIComponent(bm.url)}&bookmaker=${encodeURIComponent(bm.name)}`}
                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs border font-medium transition-all ${bm.color}`}
               >
                 {bm.name}
                 <ExternalLink className="h-2.5 w-2.5" />
-              </a>
+              </Link>
             ))}
           </div>
         </div>

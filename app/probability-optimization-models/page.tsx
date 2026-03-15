@@ -385,12 +385,12 @@ export default function ProbabilityOptimizationPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+            <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
               <Button variant="gradient" size="lg">
                 <Zap className="mr-2 h-5 w-5" />
                 Activer le Compte Optimisé IA
               </Button>
-            </a>
+            </Link>
             <Link href="/data-analysis-multipliers">
               <Button variant="outline" size="lg">
                 <BarChart3 className="mr-2 h-5 w-5" />
@@ -698,12 +698,12 @@ export default function ProbabilityOptimizationPage() {
                     <p className="text-sm text-text-secondary leading-relaxed">{step.desc}</p>
                     {step.cta && (
                       <div className="mt-3">
-                        <a href={step.cta} target="_blank" rel="noopener noreferrer">
+                        <Link href={`/redirect?url=${encodeURIComponent(step.cta)}&bookmaker=1xBet`}>
                           <Button variant="gradient" size="sm">
                             Créer mon compte — Code {PROMO_CODE}
                             <ArrowRight className="ml-2 h-4 w-4" />
                           </Button>
-                        </a>
+                        </Link>
                       </div>
                     )}
                   </div>

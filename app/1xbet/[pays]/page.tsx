@@ -430,13 +430,13 @@ export default async function Pays1xBetPage({
               Cliquez pour copier · À saisir lors de votre inscription 1xBet
             </p>
             <div className="mt-6 pt-5 border-t border-surface-light">
-              <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer" className="block">
+              <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`} className="block">
                 <Button variant="gradient" size="lg" className="w-full">
                   <Gift className="mr-2 h-5 w-5" />
                   Créer mon compte 1xBet {country.nameAccusatif}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -603,13 +603,13 @@ export default async function Pays1xBetPage({
           </ol>
 
           <div className="mt-8 text-center">
-            <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+            <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
               <Button variant="gradient" size="lg">
                 <Gift className="mr-2 h-5 w-5" />
                 Créer mon compte 1xBet {country.nameAccusatif}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-            </a>
+            </Link>
           </div>
         </div>
       </section>
@@ -743,13 +743,13 @@ export default async function Pays1xBetPage({
             et commencez à générer vos tickets IA gratuitement.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer">
+            <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
               <Button variant="gradient" size="lg">
                 <Gift className="mr-2 h-5 w-5" />
                 Créer mon compte 1xBet {country.name}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-            </a>
+            </Link>
             <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="lg" className="border-green-500/40 text-green-400 hover:bg-green-500/10">
                 <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">

@@ -78,9 +78,9 @@ function formatDate(d: string) {
 
 function buildShareText(ticket: PublicTicket, url: string) {
   const picks = ticket.matches
-    .map(m => `${m.homeTeam} vs ${m.awayTeam} → ${m.selection.value} @ ${m.selection.odds.toFixed(2)}`)
+    .map(m => `${m.homeTeam} vs ${m.awayTeam} → ${m.selection.value}`)
     .join('\n');
-  return `🤖 ${ticket.type === 'daily' ? 'Ticket IA du Jour' : 'Combiné IA'} — AlgoPronos AI\n\n${picks}\n\n💰 Cote: ${ticket.total_odds.toFixed(2)}  🎯 Confiance: ${ticket.confidence_pct}%\n\n👉 ${url}`;
+  return `🤖 ${ticket.type === 'daily' ? 'Ticket IA du Jour' : 'Combiné IA'} — AlgoPronos AI\n\n${picks}\n\n🎯 Confiance: ${ticket.confidence_pct}%\n\n👉 ${url}`;
 }
 
 function encodedText(text: string) {
@@ -156,13 +156,6 @@ export default function PublicTicketClient({
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="p-4 rounded-xl bg-surface border border-border text-center">
-          <div className="flex items-center justify-center gap-1 text-primary mb-1">
-            <TrendingUp className="h-4 w-4" />
-            <span className="text-2xl font-bold text-white">{ticket.total_odds.toFixed(2)}</span>
-          </div>
-          <p className="text-xs text-text-muted">Cote totale</p>
-        </div>
-        <div className="p-4 rounded-xl bg-surface border border-border text-center">
           <div className="flex items-center justify-center gap-1 mb-1">
             <Target className="h-4 w-4 text-secondary" />
             <span className={`text-2xl font-bold ${conf.color}`}>{ticket.confidence_pct}%</span>
@@ -221,16 +214,6 @@ export default function PublicTicketClient({
                   <p className="text-xs text-text-muted">{m.selection.type}</p>
                   <p className="font-bold text-white text-sm">{m.selection.value}</p>
                 </div>
-                <div className={`px-2.5 py-1.5 rounded-lg min-w-[52px] text-center ${
-                  m.result === 'won'  ? 'bg-green-500/20 border border-green-500/30' :
-                  m.result === 'lost' ? 'bg-red-500/20 border border-red-500/30' :
-                  'bg-primary/10 border border-primary/20'
-                }`}>
-                  <p className="text-xs text-text-muted leading-none">Cote</p>
-                  <p className={`font-bold ${m.result === 'won' ? 'text-green-400' : m.result === 'lost' ? 'text-red-400' : 'text-primary'}`}>
-                    {m.selection.odds.toFixed(2)}
-                  </p>
-                </div>
               </div>
             </div>
           ))}
@@ -254,16 +237,14 @@ export default function PublicTicketClient({
           <p className="text-sm text-text-secondary mb-4">Choisissez votre bookmaker partenaire :</p>
           <div className="grid grid-cols-2 gap-3">
             {BOOKMAKERS.map(bm => (
-              <a
+              <Link
                 key={bm.name}
-                href={bm.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={`/redirect?url=${encodeURIComponent(bm.url)}&bookmaker=${encodeURIComponent(bm.name)}`}
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border font-semibold text-sm transition-all ${bm.color}`}
               >
                 {bm.name}
                 <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              </Link>
             ))}
           </div>
         </CardContent>

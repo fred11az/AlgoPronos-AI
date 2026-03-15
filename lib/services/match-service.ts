@@ -42,11 +42,9 @@ class MatchService {
     from: string,
     to: string,
   ): Promise<{ byDate: Record<string, RealMatch[]>; apiErrors: string[]; rawFixturesCount: number }> {
-    const apiKey = process.env.FOOTBALL_API_KEY;
-    if (!apiKey) {
-      console.warn('[MatchService] FOOTBALL_API_KEY not set — returning empty matches. Add it to your Vercel environment variables.');
-      return { byDate: {}, apiErrors: ['FOOTBALL_API_KEY environment variable is not set'], rawFixturesCount: 0 };
-    }
+    const byDate: Record<string, RealMatch[]> = {};
+    const apiErrors: string[] = [];
+    let rawFixturesCount = 0;
 
     // Build list of dates in range
     const dates: string[] = [];
@@ -57,121 +55,157 @@ class MatchService {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    console.log(`[API-Football] Fetching fixtures for ${dates.length} days (free plan: 1 req/day)`);
+    console.log(`[Sync] EXHAUSTIVE Sync for ${dates.length} days. Primary source: Flashscore (OpenClaw).`);
 
-    // ── 1. Fixtures day by day (free plan doesn't support from/to range) ──────
-    const allFixtures: RawFixture[] = [];
-    const apiErrors: string[] = [];
     for (const date of dates) {
+      // ── 1. PRIMARY: OpenClaw (Flashscore) ───────────────────────────────────
+      console.log(`[Sync] ${date}: Attempting Flashscore capture via OpenClaw...`);
+      const openClawMatches = await this.searchMatchesWithOpenClaw(date);
+      
+      if (openClawMatches.length > 0) {
+        console.log(`[Sync] ${date}: Success! Captured ${openClawMatches.length} matches via Flashscore.`);
+        byDate[date] = openClawMatches;
+        await this.cacheMatches(date, openClawMatches);
+        continue; // Move to next date, primary source succeeded
+      }
+
+      // ── 2. FALLBACK: API-Football (if OpenClaw fails or returns nothing) ─────
+      console.log(`[Sync] ${date}: Flashscore empty/failed. Attempting API-Football fallback...`);
+      const apiKey = process.env.FOOTBALL_API_KEY;
+      if (!apiKey) {
+        console.warn(`[Sync] ${date}: No API-Football key found. Skipping fallback.`);
+        continue;
+      }
+
       try {
         const res = await fetch(
           `https://v3.football.api-sports.io/fixtures?date=${date}`,
           { headers: { 'x-apisports-key': apiKey } }
         );
-        if (!res.ok) {
-          const errMsg = `HTTP ${res.status} for ${date}`;
-          console.warn(`[API-Football] ${errMsg}`);
-          apiErrors.push(errMsg);
-          continue;
-        }
-        const data = await res.json();
-        if (data.errors && Object.keys(data.errors).length > 0) {
-          const errMsg = `API error for ${date}: ${JSON.stringify(data.errors)}`;
-          console.warn(`[API-Football] ${errMsg}`);
-          apiErrors.push(errMsg);
-          continue;
-        }
-        allFixtures.push(...(data.response ?? []));
-        console.log(`[API-Football] ${date}: ${(data.response ?? []).length} fixtures`);
-      } catch (e) {
-        const errMsg = `fetch error for ${date}: ${String(e)}`;
-        console.warn(`[API-Football] ${errMsg}`);
-        apiErrors.push(errMsg);
-      }
-    }
-
-    const fixtures: RawFixture[] = allFixtures;
-    console.log(`[API-Football] Got ${fixtures.length} total fixtures across ${dates.length} days`);
-
-    // ── 2. Odds pour aujourd'hui (best effort — plan gratuit limité) ──────────
-    const oddsMap: Record<number, { home: number; draw: number; away: number }> = {};
-    try {
-      const oddsRes = await fetch(
-        `https://v3.football.api-sports.io/odds?date=${from}&bookmaker=8&bet=1`,
-        { headers: { 'x-apisports-key': apiKey } }
-      );
-      if (oddsRes.ok) {
-        const oddsData = await oddsRes.json();
-        for (const item of (oddsData.response ?? [])) {
-          const fid: number = item.fixture?.id;
-          const values = item.bookmakers?.[0]?.bets?.[0]?.values ?? [];
-          const home = values.find((v: OddsValue) => v.value === 'Home')?.odd;
-          const draw = values.find((v: OddsValue) => v.value === 'Draw')?.odd;
-          const away = values.find((v: OddsValue) => v.value === 'Away')?.odd;
-          if (fid && home && draw && away) {
-            oddsMap[fid] = { home: parseFloat(home), draw: parseFloat(draw), away: parseFloat(away) };
+        if (res.ok) {
+          const data = await res.json();
+          const fixtures = data.response ?? [];
+          rawFixturesCount += fixtures.length;
+          
+          if (fixtures.length > 0) {
+            const mappedMatches = fixtures.map((f: any) => {
+              const leagueCode = this.mapAPIFootballLeague(f.league.id) || 'TOP';
+              return {
+                id: `apif-${f.fixture.id}`,
+                homeTeam: f.teams.home.name,
+                awayTeam: f.teams.away.name,
+                league: f.league.name,
+                leagueCode,
+                country: f.league.country,
+                date: date,
+                time: new Date(f.fixture.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
+                status: this.mapAPIFootballStatus(f.fixture.status.short),
+                odds: this.generateRealisticOdds(),
+              };
+            });
+            byDate[date] = mappedMatches;
+            await this.cacheMatches(date, mappedMatches);
+            console.log(`[Sync] ${date}: Fallback success. Cached ${mappedMatches.length} matches from API-Football.`);
           }
         }
+      } catch (e) {
+        apiErrors.push(`Fallback error for ${date}: ${String(e)}`);
       }
-    } catch {
-      // Odds unavailable — will use generated odds as fallback
     }
 
-    // ── 3. Group matches by date ──────────────────────────────────────────────
-    const byDate: Record<string, RealMatch[]> = {};
+    return { byDate, apiErrors, rawFixturesCount };
+  }
 
-    for (const fixture of fixtures) {
-      const leagueCode = this.mapAPIFootballLeague(fixture.league.id);
-      if (!leagueCode) continue;
+  /**
+   * Use OpenClaw to search the web for matches and odds.
+   */
+  private async searchMatchesWithOpenClaw(date: string): Promise<RealMatch[]> {
+    const url = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18790/v1/chat/completions';
+    const token = process.env.OPENCLAW_GATEWAY_TOKEN;
 
-      const fid: number = fixture.fixture.id;
-      const matchDate = fixture.fixture.date.split('T')[0];
-      const matchTime = new Date(fixture.fixture.date).toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'UTC',
+    if (!token) {
+      console.warn('[MatchService] OPENCLAW_GATEWAY_TOKEN not set — cannot search web.');
+      return [];
+    }
+
+    const prompt = `PARCOURS EXHAUSTIF : Consulte les sites Flashscore.com ou Flashscore.fr pour trouver ABSOLUMENT TOUS les matchs de football du ${date} dans le monde entier. 
+Ne te limite pas aux grandes ligues. Je veux des milliers de matchs si nécessaire.
+Inclus impérativement : 
+- TOUTES les ligues européennes (Div 1, Div 2, Div 3, Coupes).
+- TOUTES les ligues africaines sans exception (Bénin, Côte d'Ivoire, Sénégal, Cameroun, Mali, Togo, Burkina, Niger, Congo, Gabon, Guinée, Madagascar, etc.).
+- TOUTES les ligues d'Amérique Latine, Asie et Océanie.
+- Matchs amicaux, compétitions de jeunes et football féminin.
+Pour CHAQUE match trouvé, récupère : l'équipe à domicile, l'équipe à l'extérieur, la ligue exacte, l'heure locale (HH:mm) et les VRAIES COTES (1, N, 2) de Flashscore.
+Réponds UNIQUEMENT en JSON sous la forme d'un tableau d'objets (si la liste est trop longue, fournis au moins les 500 premiers les plus importants) : 
+[
+  { 
+    "homeTeam": "...", 
+    "awayTeam": "...", 
+    "league": "...", 
+    "time": "...", 
+    "odds": { "home": 1.5, "draw": 3.4, "away": 5.2 } 
+  }
+]`;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          model: 'openclaw',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.1, // Low temp for more stable JSON
+        }),
       });
 
-      const match: RealMatch = {
-        id: `apif-${fid}`,
-        homeTeam: fixture.teams.home.name,
-        awayTeam: fixture.teams.away.name,
-        league: fixture.league.name,
-        leagueCode,
-        country: fixture.league.country,
-        date: matchDate,
-        time: matchTime,
-        status: this.mapAPIFootballStatus(fixture.fixture.status.short),
-        odds: oddsMap[fid] ?? this.generateRealisticOdds(),
-      };
-
-      if (!byDate[matchDate]) byDate[matchDate] = [];
-      byDate[matchDate].push(match);
-    }
-
-    // ── 4. Cache each day's matches ───────────────────────────────────────────
-    for (const [date, matches] of Object.entries(byDate)) {
-      if (matches.length > 0) {
-        await this.cacheMatches(date, matches);
+      if (!res.ok) {
+        console.error(`[MatchService] OpenClaw search error: ${res.status}`);
+        return [];
       }
-    }
 
-    console.log(`[API-Football] Grouped into ${Object.keys(byDate).length} days, ${fixtures.length} total`);
-    return { byDate, apiErrors, rawFixturesCount: allFixtures.length };
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) return [];
+
+      // Extract JSON if AI wrapped it in markdown
+      const jsonStr = content.match(/\[[\s\S]*\]/)?.[0] || content;
+      const results = JSON.parse(jsonStr);
+
+      if (!Array.isArray(results)) return [];
+
+      return results.map((r: any, index: number) => ({
+        id: `openclaw-${date}-${index}`,
+        homeTeam: r.homeTeam,
+        awayTeam: r.awayTeam,
+        league: r.league,
+        leagueCode: 'TOP',
+        country: '',
+        date: date,
+        time: r.time,
+        status: 'scheduled',
+        odds: (r.odds && r.odds.home > 0) ? r.odds : this.generateRealisticOdds(),
+      }));
+    } catch (err) {
+      console.error('[MatchService] OpenClaw search failed:', err);
+      return [];
+    }
   }
 
   // Single-date fetch (reads from cache first, falls back to range fetch)
   async getMatchesForDate(date: string, leagueCodes?: string[]): Promise<RealMatch[]> {
-    const apiKey = process.env.FOOTBALL_API_KEY;
-    if (!apiKey) {
-      console.warn('[MatchService] FOOTBALL_API_KEY not set — returning empty matches.');
-      return [];
-    }
-
     const cached = await this.getCachedMatches(date);
     if (cached && cached.length > 0) {
       if (!leagueCodes || leagueCodes.length === 0) return cached;
       return cached.filter((m) => leagueCodes.includes(m.leagueCode));
+    }
+
+    const apiKey = process.env.FOOTBALL_API_KEY;
+    if (!apiKey) {
+      console.warn('[MatchService] FOOTBALL_API_KEY not set and no cache found — returning empty matches.');
+      return [];
     }
 
     // Fetch just this date if not cached

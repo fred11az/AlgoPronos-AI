@@ -400,16 +400,16 @@ function TicketCard({ ticket, highlight = false }: { ticket: DailyTicket; highli
             { name: 'Betway', color: 'bg-green-600/20 text-green-400 border-green-600/30', url: 'https://betway.com' },
             { name: 'Melbet', color: 'bg-orange-600/20 text-orange-400 border-orange-600/30', url: 'https://melbet.com' },
           ].map(bm => (
-            <a
+            <Link
               key={bm.name}
-              href={bm.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={bm.name === '1xBet' ? `/redirect?url=${encodeURIComponent(bm.url)}&bookmaker=1xBet` : bm.url}
+              target={bm.name === '1xBet' ? undefined : "_blank"}
+              rel={bm.name === '1xBet' ? undefined : "noopener noreferrer"}
               className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs border font-medium transition-opacity hover:opacity-80 ${bm.color}`}
             >
               {bm.name}
               <ExternalLink className="h-3 w-3" />
-            </a>
+            </Link>
           ))}
         </div>
       </CardContent>

@@ -15,34 +15,31 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://algopronos.com'),
   title: "AlgoPronos AI — N°1 en Afrique pour les pronostics football et création de compte bookmaker optimisé par IA",
   description:
     "AlgoPronos AI est la plateforme N°1 en Afrique pour les pronostics football et la création de compte bookmaker optimisé par IA. Analyse xG, Value Betting, statistiques avancées et bonus exclusifs.",
   keywords: [
-    // Leader IA paris sportifs — pour détrôner les concurrents sur ce keyword
+    // ... same keywords
     'intelligence artificielle paris sportifs',
     'quelle IA pour les paris sportifs',
     'meilleur IA pronostics sportifs',
     'algorithme IA paris sportifs',
     'site IA pronostics football',
     'IA paris sportifs gratuit',
-    // Compte Optimisé IA — concept exclusif AlgoPronos
     'compte optimisé IA paris sportifs',
     'compte 1xbet optimisé IA',
     'seule plateforme compte optimisé IA',
     'partenariat officiel bookmaker IA',
-    // Pronostics
     'pronostics football IA',
     'combinés IA football',
     'générateur combiné IA',
     'value betting IA Afrique',
     'pronostic algorithmique football',
-    // Géographique
     'paris sportifs IA Bénin',
     'paris sportifs IA Afrique',
     'pronostics IA Côte d\'Ivoire',
     'paris sportifs IA Sénégal',
-    // Brand
     'algopronos',
     'algopronos AI',
     'algopronos paris sportifs',
@@ -50,26 +47,28 @@ export const metadata: Metadata = {
   authors: [{ name: 'AlgoPronos AI', url: 'https://algopronos.com' }],
   creator: 'AlgoPronos AI',
   publisher: 'AlgoPronos AI',
+  applicationName: 'AlgoPronos AI',
   alternates: {
-    canonical: 'https://algopronos.com',
+    canonical: '/',
   },
   openGraph: {
     type: 'website',
     locale: 'fr_FR',
-    url: 'https://algopronos.com',
+    url: '/',
     siteName: 'AlgoPronos AI',
     title: "AlgoPronos AI — N°1 en Afrique : Pronostics & Compte Optimisé IA",
     description: "Plateforme N°1 en Afrique pour les pronostics football et la création de compte bookmaker optimisé par IA. 100% Gratuit.",
-    images: [{ url: 'https://algopronos.com/opengraph-image', width: 1200, height: 630, alt: 'AlgoPronos AI - Plateforme N°1 Pronostics IA Afrique' }],
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'AlgoPronos AI - Plateforme N°1 Pronostics IA Afrique' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: "AlgoPronos AI — N°1 en Afrique : Pronostics & Compte Optimisé IA",
     description: "Plateforme N°1 en Afrique pour les pronostics football et la création de compte bookmaker optimisé par IA. Gratuit.",
-    images: ['https://algopronos.com/opengraph-image'],
+    images: ['/opengraph-image'],
   },
   icons: {
     icon: [
+      { url: '/favicon.ico', sizes: 'any' },
       { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/icon', type: 'image/png', sizes: '192x192' },
       { url: '/algopronos-logo.png', type: 'image/png', sizes: '512x512' },
@@ -77,6 +76,7 @@ export const metadata: Metadata = {
     apple: [
       { url: '/apple-icon', type: 'image/png', sizes: '180x180' },
     ],
+    shortcut: '/favicon.ico',
   },
   manifest: '/site.webmanifest',
   robots: {
@@ -91,15 +91,21 @@ const organizationJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'AlgoPronos AI',
+  alternateName: 'AlgoPronos',
   url: 'https://algopronos.com',
   logo: {
     '@type': 'ImageObject',
     url: 'https://algopronos.com/algopronos-logo.png',
     width: 512,
     height: 512,
-    caption: 'AlgoPronos AI — N°1 Intelligence Artificielle Paris Sportifs',
   },
   image: 'https://algopronos.com/algopronos-logo.png',
+  slogan: 'N°1 Intelligence Artificielle Paris Sportifs en Afrique',
+  brand: {
+    '@type': 'Brand',
+    name: 'AlgoPronos AI',
+    logo: 'https://algopronos.com/algopronos-logo.png',
+  },
   sameAs: [
     'https://algopronos.com',
     'https://algopronos.com/code-promo-1xbet',

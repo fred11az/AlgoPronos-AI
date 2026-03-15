@@ -318,7 +318,7 @@ export default function AvisAlgopronos() {
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="border-white/20 hover:bg-white/5">
-                  <Link href={AFFILIATE_URL} target="_blank" rel="noopener noreferrer sponsored">
+                  <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
                     Code promo {PROMO_CODE}
                   </Link>
                 </Button>

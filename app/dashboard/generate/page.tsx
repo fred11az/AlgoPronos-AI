@@ -351,7 +351,10 @@ export default function GeneratePage() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Erreur de génération');
+        const errorMessage = data.diagnostic 
+          ? `${data.error} (${data.diagnostic} - Code: ${data.code})`
+          : (data.error || 'Erreur de génération');
+        throw new Error(errorMessage);
       }
 
       const { combine } = await response.json();

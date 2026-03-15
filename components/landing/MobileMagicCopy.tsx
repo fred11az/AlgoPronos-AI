@@ -67,7 +67,8 @@ export function MobileMagicCopy({
     // 3. Redirect after delay
     timerRef.current = setTimeout(() => {
       setPhase('redirecting');
-      window.open(affiliateUrl, '_blank', 'noopener,noreferrer');
+      const redirectUrl = `/redirect?url=${encodeURIComponent(affiliateUrl)}&bookmaker=1xBet`;
+      window.open(redirectUrl, '_blank', 'noopener,noreferrer');
       // Reset after short pause so user sees the redirecting state
       setTimeout(() => {
         setPhase('idle');

@@ -201,7 +201,7 @@ export default async function PronosticsPage() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-white">x{Number(todayTicket.total_odds).toFixed(2)}</div>
+                <div className="text-2xl font-bold text-white">x{(Number(todayTicket.total_odds) || 0).toFixed(2)}</div>
                 <div className="text-xs text-white/70">cote totale</div>
               </div>
             </div>
@@ -233,7 +233,7 @@ export default async function PronosticsPage() {
                     )}
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <div className="text-xl font-bold text-primary">{match.selection.odds.toFixed(2)}</div>
+                    <div className="text-xl font-bold text-primary">{(match.selection.odds || 0).toFixed(2)}</div>
                     <div className="text-xs text-text-muted">{match.selection.type}</div>
                   </div>
                 </div>
@@ -329,7 +329,7 @@ export default async function PronosticsPage() {
 
                 <div className="flex items-center gap-3 ml-3 shrink-0">
                   <div className="text-right hidden sm:block">
-                    <div className="text-sm font-bold text-white">x{Number(ticket.total_odds).toFixed(2)}</div>
+                    <div className="text-sm font-bold text-white">x{(Number(ticket.total_odds) || 0).toFixed(2)}</div>
                     <div className="text-xs text-primary">{ticket.confidence_pct}% confiance</div>
                   </div>
                   <StatusBadge status={ticket.status} />

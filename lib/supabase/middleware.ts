@@ -98,14 +98,21 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Check admin status
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('id', user.id)
-      .single();
-
     const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase());
-    const isAdmin = profile && adminEmails.includes(profile.email.toLowerCase());
+    
+    // Primary check: email from auth session (v1)
+    let isAdmin: boolean = !!(user.email && adminEmails.includes(user.email.toLowerCase()));
+
+    // Fallback: check profile only if session email is missing or not admin
+    if (!isAdmin) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', user.id)
+        .single();
+      
+      isAdmin = !!(profile?.email && adminEmails.includes(profile.email.toLowerCase()));
+    }
 
     if (!isAdmin) {
       return NextResponse.redirect(new URL('/dashboard', request.url));

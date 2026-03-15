@@ -102,7 +102,7 @@ function shareVictory(ticket: DailyTicket) {
     ``,
     picks,
     ``,
-    `💰 Cote totale: ×${ticket.total_odds.toFixed(2)}`,
+    `💰 Cote totale: ×${(ticket.total_odds || 0).toFixed(2)}`,
     `🤖 Analysé par AlgoPronos AI`,
     ``,
     `Rejoignez l'élite gratuitement 👇`,
@@ -309,7 +309,7 @@ function TicketCard({ ticket, highlight = false }: { ticket: DailyTicket; highli
               {formatDate(ticket.date)}
             </CardTitle>
             <CardDescription>
-              {ticket.matches.length} sélections · Cote: {ticket.total_odds.toFixed(2)} · Confiance: {ticket.confidence_pct}%
+              {ticket.matches.length} sélections · Cote: {(ticket.total_odds || 0).toFixed(2)} · Confiance: {ticket.confidence_pct}%
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -368,7 +368,7 @@ function TicketCard({ ticket, highlight = false }: { ticket: DailyTicket; highli
                 </div>
                 <div className="px-2 py-1 rounded bg-primary/10 border border-primary/20 min-w-[50px] text-center">
                   <p className="text-xs text-text-muted">Cote</p>
-                  <p className="font-bold text-primary text-sm">{m.selection.odds.toFixed(2)}</p>
+                  <p className="font-bold text-primary text-sm">{(m.selection.odds || 0).toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -392,16 +392,14 @@ function TicketCard({ ticket, highlight = false }: { ticket: DailyTicket; highli
             { name: 'Betway', color: 'bg-green-600/20 text-green-400 border-green-600/30', url: 'https://betway.com' },
             { name: 'Melbet', color: 'bg-orange-600/20 text-orange-400 border-orange-600/30', url: 'https://melbet.com' },
           ].map(bm => (
-            <a
+            <Link
               key={bm.name}
-              href={bm.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`/redirect?url=${encodeURIComponent(bm.url)}&bookmaker=${encodeURIComponent(bm.name)}`}
               className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs border font-medium transition-opacity hover:opacity-80 ${bm.color}`}
             >
               {bm.name}
               <ExternalLink className="h-3 w-3" />
-            </a>
+            </Link>
           ))}
         </div>
       </CardContent>
