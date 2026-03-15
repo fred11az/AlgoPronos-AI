@@ -20,8 +20,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { notifyAdmin } from '@/lib/services/notification-service';
 
 const FROM    = process.env.RESEND_FROM_EMAIL || 'no-reply@mail.algopronos.com';
-const RAW_URL = process.env.SITE_URL || 'https://algopronos.com';
-const APP_URL = RAW_URL.replace(/\/$/, '');
+const RAW_URL = process.env.SITE_URL || 'https://www.algopronos.com';
+const APP_URL = RAW_URL.includes('vercel.app') ? 'https://www.algopronos.com' : RAW_URL.replace(/\/$/, '');
 
 // Simplified Logo (Text-based for better deliverability)
 const LOGO_HTML = `<div style="font-size:24px;font-weight:bold;color:#FFFFFF;font-family:Arial,sans-serif;">AlgoPronos <span style="color:#00D4FF">AI</span></div>`;
