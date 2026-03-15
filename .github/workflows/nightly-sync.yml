@@ -1,0 +1,33 @@
+name: Nightly Match Synchronization
+
+on:
+  schedule:
+    # Exécution chaque jour à 02:00 UTC (Environ 03:00 heure du Bénin/France)
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Permet de lancer manuellement depuis l'onglet Actions sur GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Match Synchronization
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # On désactive la vérification TLS car le script utilise NODE_TLS_REJECT_UNAUTHORIZED=0
+          NODE_TLS_REJECT_UNAUTHORIZED: 0
+        run: npx tsx lib/scripts/sync-matches.ts
