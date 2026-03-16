@@ -55,67 +55,21 @@ class MatchService {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    console.log(`[Sync] EXHAUSTIVE Sync for ${dates.length} days. Primary source: Flashscore (OpenClaw).`);
+    console.log(`[Sync] EXHAUSTIVE Sync for ${dates.length} days. Source: AI Global Search (OpenRouter).`);
+    console.warn(`[Sync] API-Football dependency REMOVED. Using pure AI discovery.`);
 
     for (const date of dates) {
-      // ── 1. PRIMARY: OpenClaw (Flashscore) ───────────────────────────────────
-      console.log(`[Sync] ${date}: Attempting Flashscore capture via OpenClaw...`);
+      // ── PRIMARY: OpenRouter (Perplexity Sonar) ──────────────────────────────
+      console.log(`[Sync] ${date}: Starting exhaustive global search...`);
       const openClawMatches = await this.searchMatchesWithOpenClaw(date);
       
       if (openClawMatches.length > 0) {
-        console.log(`[Sync] ${date}: Success! Captured ${openClawMatches.length} matches via Flashscore.`);
+        console.log(`[Sync] ${date}: Success! Captured ${openClawMatches.length} matches via AI Search.`);
         byDate[date] = openClawMatches;
         await this.cacheMatches(date, openClawMatches);
-        continue; // Move to next date, primary source succeeded
-      }
-
-      // ── 2. FALLBACK: API-Football (if OpenClaw fails or returns nothing) ─────
-      console.log(`[Sync] ${date}: Flashscore empty/failed. Attempting API-Football fallback...`);
-      const apiKey = process.env.FOOTBALL_API_KEY;
-      if (!apiKey) {
-        console.warn(`[Sync] ${date}: No API-Football key found. Skipping fallback.`);
-        continue;
-      }
-
-      try {
-        const res = await fetch(
-          `https://v3.football.api-sports.io/fixtures?date=${date}`,
-          { headers: { 'x-apisports-key': apiKey } }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          
-          if (data.errors && data.errors.access) {
-            console.error(`[Sync] API-Football Error: ${data.errors.access}`);
-            return { byDate: {}, apiErrors: [`API-Football Error: ${data.errors.access}`], rawFixturesCount: 0 };
-          }
-
-          const fixtures = data.response ?? [];
-          rawFixturesCount += fixtures.length;
-          
-          if (fixtures.length > 0) {
-            const mappedMatches = fixtures.map((f: any) => {
-              const leagueCode = this.mapAPIFootballLeague(f.league.id) || 'TOP';
-              return {
-                id: `apif-${f.fixture.id}`,
-                homeTeam: f.teams.home.name,
-                awayTeam: f.teams.away.name,
-                league: f.league.name,
-                leagueCode,
-                country: f.league.country,
-                date: date,
-                time: new Date(f.fixture.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
-                status: this.mapAPIFootballStatus(f.fixture.status.short),
-                odds: this.generateRealisticOdds(),
-              };
-            });
-            byDate[date] = mappedMatches;
-            await this.cacheMatches(date, mappedMatches);
-            console.log(`[Sync] ${date}: Fallback success. Cached ${mappedMatches.length} matches from API-Football.`);
-          }
-        }
-      } catch (e) {
-        apiErrors.push(`Fallback error for ${date}: ${String(e)}`);
+      } else {
+        console.warn(`[Sync] ${date}: No matches found via AI Search.`);
+        byDate[date] = [];
       }
     }
 
@@ -123,24 +77,32 @@ class MatchService {
   }
 
   /**
-   * Use OpenClaw to search the web for matches and odds in a segmented way.
-   * This prevents AI response truncation.
+   * Use OpenRouter/OpenClaw to search the web for matches and odds in a segmented way.
+   * Expanded segments for 100% coverage.
    */
   private async searchMatchesWithOpenClaw(date: string): Promise<RealMatch[]> {
-    console.log(`[MatchService] Starting REGIONALIZED OpenClaw search for ${date}...`);
+    console.log(`[MatchService] Starting MULTI-SEGMENT AI search for ${date}...`);
 
     const segments = [
       {
-        name: 'Europe & Grands Championnats',
-        prompt: `TOUS les matchs de football en Europe (Ligue des Champions, Europa League, Conference League, Premier League, Liga, Serie A, Bundesliga, Ligue 1, Liga Portugal, Eredivisie, Pro League, Super Lig, EFL Championship, Ligue 2, etc.) ainsi que TOUS les championnats de D1, D2 et Coupes nationales du continent européen pour la date du ${date}.`
+        name: 'Europe - Élite',
+        prompt: `TOUS les matchs de football en Europe pour les ligues Élite : Ligue des Champions, Europa League, Conference League, Premier League (Angleterre), LaLiga (Espagne), Serie A (Italie), Bundesliga (Allemagne), Ligue 1 (France) pour le ${date}.`
       },
       {
-        name: 'Afrique Intégrale',
-        prompt: `TOUS les matchs de football en Afrique pour la date du ${date}. Inclure impérativement toutes les ligues de : Bénin, Côte d'Ivoire, Sénégal, Cameroun, Mali, Togo, Burkina Faso, Niger, Gabon, Congo, Guinée, RD Congo, Afrique du Sud, Maroc, Algérie, Tunisie, Égypte, Nigeria, Ghana, Madagascar.`
+        name: 'Europe - Secondaire',
+        prompt: `TOUS les matchs de football pour les ligues secondaires européennes : EFL Championship, Ligue 2 (France), Eredivisie (Pays-Bas), Liga Portugal, Pro League (Belgique), Super Lig (Turquie), Scottish Premiership, et les Coupes Nationales pour le ${date}.`
       },
       {
-        name: 'Amériques, Asie & Monde',
-        prompt: `TOUS les matchs de football dans le reste du monde (MLS, Brésil Série A/B, Argentine, Mexique, Arabie Saoudite, Japon, Corée du Sud, Australie, Matchs Internationaux/Amicaux) pour la date du ${date}.`
+        name: 'Afrique - Ouest & Centre',
+        prompt: `TOUS les matchs de football en Afrique de l'Ouest et Centrale pour le ${date}. Priorité absolue : Championnat National du Bénin, Ligue 1 Côte d'Ivoire, Ligue 1 Sénégal, Elite One Cameroun, Togo, Burkina Faso, Mali, RD Congo.`
+      },
+      {
+        name: 'Afrique - Nord, Sud & Continental',
+        prompt: `TOUS les matchs de football pour l'Afrique du Nord (Maroc Botola, Égypte Premier League, Algérie, Tunisie), l'Afrique du Sud (PSL) et les compétitions continentales (CAF Champions League, CAF Confederation Cup) pour le ${date}.`
+      },
+      {
+        name: 'Amériques & Reste du Monde',
+        prompt: `TOUS les matchs de football RÉELS pour les Amériques (MLS USA, Brésil Série A, Argentine, Mexique) et le reste du monde (Arabie Saoudite, Japon, Matchs Internationaux) pour le ${date}.`
       }
     ];
 
@@ -172,12 +134,16 @@ class MatchService {
   }
 
   private async fetchOpenClawSegment(date: string, regionalPrompt: string): Promise<RealMatch[]> {
+    const groqKey = process.env.GROQ_API_KEY;
     const orApiKey = process.env.OPENROUTER_API_KEY;
-    const url = orApiKey ? 'https://openrouter.ai/api/v1/chat/completions' : (process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18789/v1/chat/completions');
-    const token = orApiKey || process.env.OPENCLAW_GATEWAY_TOKEN;
+    
+    // Choose the best available endpoint
+    const url = groqKey ? 'https://api.groq.com/openai/v1/chat/completions' : (orApiKey ? 'https://openrouter.ai/api/v1/chat/completions' : (process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18789/v1/chat/completions'));
+    const token = groqKey || orApiKey || process.env.OPENCLAW_GATEWAY_TOKEN;
+    const model = groqKey ? 'llama-3.3-70b-versatile' : (orApiKey ? 'perplexity/sonar' : 'openclaw');
 
     if (!token) {
-      console.warn('[MatchService] No OpenRouter or OpenClaw token set — cannot search web.');
+      console.warn('[MatchService] No Groq, OpenRouter or OpenClaw token set — cannot search web.');
       return [];
     }
 
@@ -204,7 +170,7 @@ SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de fo
 
     try {
       const body: any = {
-        model: orApiKey ? 'perplexity/sonar' : 'openclaw',
+        model,
         messages: [
           { role: 'system', content: 'Tu es un agent expert en recherche de données web. Ta mission est de fournir des informations précises au format JSON.' },
           { role: 'user', content: fullPrompt }
@@ -212,8 +178,8 @@ SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de fo
         temperature: 0.1,
       };
 
-      if (orApiKey) {
-        body.max_tokens = 2000; // Important: stay within credit limits
+      if (orApiKey && !groqKey) {
+        body.max_tokens = 2000;
       }
 
       const res = await fetch(url, {
@@ -343,66 +309,6 @@ SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de fo
     } catch (error) {
       console.error('Error caching matches:', error);
     }
-  }
-
-  private mapAPIFootballStatus(status: string): 'scheduled' | 'live' | 'finished' {
-    const liveStatuses = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'];
-    const finishedStatuses = ['FT', 'AET', 'PEN', 'SUSP', 'INT', 'ABD', 'AWD', 'WO'];
-    if (liveStatuses.includes(status)) return 'live';
-    if (finishedStatuses.includes(status)) return 'finished';
-    return 'scheduled';
-  }
-
-  private mapAPIFootballLeague(leagueId: number): string | null {
-    const mapping: Record<number, string> = {
-      // Europe Top 5
-      39: 'PL',    // Premier League
-      140: 'LA',   // La Liga
-      135: 'SA',   // Serie A
-      78: 'BL',    // Bundesliga
-      61: 'FL',    // Ligue 1
-      // European competitions
-      2: 'CL',     // Champions League
-      3: 'EL',     // Europa League
-      848: 'ECL',  // Conference League
-      // Other Europe
-      94: 'PT1',   // Primeira Liga
-      88: 'NL1',   // Eredivisie
-      144: 'BE1',  // Pro League Belgium
-      203: 'TR1',  // Süper Lig
-      235: 'RU1',  // Russian Premier League
-      179: 'SC1',  // Scottish Premiership
-      197: 'GR1',  // Super League Greece
-      207: 'CH1',  // Super League Switzerland
-      218: 'AT1',  // Bundesliga Austria
-      // Americas
-      71: 'BR1',   // Brasileirão
-      128: 'AR1',  // Liga Profesional Argentina
-      262: 'MX1',  // Liga MX
-      253: 'US1',  // MLS
-      11: 'COPA',  // Copa Libertadores
-      // Africa — continental
-      6: 'CAN',       // AFCON (CAN)
-      12: 'CAF_CL',   // CAF Champions League
-      20: 'CAF_CC',   // CAF Confederation Cup
-      // Africa — national leagues
-      233: 'EG1',  // Egyptian Premier League
-      200: 'MA1',  // Botola Pro Maroc
-      248: 'TN1',  // Ligue Professionnelle 1 Tunisie
-      187: 'DZ1',  // Ligue Professionnelle 1 Algérie
-      329: 'NG1',  // NPFL Nigeria
-      414: 'GH1',  // Ghana Premier League
-      480: 'CI1',  // Ligue 1 Côte d'Ivoire
-      453: 'CM1',  // Elite One Cameroun
-      576: 'SN1',  // Ligue 1 Sénégal
-      669: 'BJ1',  // Championnat National Bénin
-      // Asia
-      307: 'SA1',  // Saudi Pro League
-      98: 'JP1',   // J-League
-      292: 'KR1',  // K-League
-      188: 'AU1',  // A-League
-    };
-    return mapping[leagueId] || null;
   }
 
   private generateRealisticOdds(): { home: number; draw: number; away: number } {

@@ -37,8 +37,9 @@ export async function generatePrediction(
     odds: { home: number; draw: number; away: number };
   }
 ): Promise<OpenClawPrediction | null> {
-  const url = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18790/v1/chat/completions';
-  const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const groqKey = process.env.GROQ_API_KEY;
+  const url = groqKey ? 'https://api.groq.com/openai/v1/chat/completions' : (process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18790/v1/chat/completions');
+  const token = groqKey || process.env.OPENCLAW_GATEWAY_TOKEN;
 
   const systemPrompt = `Tu es AlgoPronos AI, expert en analyse de football et paris sportifs.
 RÈGLES:
@@ -70,10 +71,10 @@ Réponds avec ce JSON exact:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({
-        model: 'openclaw',
+        model: groqKey ? 'llama-3.3-70b-versatile' : 'openclaw',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -85,7 +86,7 @@ Réponds avec ce JSON exact:
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      console.warn(`[OpenClaw] API error: ${res.status}`);
+      console.warn(`[AI Prediction] API error: ${res.status}`);
       return null;
     }
 

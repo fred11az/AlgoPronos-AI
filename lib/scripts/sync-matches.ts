@@ -13,7 +13,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 async function syncMatches() {
-  console.log('[Sync] Starting EXHAUSTIVE global match sync (Flashscore via OpenClaw)...');
+  console.log('[Sync] Starting EXHAUSTIVE global match sync (Pure AI Search)...');
   
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];

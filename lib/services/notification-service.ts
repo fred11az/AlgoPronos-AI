@@ -445,6 +445,41 @@ export async function notifyRejection(p: ActivationPayload & { reason?: string }
   return { email: emailOk, whatsapp: false };
 }
 
+export async function sendConfirmationEmail(email: string, userName?: string): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const greeting = userName ? `Bonjour ${userName},` : 'Bonjour,';
+  
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: email,
+      subject: '✅ Votre adresse email est confirmée | AlgoPronos AI',
+      html: `
+        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#1a1a2e;color:#e2e8f0;padding:32px;border-radius:16px;border:1px solid #2d2d4a">
+          <h2 style="color:#7c3aed">${greeting}</h2>
+          <p>Votre adresse email a été confirmée avec succès sur <strong>AlgoPronos AI</strong>.</p>
+          <p>Vous avez maintenant accès à l'interface de base pour consulter nos pronostics IA.</p>
+          <div style="background:#0f0f1a;padding:20px;border-radius:12px;margin:24px 0">
+            <p style="margin:0;color:#a0aec0;font-size:14px">Souhaitez-vous débloquer le <strong>Full Access</strong> ?</p>
+            <p style="margin:8px 0 0;font-size:13px;color:#e2e8f0">Suivez les instructions dans votre tableau de bord pour vérifier votre compte bookmaker et accéder à toutes nos analyses.</p>
+          </div>
+          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard" 
+             style="display:inline-block;background:linear-gradient(135deg, #7c3aed, #06b6d4);color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600">
+             Accéder au Dashboard
+          </a>
+        </div>
+      `,
+      text: `Votre adresse email est confirmée sur AlgoPronos AI.\nAccédez à votre dashboard : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard`,
+    });
+    return !error;
+  } catch (err) {
+    console.error('[Notification] Confirmation email failed:', err);
+    return false;
+  }
+}
+
 // ─── Admin Notifications ────────────────────────────────────────────────────
 
 export async function notifyAdmin(

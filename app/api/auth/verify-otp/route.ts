@@ -43,6 +43,17 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Erreur lors de la confirmation' }, { status: 500 });
       }
       
+      // 4. NOTIFIER L'ADMIN ET L'UTILISATEUR
+      try {
+        const { notifyAdmin, sendConfirmationEmail } = await import('@/lib/services/notification-service');
+        // Notifier l'admin
+        await notifyAdmin('signup', { email: user.email, fullName: user.user_metadata?.full_name }, 'confirmed');
+        // Notifier l'utilisateur
+        await sendConfirmationEmail(user.email!, user.user_metadata?.full_name);
+      } catch (notifyErr) {
+        console.warn('[auth/verify-otp] Notification failed:', notifyErr);
+      }
+
       // On retourne un succès. Le frontend pourra alors logger l'utilisateur ou le rediriger
       return NextResponse.json({ success: true, message: 'Email confirmé' });
     } else {
