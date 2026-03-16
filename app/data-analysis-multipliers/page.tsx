@@ -95,7 +95,7 @@ const articleJsonLd = {
     name: 'AlgoPronos AI',
     logo: {
       '@type': 'ImageObject',
-      url: 'https://algopronos.com/algopronos-logo.png',
+      url: 'https://algopronos.com/logo-premium.png',
       width: '512',
       height: '512',
       caption: 'AlgoPronos AI Logo',

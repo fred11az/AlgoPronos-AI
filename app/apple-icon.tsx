@@ -15,71 +15,38 @@ export default function AppleIcon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0A0F1E 0%, #0d1a2e 100%)',
-          borderRadius: '36px',
-          fontFamily: 'sans-serif',
+          background: '#0D1425',
+          borderRadius: '40px',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
-        {/* Glow effect */}
+        {/* Circle clip from logo */}
         <div
           style={{
             position: 'absolute',
-            top: '18px',
-            left: '18px',
-            width: '75px',
-            height: '75px',
+            width: '140px',
+            height: '140px',
+            border: '2px solid rgba(0, 153, 255, 0.4)',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(0,212,255,0.3) 0%, transparent 70%)',
           }}
         />
 
-        {/* AP letters */}
+        {/* Central blue dot with glow */}
         <div
           style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: '2px',
-          }}
-        >
-          <span
-            style={{
-              color: '#ffffff',
-              fontSize: '76px',
-              fontWeight: 900,
-              lineHeight: 1,
-              letterSpacing: '-4px',
-            }}
-          >
-            A
-          </span>
-          <span
-            style={{
-              color: '#00D4FF',
-              fontSize: '45px',
-              fontWeight: 700,
-              lineHeight: 1,
-              marginBottom: '6px',
-            }}
-          >
-            P
-          </span>
-        </div>
-
-        {/* Bottom glow bar */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '18px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '75px',
-            height: '3px',
-            background: 'linear-gradient(90deg, transparent, #00D4FF, transparent)',
-            borderRadius: '2px',
+            width: '30px',
+            height: '30px',
+            background: '#0099FF',
+            borderRadius: '50%',
+            boxShadow: '0 0 15px rgba(0, 153, 255, 0.8)',
+            zIndex: 2,
           }}
         />
+
+        {/* Peripheral smaller dots */}
+        <div style={{ position: 'absolute', left: '42px', top: '70px', width: '22px', height: '22px', background: '#0099FF', borderRadius: '50%', opacity: 0.8 }} />
+        <div style={{ position: 'absolute', left: '42px', bottom: '70px', width: '22px', height: '22px', background: '#0099FF', borderRadius: '50%', opacity: 0.8 }} />
       </div>
     ),
     { ...size },

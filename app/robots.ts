@@ -24,6 +24,10 @@ export default function robots(): MetadataRoute.Robots {
         allow: '/',
       },
       {
+        userAgent: 'Googlebot-Mobile',
+        allow: '/',
+      },
+      {
         userAgent: 'Bingbot',
         allow: '/',
         disallow: ['/api/', '/admin/'],

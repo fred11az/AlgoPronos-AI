@@ -16,127 +16,52 @@ export default function Image() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0a0a0f 0%, #0d1117 50%, #0a0a0f 100%)',
+          background: '#0D1425',
           fontFamily: 'sans-serif',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
-        {/* Background glow */}
+        {/* Subtle background circle */}
         <div
           style={{
             position: 'absolute',
-            top: '-100px',
-            left: '200px',
-            width: '500px',
-            height: '500px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '-100px',
-            right: '150px',
             width: '400px',
             height: '400px',
+            border: '1px solid rgba(0, 153, 255, 0.2)',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(0,212,255,0.2) 0%, transparent 70%)',
+            top: '40px',
           }}
         />
 
-        {/* Badge */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'rgba(99,102,241,0.15)',
-            border: '1px solid rgba(99,102,241,0.4)',
-            borderRadius: '100px',
-            padding: '8px 20px',
-            marginBottom: '28px',
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: '16px', fontWeight: 600 }}>
-            ⚡ N°1 IA Paris Sportifs Afrique
-          </span>
+        {/* The Neural Net Logo Style */}
+        <div style={{ display: 'flex', position: 'relative', width: '300px', height: '300px', marginBottom: '20px', alignItems: 'center', justifyContent: 'center' }}>
+           {/* Simple representation of the neural icon */}
+           <div style={{ position: 'absolute', width: '250px', height: '250px', border: '2px solid #0099FF', borderRadius: '50%', opacity: 0.3 }} />
+           <div style={{ display: 'flex', position: 'relative' }}>
+             <div style={{ width: '40px', height: '40px', background: '#0099FF', borderRadius: '50%', boxShadow: '0 0 20px #0099FF' }} />
+             <div style={{ width: '40px', height: '40px', background: '#0099FF', borderRadius: '50%', position: 'absolute', left: '-80px', top: '40px', boxShadow: '0 0 15px #0099FF' }} />
+             <div style={{ width: '40px', height: '40px', background: '#0099FF', borderRadius: '50%', position: 'absolute', left: '-80px', top: '-40px', boxShadow: '0 0 15px #0099FF' }} />
+             <div style={{ width: '30px', height: '30px', background: '#0099FF', borderRadius: '50%', position: 'absolute', right: '-80px', top: '20px', opacity: 0.8 }} />
+           </div>
         </div>
 
-        {/* Logo + Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
-          <div
-            style={{
-              width: '64px',
-              height: '64px',
-              background: 'linear-gradient(135deg, #6366f1, #00D4FF)',
-              borderRadius: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '32px',
-            }}
-          >
-            🤖
-          </div>
-          <span
-            style={{
-              fontSize: '52px',
-              fontWeight: 800,
-              background: 'linear-gradient(90deg, #ffffff, #a5b4fc)',
-              backgroundClip: 'text',
-              color: 'transparent',
-              letterSpacing: '-1px',
-            }}
-          >
-            AlgoPronos AI
-          </span>
+        {/* Text */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '84px', fontWeight: 'bold', color: 'white', margin: '0', letterSpacing: '2px' }}>
+            AlgoPronos <span style={{ color: '#0099FF' }}>AI</span>
+          </h1>
+          <p style={{ fontSize: '32px', color: '#00D4FF', marginTop: '16px', letterSpacing: '8px', fontWeight: 500, opacity: 0.9 }}>
+            DATA &gt; EMOTION
+          </p>
         </div>
 
-        {/* Subtitle */}
-        <p
-          style={{
-            fontSize: '26px',
-            color: '#94a3b8',
-            textAlign: 'center',
-            maxWidth: '800px',
-            lineHeight: 1.4,
-            margin: '0 0 36px 0',
-          }}
-        >
-          Intelligence Artificielle · Pronostics Football · Compte Optimisé IA
-        </p>
-
-        {/* Stats row */}
-        <div style={{ display: 'flex', gap: '32px' }}>
-          {[
-            { value: '+15 000', label: 'Utilisateurs actifs' },
-            { value: '+50', label: 'Championnats analysés' },
-            { value: '100%', label: 'Gratuit' },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '16px',
-                padding: '16px 28px',
-              }}
-            >
-              <span style={{ fontSize: '28px', fontWeight: 800, color: '#6366f1' }}>{stat.value}</span>
-              <span style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>{stat.label}</span>
-            </div>
-          ))}
+        {/* Footer info */}
+        <div style={{ position: 'absolute', bottom: '40px', display: 'flex', gap: '40px', color: 'rgba(255,255,255,0.5)', fontSize: '20px' }}>
+          <span>N°1 IA Paris Sportifs en Afrique</span>
+          <span>•</span>
+          <span>algopronos.com</span>
         </div>
-
-        {/* URL */}
-        <p style={{ position: 'absolute', bottom: '28px', color: '#475569', fontSize: '16px' }}>
-          algopronos.com
-        </p>
       </div>
     ),
     { ...size },

@@ -71,7 +71,7 @@ export const metadata: Metadata = {
       { url: '/favicon.ico', sizes: 'any' },
       { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/icon', type: 'image/png', sizes: '192x192' },
-      { url: '/algopronos-logo.png', type: 'image/png', sizes: '512x512' },
+      { url: '/logo-premium.png', type: 'image/png', sizes: '512x512' },
     ],
     apple: [
       { url: '/apple-icon', type: 'image/png', sizes: '180x180' },
@@ -95,16 +95,16 @@ const organizationJsonLd = {
   url: 'https://algopronos.com',
   logo: {
     '@type': 'ImageObject',
-    url: 'https://algopronos.com/algopronos-logo.png',
+    url: 'https://algopronos.com/logo-premium.png',
     width: 512,
     height: 512,
   },
-  image: 'https://algopronos.com/algopronos-logo.png',
+  image: 'https://algopronos.com/logo-premium.png',
   slogan: 'N°1 Intelligence Artificielle Paris Sportifs en Afrique',
   brand: {
     '@type': 'Brand',
     name: 'AlgoPronos AI',
-    logo: 'https://algopronos.com/algopronos-logo.png',
+    logo: 'https://algopronos.com/logo-premium.png',
   },
   sameAs: [
     'https://algopronos.com',
@@ -175,7 +175,7 @@ const appJsonLd = {
   applicationCategory: 'SportsApplication',
   operatingSystem: 'Web, Android, iOS',
   url: 'https://algopronos.com',
-  image: 'https://algopronos.com/algopronos-logo.png',
+  image: 'https://algopronos.com/logo-premium.png',
   description:
     "Seule plateforme d'intelligence artificielle pour les paris sportifs avec Compte Optimisé IA exclusif. Algorithme analyse xG, Value Betting, forme des équipes et cotes en temps réel sur +50 championnats.",
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'XOF', availability: 'https://schema.org/InStock' },
