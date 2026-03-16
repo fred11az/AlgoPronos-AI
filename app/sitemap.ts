@@ -55,12 +55,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
 
-    // Upcoming match predictions
+    // All match predictions (including historical for SEO)
     const { data: matches } = await supabase
       .from('match_predictions')
       .select('slug, match_date, created_at')
-      .gte('match_date', today)
-      .order('match_date', { ascending: true })
+      .order('match_date', { ascending: false })
       .limit(2000);
 
     if (matches) {
@@ -72,11 +71,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
     }
 
-    // League pages (distinct leagues)
+    // League pages (all leagues in DB)
     const { data: leagues } = await supabase
       .from('match_predictions')
-      .select('league_slug')
-      .gte('match_date', today);
+      .select('league_slug');
 
     if (leagues) {
       const uniqueLeagueSlugs = Array.from(new Set(leagues.map((l) => l.league_slug)));
@@ -88,16 +86,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
     }
 
-    // Team pages (distinct teams)
+    // Team pages (all teams in DB)
     const { data: homeTeams } = await supabase
       .from('match_predictions')
-      .select('home_team_slug')
-      .gte('match_date', today);
+      .select('home_team_slug');
 
     const { data: awayTeams } = await supabase
       .from('match_predictions')
-      .select('away_team_slug')
-      .gte('match_date', today);
+      .select('away_team_slug');
 
     if (homeTeams && awayTeams) {
       const allTeamSlugs = [
