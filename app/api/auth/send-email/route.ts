@@ -191,7 +191,7 @@ export async function POST(req: Request) {
       // 🔥 Alerte Admin : Nouvelle inscription (Attente confirmation)
       await notifyAdmin('signup', { email, fullName, phone, country }, 'pending');
 
-
+    } else if (type === 'resend') {
       const { data, error } = await adminSupabase.auth.admin.generateLink({
         type: 'magiclink',
         email,
@@ -227,7 +227,7 @@ export async function POST(req: Request) {
         }, { status: 500 });
       }
 
-
+    } else if (type === 'recovery') {
       const { data, error } = await adminSupabase.auth.admin.generateLink({
         type: 'recovery',
         email,
