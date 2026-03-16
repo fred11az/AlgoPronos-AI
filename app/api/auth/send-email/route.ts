@@ -152,7 +152,7 @@ export async function POST(req: Request) {
         const ml = await adminSupabase.auth.admin.generateLink({
           type: 'magiclink',
           email,
-          options: { redirectTo: confirmRedirect },
+          options: { redirectTo: finalRedirect },
         });
         if (ml.error || !ml.data?.properties?.action_link) {
           return NextResponse.json({ error: 'Impossible de générer le lien de confirmation' }, { status: 500 });
@@ -191,8 +191,6 @@ export async function POST(req: Request) {
       // 🔥 Alerte Admin : Nouvelle inscription (Attente confirmation)
       await notifyAdmin('signup', { email, fullName, phone, country }, 'pending');
 
-    } else if (type === 'resend') {
-      // const confirmRedirect = redirectTo || `${APP_URL}/auth/callback?next=/dashboard`; // Removed as per instruction
 
       const { data, error } = await adminSupabase.auth.admin.generateLink({
         type: 'magiclink',
@@ -229,8 +227,6 @@ export async function POST(req: Request) {
         }, { status: 500 });
       }
 
-    } else if (type === 'recovery') {
-      // const resetRedirect = redirectTo || `${APP_URL}/auth/callback?next=/reset-password`; // Removed as per instruction
 
       const { data, error } = await adminSupabase.auth.admin.generateLink({
         type: 'recovery',
