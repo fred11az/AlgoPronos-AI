@@ -192,12 +192,12 @@ export async function POST(req: Request) {
       await notifyAdmin('signup', { email, fullName, phone, country }, 'pending');
 
     } else if (type === 'resend') {
-      const confirmRedirect = redirectTo || `${APP_URL}/auth/callback?next=/dashboard`;
+      // const confirmRedirect = redirectTo || `${APP_URL}/auth/callback?next=/dashboard`; // Removed as per instruction
 
       const { data, error } = await adminSupabase.auth.admin.generateLink({
         type: 'magiclink',
         email,
-        options: { redirectTo: confirmRedirect },
+        options: { redirectTo: finalRedirect },
       });
 
       if (error || !data?.properties?.action_link) {
@@ -230,12 +230,12 @@ export async function POST(req: Request) {
       }
 
     } else if (type === 'recovery') {
-      const resetRedirect = redirectTo || `${APP_URL}/auth/callback?next=/reset-password`;
+      // const resetRedirect = redirectTo || `${APP_URL}/auth/callback?next=/reset-password`; // Removed as per instruction
 
       const { data, error } = await adminSupabase.auth.admin.generateLink({
         type: 'recovery',
         email,
-        options: { redirectTo: resetRedirect },
+        options: { redirectTo: finalRedirect },
       });
 
       if (error || !data?.properties?.action_link) {
