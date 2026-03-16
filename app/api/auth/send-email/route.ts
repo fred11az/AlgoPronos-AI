@@ -24,7 +24,31 @@ const RAW_URL = process.env.SITE_URL || 'https://www.algopronos.com';
 const APP_URL = RAW_URL.includes('vercel.app') ? 'https://www.algopronos.com' : RAW_URL.replace(/\/$/, '');
 
 // Simplified Logo (Text-based for better deliverability)
-const LOGO_HTML = `<div style="font-size:24px;font-weight:bold;color:#FFFFFF;font-family:Arial,sans-serif;">AlgoPronos <span style="color:#00D4FF">AI</span></div>`;
+const LOGO_HTML = `<div style="font-size:24px;font-weight:bold;color:#111827;font-family:Arial,sans-serif;">AlgoPronos <span style="color:#0099FF">AI</span></div>`;
+
+// ─── Template : Email avec code à 6 chiffres (OTP) ───────────────────────────
+
+function otpEmail(name: string, code: string): string {
+  const firstName = (name || '').split(' ')[0] || 'Utilisateur';
+
+  const body = `
+    <h2 style="margin:0 0 16px;font-size:20px;font-weight:bold;color:#111827;">Votre code de vérification</h2>
+    <p style="margin:0 0 24px;font-size:16px;color:#374151;">Bonjour ${firstName},</p>
+    <p style="margin:0 0 24px;font-size:16px;color:#374151;">
+      Merci d'avoir rejoint AlgoPronos AI. Utilisez le code suivant pour confirmer votre adresse email :
+    </p>
+    
+    <div style="text-align:center;margin:32px 0;padding:24px;background-color:#F3F4F6;border-radius:12px;">
+      <span style="font-family:monospace;font-size:42px;font-weight:bold;letter-spacing:8px;color:#111827;">${code}</span>
+    </div>
+
+    <p style="margin:0 0 16px;font-size:14px;color:#6B7280;line-height:1.6;">
+      Ce code expirera dans 15 minutes. Si vous n'avez pas créé de compte, vous pouvez ignorer cet email en toute sécurité.
+    </p>
+  `;
+
+  return baseLayout(body, `Votre code de vérification : ${code}`);
+}
 
 // ─── Layout de base ──────────────────────────────────────────────────────────
 
@@ -132,136 +156,96 @@ export async function POST(req: Request) {
     const resend        = new Resend(apiKey);
     const adminSupabase = createAdminClient();
 
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = Date.now() + 15 * 60 * 1000; // 15 min
+
     if (type === 'signup') {
       if (!password) return NextResponse.json({ error: 'password requis pour signup' }, { status: 400 });
 
-      const { data, error: linkError } = await adminSupabase.auth.admin.generateLink({
-        type: 'signup',
+      const { data: user, error: userError } = await adminSupabase.auth.admin.createUser({
         email,
         password,
-        options: {
-          redirectTo: finalRedirect,
-          data: { full_name: fullName, phone, country },
+        user_metadata: { 
+          full_name: fullName, 
+          phone, 
+          country,
+          email_otp: otp,
+          otp_expiry: otpExpiry
         },
+        email_confirm: false
       });
 
-      let actionLink: string;
-
-      if (linkError || !data?.properties?.action_link) {
-        // Utilisateur déjà existant → magic link
-        const ml = await adminSupabase.auth.admin.generateLink({
-          type: 'magiclink',
-          email,
-          options: { redirectTo: finalRedirect },
-        });
-        if (ml.error || !ml.data?.properties?.action_link) {
-          return NextResponse.json({ error: 'Impossible de générer le lien de confirmation' }, { status: 500 });
+      if (userError) {
+        if (userError.message.includes('already registered')) {
+          const { data: existingUsers } = await adminSupabase.auth.admin.listUsers();
+          const target = existingUsers?.users.find(u => u.email === email);
+          if (target) {
+            await adminSupabase.auth.admin.updateUserById(target.id, {
+              user_metadata: { ...target.user_metadata, email_otp: otp, otp_expiry: otpExpiry }
+            });
+          }
+        } else {
+          return NextResponse.json({ error: userError.message }, { status: 500 });
         }
-        actionLink = ml.data.properties.action_link;
-      } else {
-        actionLink = data.properties.action_link;
       }
 
       const displayName = fullName || email.split('@')[0];
-      const entityId = `signup_${email}_${Date.now()}`;
-
       const result = await resend.emails.send({
         from: FROM,
         to: email,
-        subject: 'Confirmez votre compte AlgoPronos AI',
+        subject: `${otp} est votre code AlgoPronos AI`,
         replyTo: 'support@algopronos.com',
-        headers: { 
-          'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
-        },
-        html: verificationEmail(displayName, actionLink),
-        text: `Bonjour ${displayName},\n\nConfirmez votre email AlgoPronos AI en cliquant sur ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas créé ce compte, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
+        html: otpEmail(displayName, otp),
+        text: `Bonjour ${displayName},\n\nVotre code de vérification AlgoPronos AI est : ${otp}\n\nCe code expire dans 15 minutes.\n\n© ${new Date().getFullYear()} AlgoPronos AI`,
       });
 
       if (result.error) {
-        console.error('[auth/send-email] Resend signup error:', result.error);
-        return NextResponse.json({ 
-          error: 'Échec de l\'envoi de l\'email de confirmation', 
-          details: result.error,
-          code: (result.error as any)?.name || 'UNKNOWN_ERROR'
-        }, { status: 500 });
-      } else {
-        console.log('[auth/send-email] Signup email sent successfully to:', email);
+        return NextResponse.json({ error: 'Échec de l\'envoi de l\'email', details: result.error }, { status: 500 });
       }
 
-      // 🔥 Alerte Admin : Nouvelle inscription (Attente confirmation)
       await notifyAdmin('signup', { email, fullName, phone, country }, 'pending');
 
     } else if (type === 'resend') {
-      const { data, error } = await adminSupabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email,
-        options: { redirectTo: finalRedirect },
+      const { data: users } = await adminSupabase.auth.admin.listUsers();
+      const target = users?.users.find(u => u.email === email);
+      
+      if (!target) return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+
+      await adminSupabase.auth.admin.updateUserById(target.id, {
+        user_metadata: { ...target.user_metadata, email_otp: otp, otp_expiry: otpExpiry }
       });
-
-      if (error || !data?.properties?.action_link) {
-        return NextResponse.json({ error: 'Impossible de générer le lien' }, { status: 500 });
-      }
-
-      let actionLink = data.properties.action_link;
-
-      const entityId = `resend_${email}_${Date.now()}`;
 
       const result = await resend.emails.send({
         from: FROM,
         to: email,
-        subject: 'Votre lien de connexion AlgoPronos AI',
+        subject: `${otp} est votre code AlgoPronos AI`,
         replyTo: 'support@algopronos.com',
-        headers: { 
-          'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
-        },
-        html: verificationEmail('', actionLink),
-        text: `Bonjour,\n\nConnectez-vous à AlgoPronos AI avec ce lien :\n${actionLink}\n\nCe lien expire dans 24 heures.\n\nSi vous n'avez pas fait cette demande, ignorez cet email.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
+        html: otpEmail(target.user_metadata?.full_name || '', otp),
+        text: `Bonjour,\n\nVotre code de vérification AlgoPronos AI est : ${otp}\n\nCe code expire dans 15 minutes.\n\n© ${new Date().getFullYear()} AlgoPronos AI`,
       });
 
-      if (result.error) {
-        console.error('[auth/send-email] Resend magic-link error:', result.error);
-        return NextResponse.json({ 
-          error: 'Échec de l\'envoi du lien de connexion', 
-          details: result.error,
-          code: (result.error as any)?.name || 'UNKNOWN_ERROR'
-        }, { status: 500 });
-      }
+      if (result.error) return NextResponse.json({ error: 'Échec de l\'envoi' }, { status: 500 });
 
     } else if (type === 'recovery') {
-      const { data, error } = await adminSupabase.auth.admin.generateLink({
-        type: 'recovery',
-        email,
-        options: { redirectTo: finalRedirect },
+      const { data: users } = await adminSupabase.auth.admin.listUsers();
+      const target = users?.users.find(u => u.email === email);
+      
+      if (!target) return NextResponse.json({ error: 'Compte non trouvé' }, { status: 404 });
+
+      await adminSupabase.auth.admin.updateUserById(target.id, {
+        user_metadata: { ...target.user_metadata, email_otp: otp, otp_expiry: otpExpiry, is_recovery: true }
       });
-
-      if (error || !data?.properties?.action_link) {
-        return NextResponse.json({ error: 'Impossible de générer le lien de récupération' }, { status: 500 });
-      }
-
-      let actionLink = data.properties.action_link;
-
-      const entityId = `recovery_${email}_${Date.now()}`;
 
       const result = await resend.emails.send({
         from: FROM,
         to: email,
-        subject: 'Réinitialisation de votre mot de passe AlgoPronos AI',
+        subject: `${otp} est votre code de récupération`,
         replyTo: 'support@algopronos.com',
-        headers: { 
-          'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>`,
-        },
-        html: recoveryEmail(email, actionLink),
-        text: `Bonjour,\n\nUne demande de réinitialisation a été effectuée pour le compte ${email}.\n\nCliquez sur ce lien pour créer un nouveau mot de passe :\n${actionLink}\n\nCe lien expire dans 1 heure.\n\nSi vous n'avez pas fait cette demande, ignorez cet email — votre mot de passe restera inchangé.\n\n© ${new Date().getFullYear()} AlgoPronos AI · algopronos.com`,
+        html: otpEmail(target.user_metadata?.full_name || '', otp),
+        text: `Bonjour,\n\nUtilisez ce code pour réinitialiser votre mot de passe : ${otp}\n\nCe code expire dans 15 minutes.\n\n© ${new Date().getFullYear()} AlgoPronos AI`,
       });
 
-      if (result.error) {
-        console.error('[auth/send-email] Resend recovery error:', result.error);
-        return NextResponse.json({ 
-          error: 'Échec de l\'envoi de l\'email de récupération', 
-          details: result.error,
-          code: (result.error as any)?.name || 'UNKNOWN_ERROR'
-        }, { status: 500 });
-      }
+      if (result.error) return NextResponse.json({ error: 'Échec de l\'envoi' }, { status: 500 });
 
     } else {
       return NextResponse.json({ error: 'type invalide' }, { status: 400 });

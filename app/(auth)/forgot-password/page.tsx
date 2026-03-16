@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { Loader2, Mail, ArrowLeft, CheckCircle2, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function ForgotPasswordPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -18,19 +19,19 @@ export default function ForgotPasswordPage() {
     if (!email) { toast.error('Veuillez entrer votre email'); return; }
     setLoading(true);
     try {
-      const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
       const res = await fetch('/api/auth/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'recovery', email, redirectTo }),
+        body: JSON.stringify({ type: 'recovery', email }),
       });
       if (!res.ok) {
         const data = await res.json();
         toast.error(data?.error || "Erreur lors de l'envoi. Veuillez réessayer.");
         return;
       }
-      setEmailSent(true);
-      toast.success('Email envoyé !');
+      toast.success('Code de récupération envoyé !');
+      localStorage.setItem('pendingVerificationEmail', email);
+      router.push(`/verify-email?email=${encodeURIComponent(email)}&type=recovery`);
     } catch { toast.error('Une erreur est survenue'); }
     finally { setLoading(false); }
   }

@@ -18,20 +18,22 @@ import {
 import toast from 'react-hot-toast';
 
 export default function ResetPasswordPage() {
-  const router = useRouter();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [sessionValid, setSessionValid] = useState<boolean | null>(null);
+  const [email, setEmail] = useState('');
 
-  // Check if we have a valid session (user clicked the reset link)
   useEffect(() => {
-    async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSessionValid(!!session);
+    const searchParams = new URLSearchParams(window.location.search);
+    const emailParam = searchParams.get('email');
+    if (emailParam) {
+      setEmail(emailParam);
+      setSessionValid(true); // Temporairement vrai pour afficher le formulaire
+    } else {
+      setSessionValid(false);
     }
-    checkSession();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -50,25 +52,24 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) {
-        if (error.message.includes('same password')) {
-          toast.error('Le nouveau mot de passe doit être différent de l\'ancien');
-        } else {
-          toast.error('Erreur lors de la mise à jour. Veuillez réessayer.');
-        }
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || 'Erreur lors de la mise à jour');
         return;
       }
 
       setSuccess(true);
       toast.success('Mot de passe mis à jour avec succès !');
 
-      // Redirect to dashboard after 3 seconds
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push('/login');
       }, 3000);
     } catch {
       toast.error('Une erreur est survenue');
