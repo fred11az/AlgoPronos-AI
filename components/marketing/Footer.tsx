@@ -164,8 +164,24 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom */}
+        {/* SEO Description Block */}
         <div className="mt-12 pt-8 border-t border-surface-light">
+          <div className="max-w-4xl">
+            <h4 className="text-white font-semibold mb-3">AlgoPronos AI : Expert en Compte Optimisé IA</h4>
+            <p className="text-text-muted text-xs leading-relaxed">
+              AlgoPronos AI est la plateforme leader en Afrique pour la génération de pronostics par intelligence artificielle. 
+              Notre innovation majeure, le <Link href="/compte-optimise-ia" className="text-primary hover:underline">Compte Optimisé IA</Link>, 
+              permet une synchronisation unique entre votre bookmaker (1xBet et autres partenaires) et notre algorithme. 
+              En utilisant le code promo officiel AlgoPronos, votre compte bénéficie de paramètres d&apos;analyse avancés 
+              incluant les Expected Goals (xG), le Value Betting et l&apos;analyse de forme en temps réel. Que vous soyez 
+              au Bénin, au Sénégal, en Côte d&apos;Ivoire ou au Cameroun, rejoignez la révolution des paris sportifs 
+              intelligents 100% gratuitement.
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom */}
+        <div className="mt-8 pt-8 border-t border-surface-light">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-text-muted text-sm text-center md:text-left" suppressHydrationWarning>
               &copy; {new Date().getFullYear()} AlgoPronos AI. Tous droits réservés.
