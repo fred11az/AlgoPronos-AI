@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Pronostics', href: '/pronostics' },
   { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
   { label: 'Bookmakers', href: '/#bookmakers' },
+  { label: 'Matchs Live 1xBet', href: '/matchs#1xbet-live', live: true },
 ];
 
 export function Header() {
@@ -27,13 +28,30 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-8">
-            {navItems.map((item) => (
+            {navItems.map((item: any) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-text-secondary hover:text-white transition-colors text-sm font-medium"
+                className="text-text-secondary hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
               >
+                {item.label === 'Compte optimisé IA' && <Sparkles className="h-3.5 w-3.5 text-primary" />}
                 {item.label}
+                {item.live && (
+                  <span
+                    style={{
+                      background: '#e53e3e',
+                      color: '#fff',
+                      fontSize: '0.6rem',
+                      fontWeight: 800,
+                      padding: '2px 5px',
+                      borderRadius: '4px',
+                      letterSpacing: '0.5px',
+                      animation: 'livePulse 1.5s ease-in-out infinite',
+                    }}
+                  >
+                    LIVE
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
@@ -86,14 +104,22 @@ export function Header() {
         )}
       >
         <div className="px-4 py-6 space-y-4">
-          {navItems.map((item) => (
+          {navItems.map((item: any) => (
             <Link
               key={item.href}
               href={item.href}
-              className="block text-text-secondary hover:text-white transition-colors py-2"
+              className="flex items-center justify-between text-text-secondary hover:text-white transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              {item.label}
+              <div className="flex items-center gap-1.5">
+                {item.label === 'Compte optimisé IA' && <Sparkles className="h-3.5 w-3.5 text-primary" />}
+                {item.label}
+              </div>
+              {item.live && (
+                <span className="bg-[#e53e3e] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded animate-pulse">
+                  LIVE
+                </span>
+              )}
             </Link>
           ))}
           <div className="pt-4 space-y-3 border-t border-surface-light">
