@@ -16,6 +16,7 @@ export const metadata: Metadata = {
     'analyse football approfondie',
     'pronostics semaine football',
   ].join(', '),
+  alternates: { canonical: 'https://algopronos.com/grandes-affiches' },
 };
 
 interface KeyMatch {

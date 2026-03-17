@@ -3,6 +3,12 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Calendar, TrendingUp, ChevronRight } from 'lucide-react';
 import MatchsClient from './MatchsClient';
+import dynamic from 'next/dynamic';
+
+const OnexBetMatchesWidget = dynamic(
+  () => import('@/components/shared/OnexBetMatchesWidget'),
+  { ssr: false }
+);
 
 export const metadata: Metadata = {
   title: 'Matchs de Football — Pronostics J+4 | AlgoPronos',
@@ -15,6 +21,7 @@ export const metadata: Metadata = {
     'pronostics matchs',
     'calendrier football',
   ].join(', '),
+  alternates: { canonical: 'https://algopronos.com/matchs' },
 };
 
 export interface MatchRow {
@@ -92,6 +99,20 @@ export default async function MatchsPage() {
 
       {/* Client component handles date filter tabs + match list */}
       <MatchsClient matches={matches as MatchRow[] || []} today={today} />
+
+      {/* 1xBet Live Matches Widget */}
+      <section id="1xbet-live" className="max-w-5xl mx-auto px-4 py-8">
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-white">Matchs en Direct sur 1xBet</h2>
+          <p className="text-sm text-text-muted mt-1">
+            Retrouvez tous les matchs disponibles en ce moment sur 1xBet — 356+ matchs, 19 sports
+          </p>
+        </div>
+        <OnexBetMatchesWidget />
+        <p className="text-xs text-text-muted mt-3 text-center">
+          * Les cotes sont fournies à titre indicatif. Jouez de manière responsable. +18 uniquement.
+        </p>
+      </section>
     </main>
   );
 }

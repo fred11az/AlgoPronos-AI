@@ -1,4 +1,13 @@
 import { MarketingLayout } from '@/components/marketing/MarketingLayout';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Conditions d\'Utilisation — AlgoPronos AI',
+  description: 'Consultez les conditions d\'utilisation d\'AlgoPronos AI. Nature du service, responsabilité et propriété intellectuelle.',
+  alternates: {
+    canonical: 'https://algopronos.com/terms',
+  },
+};
 
 export default function TermsPage() {
   return (

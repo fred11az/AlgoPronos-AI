@@ -168,7 +168,7 @@ export async function generateMetadata({
 
   return {
     title: `1xBet ${n} ${CURRENT_YEAR} : Code Promo ${PROMO_CODE} — Compte Optimisé IA | AlgoPronos`,
-    description: `1xBet ${n} : Inscrivez-vous avec le code promo ${PROMO_CODE} pour créer votre Compte Optimisé IA. Bonus de bienvenue 1xBet + accès gratuit aux pronostics IA AlgoPronos. Valable ${YEARS.slice(0, 5).join(', ')} et au-delà.`,
+    description: `Créez votre Compte Optimisé IA sur 1xBet ${n} avec le code promo ${PROMO_CODE}. Accédez à l'algorithme AlgoPronos pour des pronostics gagnants et des value bets exclusifs ${country.nameAccusatif}.`,
     keywords: [
       `1xbet ${nl}`,
       `1xbet ${nl} ${CURRENT_YEAR}`,

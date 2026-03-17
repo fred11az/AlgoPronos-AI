@@ -7,6 +7,7 @@ import ClassementClient from './ClassementClient';
 export const metadata: Metadata = {
   title: 'Meilleurs Tickets IA du Jour | AlgoPronos AI',
   description: 'Découvrez les meilleurs tickets générés par l\'IA AlgoPronos aujourd\'hui — classés par confiance et cote.',
+  alternates: { canonical: 'https://algopronos.com/classement' },
 };
 
 interface DailyTicket {

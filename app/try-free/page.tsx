@@ -11,6 +11,15 @@ import {
   TrendingUp,
   Zap,
 } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Essai Gratuit AlgoPronos AI — Testez l\'IA sans compte',
+  description: 'Testez l\'algorithme AlgoPronos AI gratuitement et sans inscription. Accédez au dashboard et découvrez nos pronostics football IA immédiatement.',
+  alternates: {
+    canonical: 'https://algopronos.com/try-free',
+  },
+};
 
 /**
  * Try Free Page

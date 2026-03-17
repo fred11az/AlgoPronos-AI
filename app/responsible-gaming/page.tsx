@@ -1,4 +1,13 @@
 import { MarketingLayout } from '@/components/marketing/MarketingLayout';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Jeu Responsable — AlgoPronos AI',
+  description: 'Nos conseils pour un jeu responsable et maîtrisé. Le jeu doit rester un plaisir. Découvrez comment parier avec modération.',
+  alternates: {
+    canonical: 'https://algopronos.com/responsible-gaming',
+  },
+};
 
 export default function ResponsibleGamingPage() {
   return (

@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   title: 'Pronostics Football IA — Tickets du Jour | AlgoPronos',
   description:
     'Pronostics football générés chaque jour par l\'algorithme AlgoPronos AI. Historique des tickets, résultats et confiance IA.',
+  alternates: { canonical: 'https://algopronos.com/pronostics' },
 };
 
 interface MatchPick {

@@ -1,5 +1,14 @@
 import { MarketingLayout } from '@/components/marketing/MarketingLayout';
 import { Mail, Phone, MapPin } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Contactez AlgoPronos AI — Support et Partenariats',
+  description: 'Une question sur nos pronostics ou votre compte ? Contactez l\'équipe AlgoPronos via email, WhatsApp ou notre formulaire de contact.',
+  alternates: {
+    canonical: 'https://algopronos.com/contact',
+  },
+};
 
 export default function ContactPage() {
   return (

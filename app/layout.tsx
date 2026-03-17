@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   publisher: 'AlgoPronos AI',
   applicationName: 'AlgoPronos AI',
   alternates: {
-    canonical: '/',
+    // canonical: '/', // Removed to let individual pages define their own canonical
   },
   openGraph: {
     type: 'website',

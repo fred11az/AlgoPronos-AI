@@ -1,4 +1,13 @@
 import { MarketingLayout } from '@/components/marketing/MarketingLayout';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Mentions Légales — AlgoPronos AI',
+  description: 'Consultez les mentions légales d\'AlgoPronos AI, incluant les informations sur l\'éditeur du site et l\'hébergement.',
+  alternates: {
+    canonical: 'https://algopronos.com/legal',
+  },
+};
 
 export default function LegalPage() {
   return (

@@ -121,15 +121,18 @@ export async function generateMetadata({
 
   return {
     title: `Pronostic ${home_team} vs ${away_team} — ${dateFormatted} | AlgoPronos`,
-    description: `Pronostic IA pour ${home_team} vs ${away_team} en ${league}. Analyse algorithmique : ${prediction} avec ${probability}% de probabilité. Cotes et analyse complète.`,
+    description: `Analyse IA et Pronostic pour ${home_team} vs ${away_team} (${league}). Obtenez votre Compte Optimisé IA AlgoPronos pour débloquer l'analyse xG et les value bets sur ce match.`,
     keywords: [
       `pronostic ${home_team.toLowerCase()} ${away_team.toLowerCase()}`,
       `${home_team.toLowerCase()} vs ${away_team.toLowerCase()}`,
       `pronostic ${league.toLowerCase()}`,
-      'pronostic football ia',
-      'paris sportifs',
-      'analyse football',
+      'compte optimisé IA',
+      'algo pronos ia',
+      'analyse football ia',
     ].join(', '),
+    alternates: {
+      canonical: `https://algopronos.com/pronostic/${slug}`,
+    },
     openGraph: {
       title: `Pronostic IA : ${home_team} vs ${away_team}`,
       description: `${prediction} — Probabilité ${probability}% — Analyse AlgoPronos`,

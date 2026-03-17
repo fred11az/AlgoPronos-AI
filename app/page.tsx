@@ -161,6 +161,12 @@ const DATA_SIGNALS = [
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+export const metadata: Metadata = {
+  alternates: {
+    canonical: '/',
+  },
+};
+
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-background">

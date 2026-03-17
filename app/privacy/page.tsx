@@ -1,4 +1,13 @@
 import { MarketingLayout } from '@/components/marketing/MarketingLayout';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Politique de Confidentialité — AlgoPronos AI',
+  description: 'Découvrez comment AlgoPronos AI protège vos données personnelles et respecte votre vie privée.',
+  alternates: {
+    canonical: 'https://algopronos.com/privacy',
+  },
+};
 
 export default function PrivacyPage() {
   return (
