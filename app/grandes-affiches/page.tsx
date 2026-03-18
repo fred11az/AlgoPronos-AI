@@ -1,9 +1,13 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { Star, ChevronRight, Calendar, TrendingUp, ArrowRight } from 'lucide-react';
+import { createAdminClient } from '@/lib/supabase/server';
+import { 
+  Star, ChevronRight, Calendar, TrendingUp, ArrowRight, 
+  Sparkles, Brain, Zap, Trophy, Shield 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export const metadata: Metadata = {
   title: 'Grandes Affiches de la Semaine — Analyse IA | AlgoPronos',
@@ -52,10 +56,11 @@ interface Spotlight {
   published_at: string;
 }
 
-function predBadge(type: string): { label: string; cls: string } {
-  if (type === 'home') return { label: '1 — Domicile', cls: 'text-blue-400 bg-blue-500/10 border-blue-500/30' };
-  if (type === 'draw') return { label: 'N — Nul', cls: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30' };
-  return { label: '2 — Extérieur', cls: 'text-orange-400 bg-orange-500/10 border-orange-500/30' };
+function valueLabel(type: string): string {
+  if (type === 'home') return 'Victoire Domicile';
+  if (type === 'draw') return 'Match Nul';
+  if (type === 'away') return 'Victoire Extérieur';
+  return type;
 }
 
 function formatDate(dateStr: string): string {
@@ -67,7 +72,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default async function GrandesAffichesPage() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Load the latest spotlight
   const { data: spotlight, error } = await supabase
@@ -101,156 +106,227 @@ export default async function GrandesAffichesPage() {
         </nav>
       </div>
 
-      {/* Hero */}
-      <section className="max-w-5xl mx-auto px-4 pb-8">
-        <div className="bg-gradient-to-br from-primary/10 via-surface to-surface rounded-2xl border border-primary/20 p-6 md:p-10">
-          <div className="flex items-center gap-2 mb-4">
-            <Star className="h-5 w-5 text-primary fill-primary" />
-            <span className="text-xs font-semibold text-primary uppercase tracking-widest">Grandes Affiches</span>
-          </div>
-          <h1 className="text-2xl md:text-4xl font-bold text-white mb-3">{s.title}</h1>
-          {s.hero_match && (
-            <p className="text-lg text-text-secondary mb-4">
-              À la une : <span className="text-white font-semibold">{s.hero_match}</span>
-              {s.featured_league && <span className="text-primary ml-2">· {s.featured_league}</span>}
-            </p>
-          )}
-          {/* Editorial intro */}
-          <div className="text-text-secondary leading-relaxed space-y-3 text-sm md:text-base">
-            {s.summary.split('\n').filter(Boolean).map((para, i) => (
-              <p key={i}>{para}</p>
-            ))}
-          </div>
-          <div className="flex items-center gap-4 mt-6 text-xs text-text-muted">
-            <span className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" />
-              {formatDate(s.week_start)} — {formatDate(s.week_end)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <TrendingUp className="h-3.5 w-3.5 text-primary" />
-              {s.key_matches.length} matchs analysés
-            </span>
+      {/* Hero Section - Pro Sauced */}
+      <section className="relative pt-10 pb-16 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-primary/10 to-transparent pointer-events-none" />
+        
+        <div className="max-w-5xl mx-auto px-4 relative z-10">
+          <div className="flex flex-col items-center text-center">
+            <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 text-xs font-bold text-primary mb-6 animate-in fade-in zoom-in duration-500">
+              <Sparkles className="h-4 w-4" />
+              ÉDITION SPÉCIALE IA
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl font-black text-white mb-6 tracking-tight max-w-4xl">
+              {s.title}
+            </h1>
+            
+            {s.hero_match && (
+              <div className="flex items-center gap-4 mb-8 bg-surface/40 backdrop-blur-md border border-white/5 px-6 py-3 rounded-2xl">
+                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
+                    <Trophy className="h-5 w-5 text-primary" />
+                 </div>
+                 <div className="text-left">
+                    <div className="text-[10px] font-black text-primary uppercase tracking-widest">Le Choc de la Semaine</div>
+                    <div className="text-lg font-bold text-white uppercase italic">{s.hero_match}</div>
+                 </div>
+                 {s.featured_league && (
+                   <div className="h-8 w-px bg-white/10 mx-2 hidden sm:block" />
+                 )}
+                 {s.featured_league && (
+                   <div className="hidden sm:block">
+                      <div className="text-[10px] font-black text-text-muted uppercase tracking-widest">Compétition</div>
+                      <div className="text-sm font-bold text-white">{s.featured_league}</div>
+                   </div>
+                 )}
+              </div>
+            )}
+
+            <div className="text-text-secondary max-w-3xl mx-auto text-base md:text-lg leading-relaxed mb-10 space-y-4">
+              {s.summary.split('\n').filter(Boolean).map((para, i) => (
+                <p key={i} className="opacity-90">{para}</p>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-6 text-xs font-black text-text-muted uppercase tracking-[0.2em]">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                {formatDate(s.week_start)} — {formatDate(s.week_end).split(' ').slice(1).join(' ')}
+              </div>
+              <div className="flex items-center gap-2">
+                <Brain className="h-4 w-4 text-secondary" />
+                {s.key_matches.length} ANALYSES PROFONDES
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Key Matches */}
-      <section className="max-w-5xl mx-auto px-4 pb-12">
-        <h2 className="text-xl font-bold text-white mb-6">Décryptage des chocs</h2>
-        <div className="space-y-5">
-          {s.key_matches.map((m, idx) => {
-            const badge = predBadge(m.prediction_type);
-            return (
-              <div
-                key={m.slug}
-                className="bg-surface rounded-2xl border border-surface-light overflow-hidden"
-              >
-                {/* Match header */}
-                <div className="flex items-center gap-4 px-5 py-4 border-b border-surface-light flex-wrap">
-                  <span className="text-2xl font-bold text-primary/30">#{idx + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <Link
-                      href={`/pronostic/${m.slug}`}
-                      className="text-lg font-bold text-white hover:text-primary transition-colors"
-                    >
-                      {m.home_team} <span className="text-text-muted font-normal text-base">vs</span> {m.away_team}
-                    </Link>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-text-muted">
-                      <Link href={`/ligue/${m.league_slug}`} className="hover:text-primary transition-colors">
-                        {m.league}
+      {/* Key Matches Overhaul */}
+      <section className="max-w-4xl mx-auto px-4 pb-20">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-2.5 h-2.5 bg-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+            <h2 className="text-xl font-black text-white uppercase tracking-tight">Décryptage des sommets</h2>
+          </div>
+          <div className="text-[10px] font-bold text-text-muted tracking-widest uppercase">Propulsé par AlgoPronos AI</div>
+        </div>
+
+        <div className="space-y-10">
+          {s.key_matches.map((m, idx) => (
+            <div key={m.slug} className="relative group">
+              {/* Glow Effect on Hover */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition duration-1000" />
+              
+              <div className="relative bg-[#0F172A]/80 backdrop-blur-xl border border-white/10 rounded-[2.5rem] overflow-hidden">
+                {/* Header with Index and Teams */}
+                <div className="p-8 pb-4 flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <span className="text-6xl font-black text-white/5 italic select-none">#{idx + 1}</span>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Link href={`/ligue/${m.league_slug}`} className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">
+                          {m.league}
+                        </Link>
+                        <span className="text-white/20">·</span>
+                        <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{formatDate(m.match_date)}</span>
+                      </div>
+                      <Link href={`/pronostic/${m.slug}`} className="text-2xl md:text-3xl font-black text-white group-hover:text-primary transition-colors block">
+                        {m.home_team} <span className="text-white/20 italic mx-2">VS</span> {m.away_team}
                       </Link>
-                      <span>·</span>
-                      <span>{formatDate(m.match_date)}</span>
-                      <span>·</span>
-                      <span>{m.match_time}</span>
                     </div>
                   </div>
-                  {/* Odds */}
-                  <div className="flex items-center gap-1.5 text-xs text-text-muted">
-                    <span className="bg-surface-light rounded px-2 py-1">1 · {m.odds_home?.toFixed(2)}</span>
-                    <span className="bg-surface-light rounded px-2 py-1">N · {m.odds_draw?.toFixed(2)}</span>
-                    <span className="bg-surface-light rounded px-2 py-1">2 · {m.odds_away?.toFixed(2)}</span>
+
+                  {/* Odds Display */}
+                  <div className="flex items-center gap-3 bg-surface/50 p-2 rounded-2xl border border-white/5">
+                    <div className="flex flex-col items-center px-4 py-1">
+                      <span className="text-[10px] font-bold text-text-muted uppercase">1</span>
+                      <span className="text-sm font-black text-white">{m.odds_home?.toFixed(2)}</span>
+                    </div>
+                    <div className="w-px h-8 bg-white/5" />
+                    <div className="flex flex-col items-center px-4 py-1">
+                      <span className="text-[10px] font-bold text-text-muted uppercase">N</span>
+                      <span className="text-sm font-black text-white">{m.odds_draw?.toFixed(2)}</span>
+                    </div>
+                    <div className="w-px h-8 bg-white/5" />
+                    <div className="flex flex-col items-center px-4 py-1">
+                      <span className="text-[10px] font-bold text-text-muted uppercase">2</span>
+                      <span className="text-sm font-black text-white">{m.odds_away?.toFixed(2)}</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Analysis body */}
-                <div className="px-5 py-4">
-                  <p className="text-text-secondary text-sm leading-relaxed">{m.deep_analysis}</p>
+                {/* Deep Analysis Content */}
+                <div className="px-8 py-6">
+                  <div className="relative bg-surface/30 rounded-3xl p-6 border border-white/5">
+                     <div className="absolute top-4 left-4">
+                        <Shield className="h-5 w-5 text-primary/20" />
+                     </div>
+                     <p className="text-text-secondary leading-relaxed italic text-sm md:text-base pl-8">
+                       "{m.deep_analysis}"
+                     </p>
+                  </div>
                 </div>
 
-                {/* Verdict */}
-                <div className="flex items-center gap-3 px-5 py-3 bg-surface-light/50 flex-wrap">
-                  <div className={`border rounded-lg px-3 py-1.5 text-sm font-semibold ${badge.cls}`}>
-                    {badge.label}
-                  </div>
-                  <div className="text-sm text-text-muted">
-                    Probabilité : <span className="text-white font-medium">{m.probability}%</span>
-                  </div>
-                  <div className="text-sm text-text-muted">
-                    Cote conseillée : <span className="text-white font-medium">{m.recommended_odds?.toFixed(2)}</span>
-                  </div>
-                  {m.value_edge > 0 && (
-                    <div className="text-sm font-semibold text-green-400 ml-auto">
-                      Value +{m.value_edge}%
-                    </div>
-                  )}
-                  <Link
-                    href={`/pronostic/${m.slug}`}
-                    className="ml-auto text-xs text-primary hover:underline flex items-center gap-1"
-                  >
-                    Analyse complète <ChevronRight className="h-3 w-3" />
-                  </Link>
+                {/* Pro Verdict Footer */}
+                <div className="bg-surface/50 px-8 py-6 flex flex-wrap items-center justify-between gap-6 border-t border-white/5">
+                   <div className="flex items-center gap-8">
+                      <div>
+                        <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Prédiction IA</div>
+                        <Badge variant="gradient" className="px-4 py-1.5 text-xs font-black italic uppercase tracking-wider">
+                          {valueLabel(m.prediction_type)} · @{m.recommended_odds?.toFixed(2)}
+                        </Badge>
+                      </div>
+
+                      <div>
+                        <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Confiance</div>
+                        <div className="flex items-center gap-3">
+                           <div className="w-24 h-2 bg-surface-light rounded-full overflow-hidden">
+                              <div className="h-full bg-primary" style={{ width: `${m.probability}%` }} />
+                           </div>
+                           <span className="text-sm font-black text-white">{m.probability}%</span>
+                        </div>
+                      </div>
+                   </div>
+
+                   <div className="flex items-center gap-4 ml-auto">
+                      {m.value_edge > 0 && (
+                        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-xl">
+                           <TrendingUp className="h-4 w-4 text-green-400" />
+                           <span className="text-xs font-black text-green-400">Value +{m.value_edge}%</span>
+                        </div>
+                      )}
+                      
+                      <Button variant="outline" size="sm" className="rounded-xl border-white/10 hover:bg-white/5 text-[10px] font-black uppercase tracking-widest" asChild>
+                        <Link href={`/pronostic/${m.slug}`}>
+                          Analyse Complète <ChevronRight className="ml-2 h-3 w-3" />
+                        </Link>
+                      </Button>
+                   </div>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Archive */}
+      {/* Modern Archives Section */}
       {archive && archive.length > 0 && (
-        <section className="max-w-5xl mx-auto px-4 pb-12">
-          <h2 className="text-lg font-bold text-white mb-4">Semaines précédentes</h2>
-          <div className="space-y-2">
+        <section className="max-w-4xl mx-auto px-4 pb-20">
+          <div className="flex items-center gap-3 mb-8">
+            <Zap className="h-5 w-5 text-secondary" />
+            <h2 className="text-xl font-bold text-white uppercase tracking-tight">Archives des Sommets</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {archive.map((a) => (
               <Link
                 key={a.slug}
                 href={`/grandes-affiches/${a.slug}`}
-                className="flex items-center gap-4 bg-surface hover:bg-surface-light rounded-xl border border-surface-light hover:border-primary/30 px-4 py-3 transition-all group"
+                className="group relative bg-surface/30 backdrop-blur-sm border border-white/5 hover:border-primary/30 rounded-2xl p-6 transition-all"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-white group-hover:text-primary transition-colors">{a.title}</div>
-                  {a.hero_match && <div className="text-xs text-text-muted mt-0.5">À la une : {a.hero_match}</div>}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">
+                       {a.featured_league || 'CHAMPIONNATS'}
+                    </div>
+                    <h3 className="text-base font-bold text-white group-hover:text-primary transition-colors mb-1">
+                      {a.title}
+                    </h3>
+                    <p className="text-xs text-text-muted line-clamp-1">{a.hero_match}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-surface-light flex items-center justify-center border border-white/5 shrink-0 group-hover:bg-primary/10 transition-colors">
+                    <ArrowRight className="h-5 w-5 text-text-muted group-hover:text-primary transition-transform group-hover:translate-x-1" />
+                  </div>
                 </div>
-                <span className="text-xs text-text-muted">{a.featured_league}</span>
-                <ChevronRight className="h-4 w-4 text-text-muted group-hover:text-primary" />
               </Link>
             ))}
           </div>
         </section>
       )}
 
-      {/* CTA */}
-      <section className="bg-gradient-to-r from-primary/10 to-[#00D4FF]/10 border-t border-primary/20">
-        <div className="max-w-3xl mx-auto px-4 py-10 text-center">
-          <h2 className="text-xl md:text-2xl font-bold text-white mb-3">
-            Construire votre ticket sur ces affiches
+      {/* Premium CTA */}
+      <section className="relative bg-[#0F172A] border-t border-white/5 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 opacity-50" />
+        <div className="max-w-4xl mx-auto px-4 py-20 text-center relative z-10">
+          <h2 className="text-3xl md:text-5xl font-black text-white mb-6 uppercase tracking-tighter italic">
+            Dominez le <span className="text-primary underline decoration-primary/30 underline-offset-8">Weekend</span>
           </h2>
-          <p className="text-text-secondary mb-6 text-sm">
-            Sélectionnez les meilleures opportunités parmi les grandes affiches de la semaine.
+          <p className="text-text-secondary mb-10 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
+            Exploitez nos analyses IA pour construire vos combinés sur les chocs les plus attendus de la planète football.
           </p>
-          <div className="flex gap-3 justify-center flex-wrap">
-            <Link href="/dashboard/generate">
-              <Button variant="gradient" size="lg">
-                Générer mon combiné IA
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/matchs">
-              <Button variant="outline" size="lg">
-                Voir tous les matchs
-              </Button>
-            </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button variant="gradient" size="xl" className="h-16 px-10 text-base font-black uppercase italic tracking-widest shadow-xl shadow-primary/20" asChild>
+              <Link href="/dashboard/generate">
+                <Brain className="mr-3 h-6 w-6" />
+                DÉMARRER L&apos;IA GÉNÉRATIVE
+              </Link>
+            </Button>
+            <Button variant="outline" size="xl" className="h-16 px-10 border-white/10 hover:bg-white/5 text-white font-bold text-base" asChild>
+              <Link href="/matchs">
+                TOUS LES MATCHS
+              </Link>
+            </Button>
           </div>
         </div>
       </section>

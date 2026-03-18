@@ -16,9 +16,10 @@ export interface RealMatch {
   status: 'scheduled' | 'live' | 'finished';
   odds?: {
     home: number;
-    draw: number;
+    draw?: number; // Optional for sports without draws like Tennis
     away: number;
   };
+  sport: 'football' | 'tennis' | 'basketball' | 'mma' | 'other';
 }
 
 interface OddsValue {
@@ -41,6 +42,7 @@ class MatchService {
   async getMatchesForRange(
     from: string,
     to: string,
+    sport: string = 'football'
   ): Promise<{ byDate: Record<string, RealMatch[]>; apiErrors: string[]; rawFixturesCount: number }> {
     const byDate: Record<string, RealMatch[]> = {};
     const apiErrors: string[] = [];
@@ -55,20 +57,20 @@ class MatchService {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    console.log(`[Sync] EXHAUSTIVE Sync for ${dates.length} days. Source: AI Global Search (OpenRouter).`);
+    console.log(`[Sync] EXHAUSTIVE Sync for ${dates.length} days (${sport.toUpperCase()}). Source: AI Global Search.`);
     console.warn(`[Sync] API-Football dependency REMOVED. Using pure AI discovery.`);
 
     for (const date of dates) {
-      // ── PRIMARY: OpenRouter (Perplexity Sonar) ──────────────────────────────
-      console.log(`[Sync] ${date}: Starting exhaustive global search...`);
-      const openClawMatches = await this.searchMatchesWithOpenClaw(date);
+      // ── PRIMARY: AI Search ──────────────────────────────
+      console.log(`[Sync] ${date} (${sport}): Starting exhaustive global search...`);
+      const openClawMatches = await this.searchMatchesWithAI(date, sport);
       
       if (openClawMatches.length > 0) {
-        console.log(`[Sync] ${date}: Success! Captured ${openClawMatches.length} matches via AI Search.`);
+        console.log(`[Sync] ${date} (${sport}): Success! Captured ${openClawMatches.length} matches.`);
         byDate[date] = openClawMatches;
-        await this.cacheMatches(date, openClawMatches);
+        await this.cacheMatches(date, openClawMatches, sport);
       } else {
-        console.warn(`[Sync] ${date}: No matches found via AI Search.`);
+        console.warn(`[Sync] ${date} (${sport}): No matches found.`);
         byDate[date] = [];
       }
     }
@@ -80,60 +82,57 @@ class MatchService {
    * Use OpenRouter/OpenClaw to search the web for matches and odds in a segmented way.
    * Expanded segments for 100% coverage.
    */
-  private async searchMatchesWithOpenClaw(date: string): Promise<RealMatch[]> {
-    console.log(`[MatchService] Starting MULTI-SEGMENT AI search for ${date}...`);
+  private async searchMatchesWithAI(date: string, sport: string): Promise<RealMatch[]> {
+    console.log(`[MatchService] Starting MULTI-SEGMENT AI search for ${sport} on ${date}...`);
 
-    const segments = [
-      {
-        name: 'Europe - Élite',
-        prompt: `TOUS les matchs de football en Europe pour les ligues Élite : Ligue des Champions, Europa League, Conference League, Premier League (Angleterre), LaLiga (Espagne), Serie A (Italie), Bundesliga (Allemagne), Ligue 1 (France) pour le ${date}.`
-      },
-      {
-        name: 'Europe - Secondaire',
-        prompt: `TOUS les matchs de football pour les ligues secondaires européennes : EFL Championship, Ligue 2 (France), Eredivisie (Pays-Bas), Liga Portugal, Pro League (Belgique), Super Lig (Turquie), Scottish Premiership, et les Coupes Nationales pour le ${date}.`
-      },
-      {
-        name: 'Afrique - Ouest & Centre',
-        prompt: `TOUS les matchs de football en Afrique de l'Ouest et Centrale pour le ${date}. Priorité absolue : Championnat National du Bénin, Ligue 1 Côte d'Ivoire, Ligue 1 Sénégal, Elite One Cameroun, Togo, Burkina Faso, Mali, RD Congo.`
-      },
-      {
-        name: 'Afrique - Nord, Sud & Continental',
-        prompt: `TOUS les matchs de football pour l'Afrique du Nord (Maroc Botola, Égypte Premier League, Algérie, Tunisie), l'Afrique du Sud (PSL) et les compétitions continentales (CAF Champions League, CAF Confederation Cup) pour le ${date}.`
-      },
-      {
-        name: 'Amériques & Reste du Monde',
-        prompt: `TOUS les matchs de football RÉELS pour les Amériques (MLS USA, Brésil Série A, Argentine, Mexique) et le reste du monde (Arabie Saoudite, Japon, Matchs Internationaux) pour le ${date}.`
-      }
-    ];
+    let segments: { name: string; prompt: string }[] = [];
+
+    if (sport === 'football') {
+      segments = [
+        { name: 'Europe Elite', prompt: `Matchs de football RÉELS: Ligue des Champions, Premier League, LaLiga, Serie A, Bundesliga, Ligue 1 pour le ${date}.` },
+        { name: 'Europe Sec.', prompt: `Matchs de football: Ligue 2, Eredivisie, Liga Portugal, SuperLig, etc. pour le ${date}.` },
+        { name: 'Afrique', prompt: `Matchs de football en Afrique (Benin Ligue 1, Côte d'Ivoire, Sénégal, Cameroun, Maroc Botola) pour le ${date}.` },
+        { name: 'Amériques', prompt: `Matchs de football RÉELS: MLS, Bresil Série A, Argentine pour le ${date}.` }
+      ];
+    } else if (sport === 'tennis') {
+      segments = [
+        { name: 'ATP/WTA', prompt: `Tous les matchs de Tennis RÉELS pour le ${date} (ATP, WTA, Challenger).` }
+      ];
+    } else if (sport === 'basketball') {
+      segments = [
+        { name: 'NBA/Euro', prompt: `Tous les matchs de Basket-ball RÉELS pour le ${date} (NBA, EuroLeague, Championnats nationaux).` }
+      ];
+    } else {
+      segments = [
+        { name: 'Autres', prompt: `Tous les événements sportifs majeurs RÉELS (${sport}) pour le ${date} (ex: UFC, MMA, Rugby).` }
+      ];
+    }
 
     let allMatches: RealMatch[] = [];
-
-    // Use OpenRouter Direct Search if key is available (Option 3)
     const orApiKey = process.env.OPENROUTER_API_KEY;
     const useDirectSearch = !!orApiKey;
 
     for (const segment of segments) {
-      console.log(`[MatchService] Querying segment: ${segment.name} (${useDirectSearch ? 'OpenRouter Direct' : 'OpenClaw Gateway'})...`);
-      const matches = await this.fetchOpenClawSegment(date, segment.prompt);
+      console.log(`[MatchService] Querying segment: ${segment.name}...`);
+      const matches = await this.fetchOpenClawSegment(date, segment.prompt, sport);
       allMatches = [...allMatches, ...matches];
-      console.log(`[MatchService] Segment ${segment.name} returned ${matches.length} matches.`);
     }
 
-    // Deduplicate by teams + time (since a match might appear in two segments sometimes)
+    // Deduplicate
     const uniqueMatchesMap = new Map();
     allMatches.forEach(m => {
-      const key = `${m.homeTeam}-${m.awayTeam}-${m.time}`.toLowerCase().replace(/\s/g, '');
+      const key = `${m.homeTeam}-${m.awayTeam}-${m.time}-${sport}`.toLowerCase().replace(/\s/g, '');
       if (!uniqueMatchesMap.has(key)) {
         uniqueMatchesMap.set(key, m);
       }
     });
 
     const finalMatches = Array.from(uniqueMatchesMap.values());
-    console.log(`[MatchService] Total unique matches found via OpenClaw: ${finalMatches.length}`);
+    console.log(`[MatchService] Total unique matches found (${sport}): ${finalMatches.length}`);
     return finalMatches;
   }
 
-  private async fetchOpenClawSegment(date: string, regionalPrompt: string): Promise<RealMatch[]> {
+  private async fetchOpenClawSegment(date: string, regionalPrompt: string, sport: string = 'football'): Promise<RealMatch[]> {
     const groqKey = process.env.GROQ_API_KEY;
     const orApiKey = process.env.OPENROUTER_API_KEY;
     
@@ -147,26 +146,23 @@ class MatchService {
       return [];
     }
 
-    const fullPrompt = `MISSION : Tu es un spécialiste de l'extraction de données sportives en temps réel. Ta tâche est de trouver une liste exhaustive des matchs de football RÉELS pour le ${date} dans cette zone : ${regionalPrompt}.
+    const fullPrompt = `MISSION : Tu es un spécialiste de l'extraction de données sportives en temps réel. Ta tâche est de trouver une liste exhaustive des matchs de ${sport.toUpperCase()} RÉELS pour le ${date}.
+Zone/Cible : ${regionalPrompt}.
 
 INSTRUCTIONS CRITIQUES :
-1. UTILISE TES OUTILS DE RECHERCHE (Web Search) pour trouver les matchs d'aujourd'hui. 
-2. NE REPRENDS PAS LES EXEMPLES "..." CI-DESSOUS. Remplis chaque champ avec des données RÉELLES trouvées sur le web.
-3. Si un site (comme Flashscore) est complexe, utilise les résultats de recherche ou d'autres sites plus simples (Eurosport, L'Équipe, BBC, etc.).
-4. Pour CHAQUE match, récupère : l'équipe à domicile, l'équipe à l'extérieur, le nom de la ligue, l'heure exacte et les cotes 1N2.
-5. Réponds UNIQUEMENT avec un tableau JSON d'objets, AUCUN texte avant ou après.
+1. UTILISE TES OUTILS DE RECHERCHE (Web Search) pour trouver les matchs RÉELS, PRIORITÉ : FlashScore (flashscore.com). 
+2. Pour CHAQUE match, récupère : l'équipe à domicile, l'équipe à l'extérieur, la ligue, l'heure exacte et les cotes 1N2 (ou Victoire 1/2 pour Tennis/NBA).
+3. Réponds UNIQUEMENT avec un tableau JSON d'objets.
 
 FORMAT DE RÉPONSE ATTENDU :
 [
   { 
-    "homeTeam": "Nom Réel Team A", 
-    "awayTeam": "Nom Réel Team B", 
-    "league": "Nom de la Ligue", 
+    "homeTeam": "...", "awayTeam": "...", "league": "...", "country": "...",
     "time": "HH:mm", 
     "odds": { "home": 2.1, "draw": 3.2, "away": 3.5 } 
   }
 ]
-SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de football tous les jours.`;
+Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
     try {
       const body: any = {
@@ -219,11 +215,12 @@ SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de fo
         awayTeam: r.awayTeam,
         league: r.league,
         leagueCode: this.inferLeagueCode(r.league),
-        country: '',
+        country: r.country || '',
         date: date,
         time: r.time,
         status: 'scheduled',
-        odds: (r.odds && r.odds.home > 0) ? r.odds : this.generateRealisticOdds(),
+        sport: sport as any,
+        odds: (r.odds && r.odds.home > 0) ? r.odds : this.generateRealisticOdds(sport),
       }));
     } catch (err) {
       console.error('[MatchService] OpenClaw segment failed:', err);
@@ -251,8 +248,8 @@ SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de fo
   }
 
   // Single-date fetch (reads from cache first, falls back to range fetch)
-  async getMatchesForDate(date: string, leagueCodes?: string[]): Promise<RealMatch[]> {
-    const cached = await this.getCachedMatches(date);
+  async getMatchesForDate(date: string, sport: string = 'football', leagueCodes?: string[]): Promise<RealMatch[]> {
+    const cached = await this.getCachedMatches(date, sport);
     if (cached && cached.length > 0) {
       if (!leagueCodes || leagueCodes.length === 0) return cached;
       return cached.filter((m) => leagueCodes.includes(m.leagueCode));
@@ -265,13 +262,13 @@ SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de fo
     }
 
     // Fetch just this date if not cached
-    const { byDate } = await this.getMatchesForRange(date, date);
+    const { byDate } = await this.getMatchesForRange(date, date, sport);
     const matches = byDate[date] ?? [];
     if (!leagueCodes || leagueCodes.length === 0) return matches;
     return matches.filter((m) => leagueCodes.includes(m.leagueCode));
   }
 
-  private async getCachedMatches(date: string): Promise<RealMatch[] | null> {
+  private async getCachedMatches(date: string, sport: string): Promise<RealMatch[] | null> {
     try {
       const supabase = createAdminClient();
 
@@ -279,6 +276,7 @@ SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de fo
         .from('matches_cache')
         .select('matches')
         .eq('date', date)
+        .eq('sport', sport)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
@@ -291,30 +289,38 @@ SI TU NE TROUVES AUCUN MATCH, RECHERCHE ENCORE. Il y a toujours des matchs de fo
     }
   }
 
-  private async cacheMatches(date: string, matches: RealMatch[]): Promise<void> {
+  private async cacheMatches(date: string, matches: RealMatch[], sport: string): Promise<void> {
     try {
       const supabase = createAdminClient();
       const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(); // 12 hours
 
-      await supabase.from('matches_cache').delete().eq('date', date);
+      await supabase.from('matches_cache').delete().eq('date', date).eq('sport', sport);
 
       await supabase.from('matches_cache').insert({
         date,
+        sport,
         leagues: Array.from(new Set(matches.map((m) => m.leagueCode))),
         matches,
         expires_at: expiresAt,
       });
 
-      console.log(`Cached ${matches.length} matches for ${date}`);
+      console.log(`Cached ${matches.length} matches for ${date} (${sport})`);
     } catch (error) {
       console.error('Error caching matches:', error);
     }
   }
 
-  private generateRealisticOdds(): { home: number; draw: number; away: number } {
+  private generateRealisticOdds(sport: string = 'football'): { home: number; draw?: number; away: number } {
     const homeBase = 1.4 + Math.random() * 2.2;
     const drawBase = 2.8 + Math.random() * 1.5;
     const awayBase = 2.0 + Math.random() * 3.0;
+
+    if (sport === 'tennis' || sport === 'basketball') {
+      return {
+        home: Math.round(homeBase * 100) / 100,
+        away: Math.round(awayBase * 100) / 100,
+      };
+    }
 
     return {
       home: Math.round(homeBase * 100) / 100,

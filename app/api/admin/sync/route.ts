@@ -70,7 +70,11 @@ export async function POST() {
           leagueCode: match.leagueCode,
           date: match.date,
           time: match.time,
-          odds: match.odds || { home: 1.8, draw: 3.3, away: 4.0 }
+          odds: {
+              home: match.odds?.home || 1.8,
+              draw: match.odds?.draw || 3.3,
+              away: match.odds?.away || 4.0
+          }
         });
         if (pred) predictionsToUpsert.push(pred);
       } catch (e) {

@@ -127,8 +127,10 @@ async function callGroq(prompt: string): Promise<string> {
 
 // ─── Main: GET ────────────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get('type') || 'classic';
     const adminSupabase = createAdminClient();
     const today = new Date().toISOString().split('T')[0];
 
@@ -137,6 +139,7 @@ export async function GET() {
       .from('daily_ticket')
       .select('*')
       .eq('date', today)
+      .eq('type', type)
       .single();
 
     if (existing) {
@@ -144,10 +147,10 @@ export async function GET() {
     }
 
     // ── 2. Fetch today's matches ─────────────────────────────────────────────
-    let matches = await matchService.getMatchesForDate(today, DAILY_TICKET_LEAGUES);
+    let matches = await matchService.getMatchesForDate(today, 'football', DAILY_TICKET_LEAGUES);
 
     if (matches.length < DAILY_MATCH_COUNT) {
-      const extra = await matchService.getMatchesForDate(today, FALLBACK_LEAGUES);
+      const extra = await matchService.getMatchesForDate(today, 'football', FALLBACK_LEAGUES);
       matches = [...matches, ...extra];
     }
 
@@ -169,14 +172,29 @@ export async function GET() {
     // ── 3. Fetch real stats ──────────────────────────────────────────────────
     const footballApiKey = process.env.FOOTBALL_API_KEY;
     const statsMap = await fetchStatsForMatches(
-      selected.map(m => ({ ...m, odds: m.odds!, country: m.country })),
+      selected.map(m => ({ 
+        ...m, 
+        odds: { 
+          home: m.odds!.home, 
+          draw: m.odds!.draw || 3.3, 
+          away: m.odds!.away 
+        }, 
+        country: m.country 
+      })),
       footballApiKey
     ).catch(() => new Map<string, MatchStats>());
 
     // ── 4. Build picks ───────────────────────────────────────────────────────
     const picks = selected.map(m => {
       const pick = pickForMatch(
-        { ...m, odds: m.odds! },
+        { 
+          ...m, 
+          odds: { 
+            home: m.odds!.home, 
+            draw: m.odds!.draw || 3.3, 
+            away: m.odds!.away 
+          } 
+        },
         statsMap.get(m.id)
       );
       return {

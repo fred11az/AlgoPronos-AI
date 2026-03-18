@@ -104,14 +104,18 @@ export function BookmakersSection() {
                 <ScrollReveal delay={i * 0.08}>
                   {/* Logo area */}
                   <div className={`w-full ${bm.bgColor} flex items-center justify-center p-5 h-28 relative`}>
-                    <Image
-                      src={bm.logo}
-                      alt={bm.name}
-                      width={140}
-                      height={60}
-                      className="object-contain max-h-16 w-auto"
-                      unoptimized
-                    />
+                    {bm.logo.startsWith('/') || bm.logo.startsWith('http') ? (
+                      <Image
+                        src={bm.logo}
+                        alt={bm.name}
+                        width={140}
+                        height={60}
+                        className="object-contain max-h-16 w-auto"
+                        unoptimized
+                      />
+                    ) : (
+                      <span className="text-4xl">{bm.logo}</span>
+                    )}
                     {/* Visit arrow */}
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <ExternalLink className="h-3.5 w-3.5 text-white/60" />

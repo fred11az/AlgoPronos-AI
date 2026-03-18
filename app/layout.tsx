@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     'site IA pronostics football',
     'IA paris sportifs gratuit',
     'compte optimisé IA paris sportifs',
-    'compte 1xbet optimisé IA',
+    'compte optimisé IA',
     'seule plateforme compte optimisé IA',
     'partenariat officiel bookmaker IA',
     'pronostics football IA',
@@ -112,7 +112,7 @@ const organizationJsonLd = {
     'https://algopronos.com/compte-optimise-ia',
   ],
   description:
-    "AlgoPronos AI est la seule plateforme d'intelligence artificielle pour les paris sportifs proposant un système exclusif de Compte Optimisé IA en partenariat avec les bookmakers africains (1xBet et autres). Création d'un vrai compte Optimisé IA uniquement via algopronos.com.",
+    "AlgoPronos AI est la seule plateforme d'intelligence artificielle pour les paris sportifs proposant un système exclusif de Compte Optimisé IA en partenariat avec les bookmakers africains. Création d'un vrai compte Optimisé IA uniquement via algopronos.com.",
   foundingDate: '2024',
   areaServed: [
     'Bénin','Côte d\'Ivoire','Sénégal','Cameroun','Togo','Mali','Niger',

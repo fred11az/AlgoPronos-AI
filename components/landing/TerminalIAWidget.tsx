@@ -5,9 +5,9 @@ import { Terminal, Wifi } from 'lucide-react';
 
 const LINES: Array<{ text: string; delay: number; type: 'cmd' | 'ok' | 'info' | 'warn' | 'data' }> = [
   { text: '> Initialisation moteur AlgoPronos v4.2...', delay: 0,    type: 'cmd'  },
-  { text: '  Connexion flux 1xBet sécurisée... [OK]',  delay: 700,  type: 'ok'   },
-  { text: '> Chargement historique Crash (10 000 tirages)...', delay: 1300, type: 'cmd' },
-  { text: '  Distribution empirique calculée... [OK]', delay: 2100, type: 'ok'   },
+  { text: '  Connexion flux live sécurisée... [OK]',       delay: 700,  type: 'ok'   },
+  { text: '  Analyse des cotes mondiales... [OK]',       delay: 1500, type: 'info' },
+  { text: '  Algorithme de détection de value... [OK]', delay: 2200, type: 'ok'   },
   { text: '  RTP mesuré : 96.97%  |  House Edge : 3.03%', delay: 2700, type: 'data' },
   { text: '> Analyse Apple of Fortune (séries récentes)...', delay: 3400, type: 'cmd' },
   { text: '  Écart-type session : σ = 1.82  μ = 2.05x', delay: 4100, type: 'data' },
@@ -18,8 +18,8 @@ const LINES: Array<{ text: string; delay: number; type: 'cmd' | 'ok' | 'info' | 
   { text: '> Calcul House Edge effectif post-cashback...', delay: 7200, type: 'cmd' },
   { text: '  Cashback 10% → House Edge effectif : 2.73%', delay: 7900, type: 'data' },
   { text: '  [WARN] Variance élevée — appliquer stop-loss', delay: 8500, type: 'warn' },
-  { text: '> Synchronisation Compte Optimisé IA... [OK]', delay: 9200, type: 'ok' },
-  { text: '  Flux 1xBet actif ✓  |  Code : ALGOPRONOS ✓', delay: 9800, type: 'ok' },
+  { text: '  Optimisation des coupons... [OK]',         delay: 9200, type: 'info' },
+  { text: '  Flux de données actif ✓  |  Code : ALGOPRONOS ✓', delay: 9800, type: 'ok' },
 ];
 
 // Restart cycle after last line + pause
@@ -89,7 +89,7 @@ export function TerminalIAWidget() {
           <div className="flex-1 flex items-center justify-center gap-2">
             <Terminal className="h-3.5 w-3.5 text-green-400" />
             <span className="text-gray-400 text-xs font-mono">
-              algopronos-ai — analyse flux 1xBet — bash
+              algopronos-ai — analyse flux live — bash
             </span>
           </div>
           {/* Live indicator */}
@@ -133,7 +133,7 @@ export function TerminalIAWidget() {
             {visibleLines}/{LINES.length} lignes · Analyse en cours
           </span>
           <span className="text-green-500">
-            ● Connecté au flux 1xBet
+            ● Connecté au flux live
           </span>
         </div>
       </div>

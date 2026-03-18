@@ -33,7 +33,7 @@ const footerLinks = {
   explore: [
     { label: 'Analyse Multiplicateurs', href: '/data-analysis-multipliers' },
     { label: 'Modèles Probabilistes', href: '/probability-optimization-models' },
-    { label: 'Code Promo 1xBet', href: '/code-promo-1xbet' },
+    { label: 'Code Promo Partenaire', href: '/code-promo' },
     { label: 'Tous les liens', href: '/autres-liens' },
   ],
 };
@@ -171,7 +171,7 @@ export function Footer() {
             <p className="text-text-muted text-xs leading-relaxed">
               AlgoPronos AI est la plateforme leader en Afrique pour la génération de pronostics par intelligence artificielle. 
               Notre innovation majeure, le <Link href="/compte-optimise-ia" className="text-primary hover:underline">Compte Optimisé IA</Link>, 
-              permet une synchronisation unique entre votre bookmaker (1xBet et autres partenaires) et notre algorithme. 
+              permet une synchronisation unique entre votre bookmaker (Partenaire Premium et autres partenaires) et notre algorithme. 
               En utilisant le code promo officiel AlgoPronos, votre compte bénéficie de paramètres d&apos;analyse avancés 
               incluant les Expected Goals (xG), le Value Betting et l&apos;analyse de forme en temps réel. Que vous soyez 
               au Bénin, au Sénégal, en Côte d&apos;Ivoire ou au Cameroun, rejoignez la révolution des paris sportifs 

@@ -15,6 +15,7 @@ const badgeVariants = cva(
         warning: 'border-transparent bg-warning/10 text-warning border-warning/20',
         premium: 'border-transparent bg-gradient-to-r from-primary to-secondary text-white',
         vip: 'border-transparent bg-gradient-to-r from-yellow-500 to-orange-500 text-white',
+        gradient: 'border-transparent bg-gradient-to-r from-primary to-[#00D4FF] text-white shadow-lg shadow-primary/20',
       },
     },
     defaultVariants: {

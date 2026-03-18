@@ -1,11 +1,14 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, getCurrentUser } from '@/lib/supabase/server';
 import {
   Brain, TrendingUp, ArrowRight, ChevronRight,
-  CheckCircle2, XCircle, Clock, Zap, Trophy, BarChart2, Shield,
+  CheckCircle2, XCircle, Clock, Zap, Trophy, BarChart2, Shield, Sparkles,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { TicketTabs } from '@/components/pronostics/TicketTabs';
 
 export const metadata: Metadata = {
   title: 'Pronostics Football IA — Tickets du Jour | AlgoPronos',
@@ -27,18 +30,20 @@ interface MatchPick {
 interface DailyTicket {
   id: string;
   date: string;
+  type: string;
   matches: MatchPick[];
   total_odds: number;
   confidence_pct: number;
   risk_level: string;
   status: string;
+  access_tier?: string;
   analysis?: { summary?: string; tip?: string };
 }
 
 function valueLabel(type: string, value: string, home: string, away: string): string {
-  if (type === '1X2') {
-    if (value === '1') return `${home} gagne`;
-    if (value === '2') return `${away} gagne`;
+  if (type === '1X2' || type === 'home' || type === 'away' || type === 'draw') {
+    if (value === '1' || type === 'home') return `${home} gagne`;
+    if (value === '2' || type === 'away') return `${away} gagne`;
     return 'Nul';
   }
   if (type === 'Double Chance') {
@@ -86,16 +91,28 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export default async function PronosticsPage() {
+export default async function PronosticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
+  const { type = 'standard' } = await searchParams;
   const supabase = createAdminClient();
+  const user = await getCurrentUser();
   const today = new Date().toISOString().split('T')[0];
 
-  // Fetch today's ticket
-  const { data: todayTicket } = await supabase
+  // Fetch today's tickets
+  const { data: todayTickets } = await supabase
     .from('daily_ticket')
     .select('*')
-    .eq('date', today)
-    .single();
+    .eq('date', today);
+
+  const availableTypes = (todayTickets || []).map(t => t.type || 'standard');
+  const activeTicket = todayTickets?.find(t => (t.type || 'standard') === type) || todayTickets?.find(t => t.type === 'standard');
+
+  // Check access for Optimus
+  const isOptimised = user?.tier === 'optimised' || user?.tier === 'vip' || user?.role === 'admin';
+  const isLocked = activeTicket?.access_tier === 'optimised_only' && !isOptimised;
 
   // Fetch recent history (last 30 days excluding today)
   const { data: history } = await supabase
@@ -116,7 +133,7 @@ export default async function PronosticsPage() {
     : null;
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background pb-20">
       {/* Breadcrumb */}
       <div className="max-w-5xl mx-auto px-4 py-4">
         <nav className="flex items-center gap-2 text-sm text-text-muted">
@@ -126,257 +143,214 @@ export default async function PronosticsPage() {
         </nav>
       </div>
 
-      {/* Hero */}
-      <section className="max-w-5xl mx-auto px-4 pb-8">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 text-sm text-primary mb-4">
-            <Brain className="h-4 w-4" />
-            Analyse algorithmique · Mise à jour quotidienne
+      {/* Hero Section */}
+      <section className="relative pt-10 pb-8 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[400px] bg-gradient-to-b from-primary/10 to-transparent pointer-events-none" />
+        <div className="max-w-5xl mx-auto px-4 relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 text-xs font-bold text-primary mb-6">
+            <Sparkles className="h-4 w-4" />
+            ANALYSE PRÉDICTIVE IA · FLASH-SCORE SYNC
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
-            Pronostics Football IA
+          <h1 className="text-4xl md:text-6xl font-black text-white mb-6 tracking-tight">
+            Tickets <span className="text-primary">Premium</span> IA
           </h1>
-          <p className="text-text-secondary max-w-2xl mx-auto">
-            Chaque jour, notre algorithme sélectionne les meilleures opportunités parmi des centaines de matchs
-            et génère un ticket IA avec une confiance supérieure à 55 %.
+          <p className="text-text-secondary max-w-2xl mx-auto text-base md:text-lg mb-10">
+            Découvrez nos sélections stratégiques basées sur l&apos;analyse xG et les algorithmes de Value Betting.
           </p>
         </div>
-
-        {/* Stats bar */}
-        {resolved.length > 0 && (
-          <div className="grid grid-cols-3 gap-3 mb-8">
-            <div className="bg-surface border border-surface-light rounded-xl p-4 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-green-400 mb-1">
-                <Trophy className="h-4 w-4" />
-                <span className="text-xl font-bold">{winRate}%</span>
-              </div>
-              <p className="text-xs text-text-muted">Taux de réussite</p>
-            </div>
-            <div className="bg-surface border border-surface-light rounded-xl p-4 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
-                <BarChart2 className="h-4 w-4" />
-                <span className="text-xl font-bold">x{avgOdds}</span>
-              </div>
-              <p className="text-xs text-text-muted">Cote moyenne</p>
-            </div>
-            <div className="bg-surface border border-surface-light rounded-xl p-4 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-secondary mb-1">
-                <Zap className="h-4 w-4" />
-                <span className="text-xl font-bold">{allTickets.length}</span>
-              </div>
-              <p className="text-xs text-text-muted">Tickets analysés</p>
-            </div>
-          </div>
-        )}
       </section>
 
-      {/* Today's ticket */}
-      <section className="max-w-5xl mx-auto px-4 pb-10">
-        <div className="flex items-center gap-3 mb-5">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
-          </span>
-          <h2 className="text-xl font-bold text-white">🎯 Ticket IA du Jour</h2>
-        </div>
+      {/* TABS SELECTION */}
+      <div className="max-w-4xl mx-auto px-4">
+        <TicketTabs 
+            activeTab={type} 
+            availableTypes={availableTypes}
+        />
+      </div>
 
-        {todayTicket ? (
-          <div className="bg-surface border border-primary/25 rounded-2xl overflow-hidden shadow-lg">
-            {/* Header */}
-            <div className={`px-6 py-4 flex items-center justify-between ${
-              todayTicket.status === 'won'  ? 'bg-gradient-to-r from-green-600 to-green-500' :
-              todayTicket.status === 'lost' ? 'bg-gradient-to-r from-red-700 to-red-600' :
-              'bg-gradient-to-r from-primary to-secondary'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Brain className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <div className="font-bold text-white text-sm">AlgoPronos AI</div>
-                  <div className="text-xs text-white/70">
-                    {todayTicket.status === 'won'  ? '✅ Ticket Gagné' :
-                     todayTicket.status === 'lost' ? '❌ Ticket Perdu' :
-                     "Généré aujourd'hui"}
+      {/* Active Ticket Display */}
+      <section className="max-w-4xl mx-auto px-4 transition-all duration-500">
+        {activeTicket ? (
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-[2.5rem] blur-xl opacity-50 group-hover:opacity-100 transition duration-1000" />
+            
+            <div className="relative bg-[#0F172A]/80 backdrop-blur-xl border border-white/10 rounded-[2rem] overflow-hidden">
+              <div className={`p-8 flex flex-col sm:flex-row items-center justify-between gap-6 ${
+                activeTicket.type === 'montante' ? 'bg-gradient-to-br from-green-500/10 to-transparent' :
+                activeTicket.type === 'optimus'  ? 'bg-gradient-to-br from-secondary/20 to-transparent' :
+                'bg-gradient-to-br from-primary/20 to-transparent'
+              }`}>
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border border-white/10 shadow-inner ${
+                      activeTicket.type === 'montante' ? 'bg-green-500/20 text-green-400' :
+                      activeTicket.type === 'optimus'  ? 'bg-secondary/20 text-secondary' :
+                      'bg-primary/20 text-primary'
+                  }`}>
+                    {activeTicket.type === 'montante' ? <Shield className="h-7 w-7" /> :
+                     activeTicket.type === 'optimus'  ? <Zap className="h-7 w-7" /> :
+                     <Brain className="h-7 w-7" />}
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-1">
+                        {activeTicket.type === 'montante' ? 'La Montante Sécurisée' :
+                         activeTicket.type === 'optimus'  ? "L'Optimus IA (Cotes Boostées)" :
+                         "Ticket du Jour Standard"}
+                    </div>
+                    <div className="text-2xl font-black text-white uppercase italic">
+                      {activeTicket.status === 'won'  ? '✅ Session Succès' :
+                       activeTicket.status === 'lost' ? '❌ Session Negative' :
+                       "Analyse Active"}
+                    </div>
                   </div>
                 </div>
+                <div className="flex flex-col items-center sm:items-end">
+                  <div className="text-5xl font-black text-white tracking-tighter sm:text-6xl">
+                    x{(Number(activeTicket.total_odds) || 0).toFixed(2)}
+                  </div>
+                  <div className="text-[10px] font-black text-primary uppercase tracking-widest mt-1">Cote Totale</div>
+                </div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-white">x{(Number(todayTicket.total_odds) || 0).toFixed(2)}</div>
-                <div className="text-xs text-white/70">cote totale</div>
-              </div>
-            </div>
 
-            {/* Picks */}
-            <div className="divide-y divide-surface-light">
-              {(todayTicket.matches as MatchPick[]).map((match, i) => (
-                <div key={i} className="px-6 py-4 flex items-center justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-text-muted mb-0.5">{match.league}</div>
-                    <div className="text-sm text-text-secondary truncate">
-                      {match.homeTeam} vs {match.awayTeam}
+              {/* Match list with Locking Logic */}
+              <div className="relative">
+                {isLocked ? (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-md p-8 text-center">
+                    <div className="max-w-sm">
+                        <div className="w-16 h-16 bg-secondary/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-secondary/30">
+                            <Lock className="h-8 w-8 text-secondary" />
+                        </div>
+                        <h3 className="text-xl font-black text-white uppercase mb-2">Contenu Verrouillé</h3>
+                        <p className="text-text-muted text-sm mb-6 leading-relaxed">
+                            Ce ticket <strong>Optimus</strong> est réservé aux membres ayant un <strong>Compte Optimisé IA</strong> vérifié.
+                        </p>
+                        <Link href="/onboarding">
+                            <Button variant="gradient" className="w-full h-12">
+                                Activer mon compte (Gratuit)
+                            </Button>
+                        </Link>
                     </div>
-                    <div className="font-semibold text-white mt-0.5 text-sm">
-                      {valueLabel(match.selection.type, match.selection.value, match.homeTeam, match.awayTeam)}
-                    </div>
-                    {match.score && (
-                      <div className="mt-1 text-xs font-bold">
-                        <span className={
-                          match.result === 'won' ? 'text-green-400' :
-                          match.result === 'lost' ? 'text-red-400' :
-                          'text-text-muted'
-                        }>
-                          {match.score.home} – {match.score.away}
-                          {match.result === 'won' && ' ✓'}
-                          {match.result === 'lost' && ' ✗'}
-                        </span>
+                  </div>
+                ) : null}
+
+                <div className={`px-1 py-1 ${isLocked ? 'grayscale opacity-20 pointer-events-none blur-sm' : ''}`}>
+                  <div className="bg-surface/30 rounded-[1.5rem] overflow-hidden border border-white/5">
+                    {(activeTicket.matches as MatchPick[]).map((match, i) => (
+                      <div key={i} className="px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                        <div className="flex-1 min-w-0 flex flex-col gap-1 text-center md:text-left">
+                          <div className="text-lg font-bold text-white flex items-center justify-center md:justify-start gap-4">
+                            <span className="truncate">{match.homeTeam}</span>
+                            <span className="text-text-muted text-xs font-black italic">VS</span>
+                            <span className="truncate">{match.awayTeam}</span>
+                          </div>
+                          <div className="flex items-center justify-center md:justify-start gap-2 mt-2">
+                            <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary font-black py-1">
+                              {valueLabel(match.selection.type, match.selection.value, match.homeTeam, match.awayTeam)}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center md:items-end shrink-0">
+                          <div className="text-3xl font-black text-white leading-none">{(match.selection.odds || 0).toFixed(2)}</div>
+                          <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">Cote</div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    <div className="text-xl font-bold text-primary">{(match.selection.odds || 0).toFixed(2)}</div>
-                    <div className="text-xs text-text-muted">{match.selection.type}</div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {/* Confidence + analysis */}
-            <div className="px-6 py-4 bg-surface/50 border-t border-surface-light space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-text-secondary">
-                  <Shield className="h-4 w-4 text-primary" />
-                  Confiance IA
+              {/* Analysis & CTA */}
+              <div className="p-8 space-y-8 bg-surface/20">
+                {!isLocked && (
+                    <div className="flex flex-col sm:flex-row gap-8 items-center">
+                        <div className="w-full sm:w-1/2 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-white uppercase tracking-widest">Confiance IA</span>
+                                <span className="text-primary font-black">{activeTicket.confidence_pct}%</span>
+                            </div>
+                            <div className="h-3 w-full bg-surface-light rounded-full overflow-hidden border border-white/5">
+                                <div className="h-full bg-gradient-to-r from-primary to-secondary" style={{ width: `${activeTicket.confidence_pct}%` }} />
+                            </div>
+                        </div>
+                        <div className="flex-1 text-sm text-text-secondary leading-relaxed italic opacity-80 pl-4 border-l-2 border-primary/30">
+                            {(activeTicket.analysis as { summary?: string })?.summary || "Analyse probabiliste confirmée pour cette session."}
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button variant="gradient" size="xl" className="flex-1 h-14 text-base font-black uppercase italic tracking-wider shadow-lg shadow-primary/20" asChild>
+                    <Link href={`/redirect?url=${encodeURIComponent('https://1xbet.com')}&bookmaker=1xBet`}>
+                      <TrendingUp className="mr-3 h-5 w-5" />
+                      COPIER CE TICKET (1xBET)
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="xl" className="h-14 px-8 border-white/10 hover:bg-white/5 text-white font-bold" asChild>
+                    <Link href={`/ticket/${activeTicket.id}`}>
+                      DÉTAILS
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
                 </div>
-                <span className="text-primary font-bold">{todayTicket.confidence_pct}%</span>
               </div>
-              <div className="w-full bg-surface-light rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
-                  style={{ width: `${todayTicket.confidence_pct}%` }}
-                />
-              </div>
-              {(todayTicket.analysis as { summary?: string })?.summary && (
-                <p className="text-text-secondary text-sm italic border-l-2 border-primary/30 pl-3">
-                  {(todayTicket.analysis as { summary?: string }).summary}
-                </p>
-              )}
-            </div>
-
-            {/* CTA */}
-            <div className="px-6 py-4 flex flex-col sm:flex-row gap-3 border-t border-surface-light">
-              {todayTicket.status === 'pending' ? (
-                <Button variant="gradient" className="flex-1" asChild>
-                  <Link href="/onboarding">
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                    Jouer ce ticket
-                  </Link>
-                </Button>
-              ) : (
-                <Button variant="gradient" className="flex-1" asChild>
-                  <Link href="/dashboard/generate">
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                    Générer mon ticket
-                  </Link>
-                </Button>
-              )}
-              <Button variant="outline" className="flex-1" asChild>
-                <Link href={`/ticket/${todayTicket.id}`}>
-                  Voir le ticket complet
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
             </div>
           </div>
         ) : (
-          <div className="bg-surface border border-surface-light rounded-2xl p-10 text-center">
-            <Brain className="h-10 w-10 text-primary/40 mx-auto mb-3" />
-            <p className="text-text-muted">Le ticket du jour est en cours de génération…</p>
-            <p className="text-xs text-text-muted mt-1">Revenez dans quelques instants.</p>
+          <div className="bg-[#0F172A]/80 backdrop-blur-xl border border-dashed border-white/10 rounded-[2rem] p-20 text-center">
+            <Brain className="h-10 w-10 text-primary/40 animate-pulse mx-auto mb-6" />
+            <p className="text-2xl font-black text-white uppercase tracking-tight">Analyse en cours...</p>
           </div>
         )}
       </section>
 
       {/* History */}
       {allTickets.length > 0 && (
-        <section className="max-w-5xl mx-auto px-4 pb-16">
-          <div className="flex items-center gap-3 mb-5">
+        <section className="max-w-5xl mx-auto px-4 mt-20">
+          <div className="flex items-center gap-3 mb-8">
             <BarChart2 className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-bold text-white">Historique des tickets IA</h2>
+            <h2 className="text-xl font-bold text-white uppercase tracking-tight">Historique des sessions</h2>
           </div>
-
           <div className="space-y-3">
             {allTickets.map((ticket) => (
               <Link
                 key={ticket.id}
                 href={`/ticket/${ticket.id}`}
-                className="flex items-center justify-between bg-surface hover:bg-surface-light border border-surface-light hover:border-primary/20 rounded-xl px-5 py-4 transition-all group"
+                className="flex items-center justify-between bg-surface hover:bg-surface-light border border-surface-light hover:border-primary/20 rounded-2xl px-6 py-5 transition-all group shadow-sm hover:shadow-md"
               >
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="shrink-0 text-center hidden sm:block">
-                    <div className="text-xs text-text-muted capitalize">{formatDate(ticket.date)}</div>
+                  <div className="shrink-0 text-center">
+                    <div className="text-xs font-bold text-white mb-1 uppercase tracking-tighter">{formatDate(ticket.date)}</div>
+                    <div className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${
+                        ticket.type === 'montante' ? 'text-green-400 border-green-500/20' :
+                        ticket.type === 'optimus'  ? 'text-secondary border-secondary/20' :
+                        'text-primary border-primary/20'
+                    }`}>
+                        {ticket.type}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-text-muted sm:hidden mb-0.5 capitalize">{formatDate(ticket.date)}</div>
-                    <div className="flex flex-wrap gap-1">
-                      {(ticket.matches as MatchPick[]).slice(0, 3).map((m, i) => (
-                        <span key={i} className="text-xs text-text-secondary bg-background rounded px-1.5 py-0.5 truncate max-w-[120px]">
-                          {m.homeTeam} vs {m.awayTeam}
+                  <div className="flex-1 min-w-0 pl-4 border-l border-white/5">
+                    <div className="flex flex-wrap gap-2">
+                      {(ticket.matches as MatchPick[]).slice(0, 2).map((m, i) => (
+                        <span key={i} className="text-xs text-text-secondary truncate bg-background/50 px-2 py-1 rounded-lg">
+                          {m.homeTeam} - {m.awayTeam}
                         </span>
                       ))}
                     </div>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-3 ml-3 shrink-0">
+                <div className="flex items-center gap-6 ml-4 shrink-0">
                   <div className="text-right hidden sm:block">
-                    <div className="text-sm font-bold text-white">x{(Number(ticket.total_odds) || 0).toFixed(2)}</div>
-                    <div className="text-xs text-primary">{ticket.confidence_pct}% confiance</div>
+                    <div className="text-lg font-black text-white leading-none">x{(Number(ticket.total_odds) || 0).toFixed(2)}</div>
+                    <div className="text-[10px] text-text-muted font-bold mt-1 uppercase">Cote Totale</div>
                   </div>
                   <StatusBadge status={ticket.status} />
-                  <ArrowRight className="h-4 w-4 text-text-muted group-hover:text-primary transition-colors" />
                 </div>
               </Link>
             ))}
           </div>
         </section>
       )}
-
-      {/* Empty history */}
-      {allTickets.length === 0 && !todayTicket && (
-        <section className="max-w-5xl mx-auto px-4 pb-16 text-center py-16">
-          <Brain className="h-12 w-12 text-primary/30 mx-auto mb-4" />
-          <p className="text-text-muted mb-2">L&apos;algorithme génère son premier ticket aujourd&apos;hui.</p>
-          <p className="text-text-muted text-sm">Revenez demain pour découvrir l&apos;historique.</p>
-        </section>
-      )}
-
-      {/* CTA */}
-      <section className="bg-gradient-to-r from-primary/10 to-[#00D4FF]/10 border-t border-primary/20">
-        <div className="max-w-3xl mx-auto px-4 py-10 text-center">
-          <h2 className="text-xl md:text-2xl font-bold text-white mb-3">
-            Générez un combiné IA personnalisé
-          </h2>
-          <p className="text-text-secondary mb-6 text-sm">
-            Notre algorithme sélectionne les meilleures combinaisons selon votre profil de risque.
-          </p>
-          <div className="flex gap-3 justify-center flex-wrap">
-            <Link href="/dashboard/generate">
-              <Button variant="gradient" size="lg">
-                Générer mon ticket
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/compte-optimise-ia">
-              <Button variant="outline" size="lg">
-                Compte Optimisé IA
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
     </main>
   );
 }
 
-export const revalidate = 1800;
+export const revalidate = 600; // 10 mins

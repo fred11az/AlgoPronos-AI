@@ -5,8 +5,8 @@ import { Calendar, TrendingUp, ChevronRight } from 'lucide-react';
 import MatchsClient from './MatchsClient';
 import dynamic from 'next/dynamic';
 
-const OnexBetMatchesWidget = dynamic(
-  () => import('@/components/shared/OnexBetMatchesWidget'),
+const LiveFluxMatchesWidget = dynamic(
+  () => import('@/components/shared/LiveFluxMatchesWidget'),
   { ssr: false }
 );
 
@@ -43,9 +43,23 @@ export interface MatchRow {
   odds_away: number;
 }
 
-export default async function MatchsPage() {
+export default async function MatchsPage({
+  searchParams,
+}: {
+  searchParams: { sport?: string; page?: string };
+}) {
   const supabase = await createClient();
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+
+  const sport = searchParams.sport || 'football';
+  const page = parseInt(searchParams.page || '1');
+  const pageSize = 50;
+  const offset = (page - 1) * pageSize;
 
   // Compute +3 days limit
   const limitDate = new Date();
@@ -55,13 +69,14 @@ export default async function MatchsPage() {
   const { data: matches } = await supabase
     .from('match_predictions')
     .select(
-      'slug, home_team, away_team, league, league_slug, country, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away'
+      'slug, home_team, away_team, league, league_slug, country, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away, sport'
     )
-    .gte('match_date', today)
+    .eq('sport', sport)
+    .gte('match_date', yesterdayStr)
     .lte('match_date', limitStr)
     .order('match_date', { ascending: true })
     .order('match_time', { ascending: true })
-    .limit(200);
+    .range(offset, offset + pageSize - 1);
 
   return (
     <main className="min-h-screen bg-background">
@@ -100,17 +115,20 @@ export default async function MatchsPage() {
       {/* Client component handles date filter tabs + match list */}
       <MatchsClient matches={matches as MatchRow[] || []} today={today} />
 
-      {/* 1xBet Live Matches Widget */}
-      <section id="1xbet-live" className="max-w-5xl mx-auto px-4 py-8">
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-white">Matchs en Direct sur 1xBet</h2>
-          <p className="text-sm text-text-muted mt-1">
-            Retrouvez tous les matchs disponibles en ce moment sur 1xBet — 356+ matchs, 19 sports
+      {/* Live Flux Section */}
+      <section id="live-flux" className="max-w-5xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+            <h2 className="text-xl font-bold text-white uppercase tracking-tight">Flux Live Global</h2>
+          </div>
+          <p className="text-sm text-text-muted">
+            Évènements sportifs en temps réel — 450+ flux actifs, 21 sports couverts
           </p>
         </div>
-        <OnexBetMatchesWidget />
-        <p className="text-xs text-text-muted mt-3 text-center">
-          * Les cotes sont fournies à titre indicatif. Jouez de manière responsable. +18 uniquement.
+        <LiveFluxMatchesWidget />
+        <p className="text-[10px] text-text-muted mt-4 text-center italic opacity-60">
+          * Les cotes et scores sont fournis via flux partenaires. Données indicatives.
         </p>
       </section>
     </main>

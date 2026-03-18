@@ -14,7 +14,7 @@ import {
 // ─── Config bookmakers ─────────────────────────────────────────────────────
 
 const BOOKMAKERS = [
-  { id: '1xbet',      name: '1xBet',      logo: '🟡', color: '#f5a623' },
+  { id: '1xbet',      name: '1xBet',      logo: '⭐', color: '#10b981' },
   { id: 'betway',     name: 'Betway',      logo: '🟢', color: '#00b359' },
   { id: 'melbet',     name: 'Melbet',      logo: '🔴', color: '#d0021b' },
   { id: 'premierbet', name: 'PremierBet',  logo: '🔵', color: '#1a56db' },
@@ -139,14 +139,14 @@ export function VerificateurWidget({ compact }: VerificateurWidgetProps) {
                           key={bm.id}
                           type="button"
                           onClick={() => { setBookmaker(bm.id); setDropdownOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-light transition-colors text-white"
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-light transition-colors text-white relative"
                         >
                           <span className="text-lg">{bm.logo}</span>
                           <span className="font-medium">{bm.name}</span>
                           {bm.id === '1xbet' && (
-                            <span className="ml-auto text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                              Recommandé
-                            </span>
+                            <div className="absolute -top-3 -right-3 bg-primary text-secondary-dark text-[10px] font-black px-2 py-1 rounded-lg shadow-lg rotate-12">
+                              SAUCE PRO
+                            </div>
                           )}
                         </button>
                       ))}

@@ -67,7 +67,7 @@ export function MobileMagicCopy({
     // 3. Redirect after delay
     timerRef.current = setTimeout(() => {
       setPhase('redirecting');
-      const redirectUrl = `/redirect?url=${encodeURIComponent(affiliateUrl)}&bookmaker=1xBet`;
+      const redirectUrl = `/redirect?url=${encodeURIComponent(affiliateUrl)}&bookmaker=Partenaire`;
       window.open(redirectUrl, '_blank', 'noopener,noreferrer');
       // Reset after short pause so user sees the redirecting state
       setTimeout(() => {
@@ -107,7 +107,7 @@ export function MobileMagicCopy({
             ? `Activer compte IA — code ${promoCode}`
             : phase === 'copied'
             ? 'Code copié, redirection en cours'
-            : 'Redirection vers 1xBet'
+            : 'Redirection vers partenaire'
         }
       >
         {/* Left — Icon */}
@@ -146,7 +146,7 @@ export function MobileMagicCopy({
                 Code copié !
               </div>
               <div className="text-white/80 text-xs mt-0.5">
-                Redirection 1xBet dans 1.5 s…
+                Redirection sécurisée dans 1.5 s…
               </div>
             </>
           )}
@@ -154,7 +154,7 @@ export function MobileMagicCopy({
           {phase === 'redirecting' && (
             <>
               <div className="text-white font-black text-sm leading-tight">
-                Ouverture 1xBet…
+                Ouverture du partenaire…
               </div>
               <div className="text-white/80 text-xs mt-0.5">
                 Collez le code <strong>{promoCode}</strong> lors de l&apos;inscription

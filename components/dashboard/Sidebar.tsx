@@ -16,11 +16,14 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Zap,
-  ShieldCheck,
   Trophy,
   Clock,
   X,
+  Rocket,
+  TrendingUp,
+  Calendar,
+  Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import type { Profile } from '@/types';
 
@@ -48,6 +51,11 @@ const navItems = [
     badge: 'IA',
   },
   {
+    label: 'Programme Sport',
+    href: '/matchs',
+    icon: Calendar,
+  },
+  {
     label: 'Mes Combinés',
     href: '/dashboard/combines',
     icon: Zap,
@@ -56,6 +64,16 @@ const navItems = [
     label: 'Historique IA',
     href: '/dashboard/history',
     icon: History,
+  },
+  {
+    label: 'La Montante',
+    href: '/concept-montante',
+    icon: TrendingUp,
+  },
+  {
+    label: 'Ticket Optimus',
+    href: '/concept-optimus',
+    icon: Rocket,
   },
   {
     label: 'Classement',

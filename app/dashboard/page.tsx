@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import TicketDuJourWidget from '@/components/dashboard/TicketDuJourWidget';
+import TicketMontanteWidget from '@/components/dashboard/TicketMontanteWidget';
+import TicketOptimusWidget from '@/components/dashboard/TicketOptimusWidget';
 import {
   Sparkles,
   TrendingUp,
@@ -309,8 +311,16 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* Ticket IA du Jour */}
-      <TicketDuJourWidget />
+      {/* Ticket IA du Jour & Advanced Strategies */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+           <TicketDuJourWidget />
+        </div>
+        <div className="space-y-6">
+           <TicketMontanteWidget />
+           <TicketOptimusWidget isVerified={isVerified} />
+        </div>
+      </div>
 
       {/* Quick Actions */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

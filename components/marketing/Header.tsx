@@ -13,7 +13,7 @@ const navItems = [
   { label: 'Pronostics', href: '/pronostics' },
   { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
   { label: 'Bookmakers', href: '/#bookmakers' },
-  { label: 'Matchs Live 1xBet', href: '/matchs#1xbet-live', live: true },
+  { label: 'Flux Live', href: '/matchs#live-flux', live: true },
 ];
 
 export function Header() {

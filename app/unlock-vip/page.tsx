@@ -104,7 +104,7 @@ export default function ActivatePage() {
     e.preventDefault();
 
     if (!identifier.trim()) {
-      toast.error('Veuillez entrer votre ID ou email 1xBet');
+      toast.error('Veuillez entrer votre ID ou email partenaire');
       return;
     }
 
@@ -191,7 +191,7 @@ export default function ActivatePage() {
                 Vérification en cours
               </h1>
               <p className="text-text-secondary text-lg mb-6">
-                Votre demande a été reçue ! Notre équipe vérifie votre compte 1xBet.
+                Votre demande a été reçue ! Notre équipe vérifie votre compte partenaire.
                 <br />
                 <strong className="text-primary">Délai maximum : 24 heures</strong>
               </p>
@@ -277,8 +277,8 @@ export default function ActivatePage() {
           </div>
           <div className="bg-surface rounded-xl p-6 border border-surface-light text-center">
             <Gift className="h-8 w-8 text-secondary mx-auto mb-3" />
-            <h3 className="font-bold text-white mb-2">Bonus 1xBet</h3>
-            <p className="text-sm text-text-muted">Jusqu&apos;à 208,000 FCFA de bonus</p>
+            <h3 className="font-bold text-white mb-2">Bonus Partenaire</h3>
+            <p className="text-sm text-text-muted">Jusqu&apos;à 208,000 FCFA de bonus exclusif</p>
           </div>
           <div className="bg-surface rounded-xl p-6 border border-surface-light text-center">
             <CheckCircle className="h-8 w-8 text-success mx-auto mb-3" />
@@ -292,14 +292,14 @@ export default function ActivatePage() {
           <ProcessStep
             number="1"
             icon={<ExternalLink className="h-6 w-6" />}
-            title="Créez un compte 1xBet"
-            description="Cliquez sur le bouton ci-dessous et inscrivez-vous via notre lien partenaire"
+            title="Créez un compte partenaire"
+            description="Cliquez sur le bouton ci-dessous et inscrivez-vous via notre lien officiel"
           />
           <ProcessStep
             number="2"
             icon={<FileCheck className="h-6 w-6" />}
             title="Soumettez votre ID"
-            description="Entrez l'ID ou l'email utilisé pour créer votre compte 1xBet"
+            description="Entrez l'ID ou l'email utilisé pour créer votre compte"
           />
           <ProcessStep
             number="3"
@@ -317,7 +317,7 @@ export default function ActivatePage() {
               href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}
               className="block w-full bg-gradient-to-r from-primary to-primary-dark text-white font-bold py-6 rounded-2xl hover:opacity-90 transition-opacity mb-8 text-center text-xl"
             >
-              Créer mon compte 1xBet
+              Créer mon compte partenaire
               <ExternalLink className="inline-block ml-2 h-5 w-5" />
             </Link>
 
@@ -337,7 +337,7 @@ export default function ActivatePage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="identifier">
-                  ID ou Email 1xBet <span className="text-error">*</span>
+                  ID ou Email Joueur <span className="text-error">*</span>
                 </Label>
                 <Input
                   id="identifier"
@@ -348,7 +348,7 @@ export default function ActivatePage() {
                   placeholder="Ex: 123456789 ou votre@email.com"
                 />
                 <p className="text-sm text-text-muted">
-                  Entrez l&apos;identifiant ou l&apos;email utilisé pour créer votre compte 1xBet
+                  Entrez l&apos;identifiant ou l&apos;email utilisé pour créer votre compte
                 </p>
               </div>
 
@@ -431,11 +431,11 @@ export default function ActivatePage() {
               className="bg-surface rounded-xl px-6 border border-surface-light"
             >
               <AccordionTrigger>
-                Dois-je faire un dépôt sur 1xBet ?
+                Dois-je faire un dépôt ?
               </AccordionTrigger>
               <AccordionContent>
                 Non, aucun dépôt n&apos;est requis pour activer AlgoPronos AI.
-                Créez simplement le compte 1xBet et soumettez votre ID.
+                Créez simplement le compte partenaire et soumettez votre ID.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem
@@ -447,7 +447,7 @@ export default function ActivatePage() {
               </AccordionTrigger>
               <AccordionContent>
                 Oui ! AlgoPronos AI est entièrement gratuit. Vous bénéficiez d&apos;analyses IA
-                sans jamais payer. La seule condition est de créer un compte 1xBet via notre lien.
+                sans jamais payer. La seule condition est de créer un compte via notre lien.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem
@@ -455,10 +455,10 @@ export default function ActivatePage() {
               className="bg-surface rounded-xl px-6 border border-surface-light"
             >
               <AccordionTrigger>
-                Pourquoi demander un compte 1xBet ?
+                Pourquoi demander un compte spécial ?
               </AccordionTrigger>
               <AccordionContent>
-                1xBet est notre partenaire. Grâce à ce partenariat, nous pouvons offrir AlgoPronos AI
+                Nos partenaires nous permettent d&apos;offrir AlgoPronos AI
                 gratuitement tout en vous faisant bénéficier de bonus exclusifs jusqu&apos;à 208,000 FCFA.
               </AccordionContent>
             </AccordionItem>

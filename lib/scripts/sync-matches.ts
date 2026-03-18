@@ -52,8 +52,8 @@ async function syncMatches() {
 
     const predictionsToUpsert: any[] = [];
     
-    // Process in batches of 5 to remain efficient but stable
-    const BATCH_SIZE = 5;
+    // Process in batches of 3 to remain efficient but stable
+    const BATCH_SIZE = 3;
     for (let i = 0; i < allMatchesBatch.length; i += BATCH_SIZE) {
       const batch = allMatchesBatch.slice(i, i + BATCH_SIZE);
       console.log(`[Sync] Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(allMatchesBatch.length/BATCH_SIZE)}...`);
@@ -68,7 +68,11 @@ async function syncMatches() {
             leagueCode: match.leagueCode,
             date: match.date,
             time: match.time,
-            odds: match.odds || { home: 1.8, draw: 3.3, away: 4.0 }
+            odds: {
+              home: match.odds?.home || 1.8,
+              draw: match.odds?.draw || 3.3,
+              away: match.odds?.away || 4.0
+          }
           });
           if (pred) console.log(`[Sync] OK: ${match.homeTeam} analyzed.`);
           return pred;
@@ -78,18 +82,28 @@ async function syncMatches() {
         }
       }));
 
-      predictionsToUpsert.push(...batchResults.filter(p => p !== null));
+      const validBatch = batchResults.filter(p => p !== null);
+      if (validBatch.length > 0) {
+        console.log(`[Sync] Saving ${validBatch.length} analyses to DB...`);
+        const { error: predError } = await supabase
+          .from('match_predictions')
+          .upsert(validBatch, { onConflict: 'slug' });
+
+        if (predError) {
+          console.error(`[Sync] Batch save error: ${predError.message}`);
+        } else {
+          console.log(`[Sync] Batch ${Math.floor(i/BATCH_SIZE) + 1} saved successfully.`);
+        }
+        predictionsToUpsert.push(...validBatch);
+      }
+
+      // Small delay between batches to avoid rate limits
+      if (i + BATCH_SIZE < allMatchesBatch.length) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
     }
 
-    if (predictionsToUpsert.length > 0) {
-      console.log(`[Sync] Saving ${predictionsToUpsert.length} analyses to DB...`);
-      const { error: predError } = await supabase
-        .from('match_predictions')
-        .upsert(predictionsToUpsert, { onConflict: 'slug' });
-
-      if (predError) throw predError;
-      console.log('[Sync] Phase 2 Done! SEO pages populated.');
-    }
+    console.log(`[Sync] Phase 2 Done! ${predictionsToUpsert.length} SEO pages populated.`);
 
   } catch (err) {
     console.error('[Sync] Fatal error:', err);

@@ -1,7 +1,7 @@
 'use client';
 
 const bookmakers = [
-  { name: '1xBet',      abbr: '1X',  color: '#1E88E5', bg: '#1E88E515' },
+  { name: 'Partenaire',      abbr: 'PRO',  color: '#10b981', bg: '#10b98115' },
   { name: 'Betway',     abbr: 'BW',  color: '#00A650', bg: '#00A65015' },
   { name: 'Melbet',     abbr: 'MB',  color: '#E53935', bg: '#E5393515' },
   { name: 'BetWinner',  abbr: 'BW+', color: '#FF6F00', bg: '#FF6F0015' },

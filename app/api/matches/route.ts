@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get REAL matches from APIs (API-Football or TheSportsDB)
-    const matches = await matchService.getMatchesForDate(date, leagueCodes);
+    const matches = await matchService.getMatchesForDate(date, 'football', leagueCodes);
 
     // Sort by time
     matches.sort((a, b) => (a.time || '').localeCompare(b.time || ''));

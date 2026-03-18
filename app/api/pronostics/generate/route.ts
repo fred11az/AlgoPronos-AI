@@ -39,6 +39,8 @@ interface PredictionRow {
   home_form: string | null;
   away_form: string | null;
   expires_at: string;
+  sport: string;
+  match_concept?: string; // e.g. "Ticket du Match"
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -111,12 +113,13 @@ async function callAIAnalysis(
   probability: number,
   homeForm: string,
   awayForm: string,
+  sport: string = 'football'
 ): Promise<string> {
-  const prompt = `Tu es un analyste football professionnel. Rédige une courte analyse (3-4 phrases) du match ${homeTeam} vs ${awayTeam} en ${league}.
-Forme ${homeTeam}: ${homeForm} (5 derniers matchs: W=victoire, D=nul, L=défaite)
-Forme ${awayTeam}: ${awayForm}
-Pronostic IA: ${prediction} (probabilité modèle: ${probability}%)
-Rédige en français, ton neutre et professionnel, sans mentionner d'IA ou d'algorithme.`;
+  const prompt = `Tu es un analyste ${sport} professionnel. Rédige une analyse SEO riche et unique (min 4 phrases) pour le match ${homeTeam} vs ${awayTeam} en ${league}.
+Inclut des détails sur la forme : ${homeTeam} (${homeForm}) vs ${awayTeam} (${awayForm}).
+Pronostic IA : ${prediction} (${probability}%).
+Termine par un 'Ticket du Match' spécifique (ex: Score exact ou combiné buteur/résultat).
+Rédige en français, ton expert, sans mentionner l'IA.`;
 
   const messages = [{ role: 'user', content: prompt }];
 
@@ -197,126 +200,104 @@ export async function POST(req: NextRequest) {
   toDate.setDate(today.getDate() + 6);
   const toStr = toDate.toISOString().split('T')[0];
 
-  // Fetch ALL 7 days in 2 API calls (fixtures + odds)
-  let matchesByDate: Record<string, RealMatch[]>;
-  let fetchApiErrors: string[] = [];
-  let rawFixturesCount = 0;
-  try {
-    const result = await matchService.getMatchesForRange(fromStr, toStr);
-    matchesByDate = result.byDate;
-    fetchApiErrors = result.apiErrors;
-    rawFixturesCount = result.rawFixturesCount;
-  } catch (err) {
-    return NextResponse.json(
-      { success: false, error: String(err), hint: 'Check FOOTBALL_API_KEY in Vercel env vars' },
-      { status: 500 }
-    );
-  }
+  const sports = ['football', 'tennis', 'basketball', 'mma'];
+  const results: any[] = [];
 
-  const apiDebug: Record<string, number> = {};
-  for (const [d, m] of Object.entries(matchesByDate)) apiDebug[d] = m.length;
-
-  const totalMatchesFromApi = Object.values(matchesByDate).reduce((sum, m) => sum + m.length, 0);
-  if (totalMatchesFromApi === 0) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'API returned 0 matches for the entire 7-day window.',
-        api_errors: fetchApiErrors,
-        raw_fixtures_fetched: rawFixturesCount,
-        debug_matches_per_day: apiDebug,
-        hint: fetchApiErrors.length > 0
-          ? 'API errors detected — check FOOTBALL_API_KEY validity and quota at https://dashboard.api-football.com/'
-          : `API returned ${rawFixturesCount} raw fixtures but none matched supported leagues. Check mapAPIFootballLeague() in match-service.ts.`,
-      },
-      { status: 503 },
-    );
-  }
-
-  for (const [dateStr, matches] of Object.entries(matchesByDate)) {
-    for (const match of matches) {
-      // Include date in slug to prevent collisions when same teams play on different days
-      const slug = createMatchSlug(match.homeTeam, match.awayTeam, dateStr);
-
-      // Skip if already generated for this exact date and not expired
-      const { data: existing } = await supabase
-        .from('match_predictions')
-        .select('id, expires_at')
-        .eq('slug', slug)
-        .eq('match_date', dateStr)
-        .single();
-
-      if (existing && existing.expires_at && new Date(existing.expires_at) > new Date()) {
-        skipped.push(slug);
-        continue;
-      }
-
-      if (!match.odds) {
-        skipped.push(`${slug} (no odds)`);
-        continue;
-      }
-
-      const { odds_home, odds_draw, odds_away } = {
-        odds_home: match.odds.home,
-        odds_draw: match.odds.draw,
-        odds_away: match.odds.away,
-      };
-
-      const pred = computePrediction(odds_home, odds_draw, odds_away);
-      const homeForm = generateForm();
-      const awayForm = generateForm();
-
-      const aiAnalysis = await callAIAnalysis(
-        match.homeTeam,
-        match.awayTeam,
-        match.league,
-        pred.prediction,
-        pred.probability,
-        homeForm,
-        awayForm,
-      );
-
-      // Match expires 3 hours after match kickoff
-      const matchDateTime = new Date(`${dateStr}T${match.time || '15:00'}:00Z`);
-      matchDateTime.setHours(matchDateTime.getHours() + 3);
-
-      const row: PredictionRow = {
-        slug,
-        home_team: match.homeTeam,
-        away_team: match.awayTeam,
-        home_team_slug: createTeamSlug(match.homeTeam),
-        away_team_slug: createTeamSlug(match.awayTeam),
-        league: match.league,
-        league_code: match.leagueCode,
-        league_slug: createLeagueSlug(match.league),
-        country: match.country || '',
-        match_date: dateStr,
-        match_time: match.time || '15:00',
-        odds_home,
-        odds_draw,
-        odds_away,
-        prediction: pred.prediction,
-        prediction_type: pred.predictionType,
-        probability: pred.probability,
-        implied_probability: pred.impliedPct,
-        value_edge: pred.valueEdge,
-        recommended_odds: pred.recommendedOdds,
-        ai_analysis: aiAnalysis || null,
-        home_form: homeForm,
-        away_form: awayForm,
-        expires_at: matchDateTime.toISOString(),
-      };
-
-      const { error } = await supabase
-        .from('match_predictions')
-        .upsert(row, { onConflict: 'slug' });
-
-      if (error) {
-        errors.push(`${slug}: ${error.message}`);
-      } else {
-        generated.push(slug);
-      }
+  for (const sport of sports) {
+    console.log(`[Generate] Processing sport: ${sport}...`);
+    let matchesByDate: Record<string, RealMatch[]>;
+    try {
+      const result = await matchService.getMatchesForRange(fromStr, toStr, sport);
+      matchesByDate = result.byDate;
+    } catch (err) {
+      errors.push(`Error fetching ${sport}: ${err}`);
+      continue;
     }
+
+    const sportMatches: RealMatch[] = Object.values(matchesByDate).flat();
+    if (sportMatches.length === 0) continue;
+
+    // Process matches in batches to avoid timeouts/rate limits
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < sportMatches.length; i += BATCH_SIZE) {
+      const batch = sportMatches.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async (match) => {
+        const dateStr = match.date;
+        const slug = createMatchSlug(match.homeTeam, match.awayTeam, dateStr);
+
+        // Check cache/existing
+        const { data: existing } = await supabase
+          .from('match_predictions')
+          .select('id, expires_at')
+          .eq('slug', slug)
+          .single();
+
+        if (existing && existing.expires_at && new Date(existing.expires_at) > new Date()) {
+          skipped.push(slug);
+          return;
+        }
+
+        if (!match.odds) {
+          skipped.push(`${slug} (no odds)`);
+          return;
+        }
+
+        const pred = computePrediction(match.odds.home, match.odds.draw || 0, match.odds.away);
+        const homeForm = generateForm();
+        const awayForm = generateForm();
+
+        const aiAnalysis = await callAIAnalysis(
+          match.homeTeam,
+          match.awayTeam,
+          match.league,
+          pred.prediction,
+          pred.probability,
+          homeForm,
+          awayForm,
+          sport
+        );
+
+        const matchDateTime = new Date(`${dateStr}T${match.time || '15:00'}:00Z`);
+        matchDateTime.setHours(matchDateTime.getHours() + 3);
+
+        const row: PredictionRow = {
+          slug,
+          home_team: match.homeTeam,
+          away_team: match.awayTeam,
+          home_team_slug: createTeamSlug(match.homeTeam),
+          away_team_slug: createTeamSlug(match.awayTeam),
+          league: match.league,
+          league_code: match.leagueCode,
+          league_slug: createLeagueSlug(match.league),
+          country: match.country || '',
+          match_date: dateStr,
+          match_time: match.time || '15:00',
+          odds_home: match.odds.home,
+          odds_draw: match.odds.draw || null,
+          odds_away: match.odds.away,
+          prediction: pred.prediction,
+          prediction_type: pred.predictionType,
+          probability: pred.probability,
+          implied_probability: pred.impliedPct,
+          value_edge: pred.valueEdge,
+          recommended_odds: pred.recommendedOdds,
+          ai_analysis: aiAnalysis || null,
+          home_form: homeForm,
+          away_form: awayForm,
+          expires_at: matchDateTime.toISOString(),
+          sport: sport,
+        };
+
+        const { error } = await supabase.from('match_predictions').upsert(row, { onConflict: 'slug' });
+        if (error) errors.push(`${slug}: ${error.message}`);
+        else generated.push(slug);
+      }));
+    }
+  }
+
+  // ── Advanced Betting Strategies: Montante & Optimus ─────────────────────────
+  if (generated.length > 0) {
+    await generateSpecialTickets(supabase, fromStr);
   }
 
   // ── Auto-indexing: ping Google + IndexNow after generating new pages ─────
@@ -354,14 +335,12 @@ export async function POST(req: NextRequest) {
       }
     }
   }
-
   return NextResponse.json({
     success: true,
     generated: generated.length,
     skipped: skipped.length,
     errors,
     slugs: generated,
-    debug_matches_per_day: apiDebug,
   });
 }
 
@@ -372,4 +351,57 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized — add ?secret=YOUR_CRON_SECRET' }, { status: 401 });
   }
   return POST(req);
+}
+
+/**
+ * Strategy Generator: Montante & Optimus
+ */
+async function generateSpecialTickets(supabase: any, date: string) {
+  // Fetch a pool of high-confidence predictions for today
+  const { data: pool } = await supabase
+    .from('match_predictions')
+    .select('*')
+    .eq('match_date', date)
+    .order('probability', { ascending: false });
+
+  if (!pool || pool.length < 5) return;
+
+  // 1. MONTANTE (1 Ultra Safe match)
+  const safe = pool.find((m: any) => m.odds_home < 1.45 || m.odds_away < 1.45);
+  if (safe) {
+    await supabase.from('daily_ticket').upsert({
+      date,
+      type: 'montante',
+      matches: [{
+        matchId: safe.slug,
+        homeTeam: safe.home_team,
+        awayTeam: safe.away_team,
+        league: safe.league,
+        selection: { type: safe.prediction_type, value: '1', odds: safe.recommended_odds }
+      }],
+      total_odds: safe.recommended_odds,
+      confidence_pct: 90,
+      status: 'pending'
+    }, { onConflict: 'date,type' });
+  }
+
+  // 2. OPTIMUS (Cote ~5.0 / 3-4 matches)
+  const optimusMatches = pool.slice(0, 4);
+  const totalOdds = optimusMatches.reduce((acc: number, m: any) => acc * (m.recommended_odds || 1), 1);
+  
+  await supabase.from('daily_ticket').upsert({
+    date,
+    type: 'optimus',
+    access_tier: 'optimised_only',
+    matches: optimusMatches.map((m: any) => ({
+      matchId: m.slug,
+      homeTeam: m.home_team,
+      awayTeam: m.away_team,
+      league: m.league,
+      selection: { type: m.prediction_type, value: '1', odds: m.recommended_odds }
+    })),
+    total_odds: Math.round(totalOdds * 100) / 100,
+    confidence_pct: 75,
+    status: 'pending'
+  }, { onConflict: 'date,type' });
 }

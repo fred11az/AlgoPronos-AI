@@ -4,7 +4,7 @@
   "description": "Plateforme gratuite de génération automatique de combinés de paris sportifs pour l'Afrique de l'Ouest - 2 coupons IA par jour",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

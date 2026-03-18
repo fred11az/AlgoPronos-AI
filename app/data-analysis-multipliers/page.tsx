@@ -43,7 +43,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 export const metadata: Metadata = {
   title: `Analyse des Tendances Multiplicateurs par IA — Data Visualization | AlgoPronos ${CURRENT_YEAR}`,
   description:
-    "Guide analytique complet sur la visualisation des données historiques des jeux à multiplicateurs (Crash, Apple of Fortune sur 1xBet). Cycles statistiques, Money Management rigoureux, et intégration du code AlgoPronos pour un cashback mensuel.",
+    "Guide analytique complet sur la visualisation des données historiques des jeux à multiplicateurs (Crash, Apple of Fortune). Cycles statistiques, Money Management rigoureux, et intégration du code AlgoPronos pour un cashback mensuel.",
   keywords: [
     'analyse multiplicateurs 1xbet',
     'tendances crash game statistiques',
@@ -77,7 +77,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Analyse des Tendances Multiplicateurs par IA | AlgoPronos',
     description:
-      'Données, cycles statistiques et Money Management pour les jeux à multiplicateurs 1xBet. Code AlgoPronos = cashback mensuel.',
+      'Données, cycles statistiques et Money Management pour les jeux à multiplicateurs. Code AlgoPronos = cashback mensuel.',
   },
 };
 
@@ -129,7 +129,7 @@ const faqJsonLd = {
       name: "Comment l'IA analyse-t-elle les tendances des jeux à multiplicateurs ?",
       acceptedAnswer: {
         '@type': 'Answer',
-        text: "L'algorithme AlgoPronos collecte les données historiques de tirages publics (Crash, Apple of Fortune sur 1xBet) et applique des techniques de visualisation statistique pour identifier les distributions de fréquence, les cycles d'apparition et les écarts à la moyenne théorique. Ces analyses ne permettent pas de prédire le prochain résultat (les RNG certifiés sont indépendants), mais éclairent la structure probabiliste du jeu.",
+        text: "L'algorithme AlgoPronos collecte les données historiques de tirages publics (Crash, Apple of Fortune et autres flux live) et applique des techniques de visualisation statistique pour identifier les distributions de fréquence, les cycles d'apparition et les écarts à la moyenne théorique. Ces analyses ne permettent pas de prédire le prochain résultat (les RNG certifiés sont indépendants), mais éclairent la structure probabiliste du jeu.",
       },
     },
     {
@@ -145,7 +145,7 @@ const faqJsonLd = {
       name: "Qu'est-ce que le code AlgoPronos garantit comme cashback ?",
       acceptedAnswer: {
         '@type': 'Answer',
-        text: "Le code promo AlgoPronos sur 1xBet active le programme de cashback mensuel : selon votre niveau d'activité (volume de mises et résultats nets), vous recevez un remboursement partiel chaque mois. Le niveau Starter offre un cashback de base, le niveau Pro un cashback majoré, et le niveau Elite un cashback premium. Ce système est structuré pour réduire l'impact statistique des pertes sur le long terme.",
+        text: "Le code promo AlgoPronos active le programme de cashback mensuel chez nos partenaires : selon votre niveau d'activité (volume de mises et résultats nets), vous recevez un remboursement partiel chaque mois. Le niveau Starter offre un cashback de base, le niveau Pro un cashback majoré, et le niveau Elite un cashback premium. Ce système est structuré pour réduire l'impact statistique des pertes sur le long terme.",
       },
     },
     {
@@ -158,10 +158,10 @@ const faqJsonLd = {
     },
     {
       '@type': 'Question',
-      name: "Comment visualiser l'historique des tirages Crash sur 1xBet ?",
+      name: "Comment visualiser l'historique des tirages Crash ?",
       acceptedAnswer: {
         '@type': 'Answer',
-        text: "1xBet et 1xGames affichent l'historique récent des multiplicateurs Crash directement dans l'interface du jeu. Pour une analyse plus approfondie, AlgoPronos compile ces données publiques et génère des visualisations (histogrammes de distribution, courbes de fréquence cumulée, heat maps temporelles) accessibles via le dashboard Compte Optimisé IA créé avec le code AlgoPronos.",
+        text: "Les flux live affichent l'historique récent des multiplicateurs Crash directement dans l'interface. Pour une analyse plus approfondie, AlgoPronos compile ces données publiques et génère des visualisations (histogrammes de distribution, courbes de fréquence cumulée, heat maps temporelles) accessibles via le dashboard Compte Optimisé IA créé avec le code AlgoPronos.",
       },
     },
   ],
@@ -233,7 +233,7 @@ const VIZ_FEATURES = [
     icon: Percent,
     title: 'Analyse de la Marge Opérateur (House Edge)',
     description:
-      "Calcul du RTP (Return to Player) empirique à partir des données historiques et comparaison avec le RTP théorique déclaré par 1xBet. Cette transparence quantitative permet à l'utilisateur de comprendre la structure économique du jeu avant de s'y engager.",
+      "Calcul du RTP (Return to Player) empirique à partir des données historiques et comparaison avec le RTP théorique déclaré par le partenaire. Cette transparence quantitative permet à l'utilisateur de comprendre la structure économique du jeu avant de s'y engager.",
   },
 ];
 
@@ -335,7 +335,7 @@ export default function DataAnalysisMultipliersPage() {
 
           <p className="text-lg text-text-secondary mb-4 max-w-3xl mx-auto leading-relaxed">
             Comment l&apos;Intelligence Artificielle visualise l&apos;historique des tirages publics
-            (Crash, Apple of Fortune sur 1xBet) pour identifier les cycles statistiques, comprendre
+            (Crash, Apple of Fortune et flux live) pour identifier les cycles statistiques, comprendre
             les marges opérateur et structurer un Money Management rigoureux.
           </p>
 
@@ -385,7 +385,7 @@ export default function DataAnalysisMultipliersPage() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
             </span>
             <span className="text-green-400 text-xs font-mono font-medium">
-              Analyse du flux 1xBet en temps réel...
+              Analyse du flux live en temps réel...
             </span>
           </div>
           <TerminalIAWidget />
@@ -445,7 +445,7 @@ export default function DataAnalysisMultipliersPage() {
             <div className="text-center mb-12">
               <Badge variant="outline" className="mb-4">1xGames — Jeux Analysés</Badge>
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
-                Structure probabiliste des jeux à multiplicateurs 1xBet
+                Structure probabiliste des multiplicateurs pro
               </h2>
               <p className="text-text-secondary max-w-2xl mx-auto">
                 Comprendre les mécanismes statistiques de Crash et Apple of Fortune est la première
@@ -711,13 +711,13 @@ export default function DataAnalysisMultipliersPage() {
             <div className="text-center mb-10">
               <Badge variant="outline" className="mb-4">Activation en 3 étapes</Badge>
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
-                Synchroniser vos outils d&apos;analyse avec votre compte 1xBet
+                Synchroniser vos outils d&apos;analyse avec votre compte partenaire
               </h2>
               <p className="text-text-secondary max-w-2xl mx-auto">
                 Le <strong className="text-white">Compte Optimisé IA</strong> via le code{' '}
                 <strong className="text-primary">{PROMO_CODE}</strong> est la configuration qui
                 permet d&apos;activer l&apos;ensemble des outils analytiques AlgoPronos sur votre
-                compte 1xBet — incluant les modules de visualisation multiplicateurs et le cashback.
+                compte partenaire — incluant les modules de visualisation multiplicateurs et le cashback.
               </p>
             </div>
           </ScrollReveal>
@@ -727,7 +727,7 @@ export default function DataAnalysisMultipliersPage() {
               {
                 n: '1',
                 color: 'from-primary to-primary/50',
-                title: `Copiez le code ${PROMO_CODE} et ouvrez votre compte 1xBet`,
+                title: `Copiez le code ${PROMO_CODE} et ouvrez votre compte partenaire`,
                 desc: `Utilisez notre lien partenaire et saisissez le code ${PROMO_CODE} lors de l'inscription. Ce code active simultanément le bonus de bienvenue et le statut Compte Optimisé IA.`,
               },
               {
@@ -759,7 +759,7 @@ export default function DataAnalysisMultipliersPage() {
 
           <ScrollReveal delay={0.3}>
             <div className="text-center">
-              <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}>
+              <Link href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=Partenaire`}>
                 <Button variant="gradient" size="lg" className="mr-4">
                   <Zap className="mr-2 h-5 w-5" />
                   Créer mon Compte Optimisé IA — Code {PROMO_CODE}

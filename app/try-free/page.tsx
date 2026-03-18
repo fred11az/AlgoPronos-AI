@@ -132,7 +132,7 @@ export default function TryFreePage() {
             {
               n: '3',
               title: 'Activez pour générer',
-              desc: 'Créez un compte 1xBet via notre lien partenaire pour débloquer les pronostics IA.',
+              desc: 'Créez un compte via notre lien partenaire pour débloquer les pronostics IA.',
             },
           ].map((s) => (
             <div key={s.n} className="flex items-start gap-6">
