@@ -9,21 +9,21 @@
   "lang": "fr",
   "icons": [
     {
-      "src": "/icon",
+      "src": "/icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/apple-icon",
+      "src": "/apple-icon.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/favicon.svg",
+      "src": "/favicon.ico",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/x-icon",
       "purpose": "any"
     }
   ],
