@@ -40,6 +40,12 @@ export interface MatchStats {
   realOdds: { home: number; draw: number; away: number } | null;
   // Whether we got real data or not
   dataSource: 'api-football' | 'estimated';
+
+  // Dixon-Coles parameters (Attack/Defense strength)
+  homeAttack?: number;
+  homeDefense?: number;
+  awayAttack?: number;
+  awayDefense?: number;
 }
 
 // ─── Fetch helpers ────────────────────────────────────────────────────────────
@@ -131,6 +137,17 @@ export async function fetchMatchStats(
           attackRating: comp?.att?.away ?? 'N/A',
           defenseRating: comp?.def?.away ?? 'N/A',
         };
+      }
+
+      // Compute Dixon-Coles style parameters (crude derivation from last 5)
+      // Normalised against a league average of ~1.35 goals
+      if (base.homeForm) {
+        base.homeAttack = Math.max(0.5, Math.min(2.5, base.homeForm.goalsFor / 1.35));
+        base.homeDefense = Math.max(0.5, Math.min(2.5, base.homeForm.goalsAgainst / 1.35));
+      }
+      if (base.awayForm) {
+        base.awayAttack = Math.max(0.5, Math.min(2.5, base.awayForm.goalsFor / 1.35));
+        base.awayDefense = Math.max(0.5, Math.min(2.5, base.awayForm.goalsAgainst / 1.35));
       }
 
       base.dataSource = 'api-football';

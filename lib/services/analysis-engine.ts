@@ -22,6 +22,8 @@ import {
   buildAnalysisCacheKey,
   CACHE_TTL,
 } from './redis-cache';
+import { predict } from './prediction/predictionEngine';
+import { initializeParams } from './prediction/dixonColes';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -605,21 +607,50 @@ export async function analyzeMatch(
 
   const effectiveOdds = stats.realOdds ?? currentOdds;
 
+  // ── 0. Dixon-Coles Prediction ───────────────────────────────────────────
+  const defaultParams = initializeParams([homeTeam, awayTeam]);
+  
+  // Update with derived stats if available
+  if (stats.homeAttack && stats.homeDefense) {
+    defaultParams.teams[homeTeam] = { attack: stats.homeAttack, defense: stats.homeDefense };
+  }
+  if (stats.awayAttack && stats.awayDefense) {
+    defaultParams.teams[awayTeam] = { attack: stats.awayAttack, defense: stats.awayDefense };
+  }
+
+  const dcPrediction = predict({
+    homeTeam,
+    awayTeam,
+    marketOdds: effectiveOdds,
+    modelParams: defaultParams
+  });
+
   // ── Process signals 1–5 ──────────────────────────────────────────────────
   const formSignal    = processFormSignal(stats.homeForm, stats.awayForm, homeTeam, awayTeam);
   const xgSignal      = processXgSignal(stats.goalsHomeExpected, stats.goalsAwayExpected, homeTeam, awayTeam);
   const oddsSignal    = processOddsSignal(stats.realOdds, currentOdds, homeTeam, awayTeam);
-  const valueSignal   = processValueSignal(stats.valueBetHome, stats.valueBetAway, homeTeam, awayTeam);
-  const probSignal    = processProbabilitySignal(stats.homePct, stats.drawPct, stats.awayPct, homeTeam, awayTeam);
+  const valueSignal   = processValueSignal(
+    dcPrediction.valueAnalysis.find(v => v.market === 'home')?.valueEdge ?? null,
+    dcPrediction.valueAnalysis.find(v => v.market === 'away')?.valueEdge ?? null,
+    homeTeam, 
+    awayTeam
+  );
+  const probSignal    = processProbabilitySignal(
+    dcPrediction.probabilities.home,
+    dcPrediction.probabilities.draw,
+    dcPrediction.probabilities.away,
+    homeTeam,
+    awayTeam
+  );
 
   // ── Build recommendations ────────────────────────────────────────────────
   const { primary: recommendation, all: allRecommendations } = buildRecommendations(
     effectiveOdds,
-    stats.homePct,
-    stats.drawPct,
-    stats.awayPct,
-    stats.valueBetHome,
-    stats.valueBetAway,
+    dcPrediction.probabilities.home,
+    dcPrediction.probabilities.draw,
+    dcPrediction.probabilities.away,
+    dcPrediction.valueAnalysis.find(v => v.market === 'home')?.valueEdge ?? null,
+    dcPrediction.valueAnalysis.find(v => v.market === 'away')?.valueEdge ?? null,
     riskLevel,
   );
 
