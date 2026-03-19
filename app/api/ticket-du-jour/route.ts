@@ -150,9 +150,20 @@ export async function GET(req: Request) {
       matches = [...matches, ...extra];
     }
 
-    // Filter to scheduled matches with odds
+    // Last resort: fetch all leagues (no filter) if still not enough
+    if (matches.length < DAILY_MATCH_COUNT) {
+      const all = await matchService.getMatchesForDate(today, 'football');
+      matches = [...matches, ...all];
+    }
+
+    // Filter to scheduled matches with odds (deduplicate by id)
+    const seen = new Set<string>();
     const available = matches
-      .filter(m => m.status === 'scheduled' && m.odds)
+      .filter(m => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return m.status === 'scheduled' && m.odds;
+      })
       .slice(0, 10); // top 10 candidates
 
     if (available.length < DAILY_MATCH_COUNT) {

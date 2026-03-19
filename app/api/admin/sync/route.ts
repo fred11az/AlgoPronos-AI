@@ -1,5 +1,6 @@
 import { createClient, checkIsAdmin, createAdminClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { matchService } from '@/lib/services/match-service';
 import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/slugify';
 
@@ -147,9 +148,15 @@ export async function POST() {
       }
     }
 
+    // 6. Invalidate Next.js ISR cache so /matchs shows fresh data immediately
+    if (seoCount > 0) {
+      revalidatePath('/matchs');
+      revalidatePath('/');
+    }
+
     return NextResponse.json({
       status: upsertErrors.length === 0 ? 'ok' : 'partial',
-      message: `Sync: ${allMatches.length} matchs trouvés, ${predictionsToUpsert.length} construits, ${seoCount} sauvés en DB.`,
+      message: `Sync: ${allMatches.length} matchs trouvés, ${predictionsToUpsert.length} construits, ${seoCount} sauvés en DB.${upsertErrors.length > 0 ? ` Erreurs: ${upsertErrors[0]}` : ''}`,
       count: allMatches.length,
       built: predictionsToUpsert.length,
       seoPages: seoCount,
