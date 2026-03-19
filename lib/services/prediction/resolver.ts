@@ -4,15 +4,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { cachedFetch } from '../api/footballApi';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 /**
  * Scans PENDING predictions and resolves them using real match results.
  */
 export async function resolvePendingPredictions() {
+  const supabase = getSupabase();
   console.log('[resolver] Starting resolution of pending predictions...');
 
   // 1. Fetch pending predictions from Supabase
