@@ -230,6 +230,7 @@ export async function GET(req: Request) {
     // ── 6. Save to DB ────────────────────────────────────────────────────────
     const ticket = {
       date: today,
+      type: type,
       matches: picks,
       total_odds: totalOdds,
       confidence_pct: confidencePct,
