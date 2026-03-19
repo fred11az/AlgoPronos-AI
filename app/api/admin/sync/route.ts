@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient, checkIsAdmin } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { matchService } from '@/lib/services/match-service';
 import { generatePrediction } from '@/lib/services/openclaw-generator';
@@ -12,13 +12,8 @@ export async function POST() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single();
-
-  if (profile?.role !== 'admin') {
+  const isAdmin = await checkIsAdmin(session.user.id);
+  if (!isAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
