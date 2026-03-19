@@ -11,6 +11,7 @@ const navItems = [
   { label: 'Comment ça marche', href: '/#how-it-works' },
   { label: 'Matchs du jour', href: '/matchs' },
   { label: 'Pronostics', href: '/pronostics' },
+  { label: 'Performance', href: '/performance' },
   { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
   { label: 'Bookmakers', href: '/#bookmakers' },
   { label: 'Flux Live', href: '/matchs#live-flux', live: true },

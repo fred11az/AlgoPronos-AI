@@ -16,6 +16,7 @@ const footerLinks = {
     { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
     { label: 'Générateur de tickets', href: '/dashboard/generate' },
     { label: 'Comment ça marche', href: '/#how-it-works' },
+    { label: 'Performance & ROI', href: '/performance' },
     { label: 'Historique des tickets', href: '/dashboard/history' },
   ],
   legal: [
