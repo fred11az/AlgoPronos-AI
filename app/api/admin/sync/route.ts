@@ -66,22 +66,14 @@ export async function POST() {
 
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const in7Days = new Date(now.getTime() + 6 * 86400000).toISOString().split('T')[0];
+    const tomorrowStr = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
-    // Build list of dates to clear
-    const datesToClear: string[] = [];
-    const cursor = new Date(now);
-    for (let i = 0; i <= 6; i++) {
-      datesToClear.push(cursor.toISOString().split('T')[0]);
-      cursor.setDate(cursor.getDate() + 1);
-    }
+    // 2. Clear existing cache FIRST so getMatchesForRange re-fetches from API (not stale cache)
+    console.log('[Admin Sync] Clearing matches_cache for today + tomorrow');
+    await adminSupabase.from('matches_cache').delete().in('date', [todayStr, tomorrowStr]);
 
-    // 2. Clear existing cache FIRST so getMatchesForRange re-fetches from API
-    console.log('[Admin Sync] Clearing matches_cache for', datesToClear);
-    await adminSupabase.from('matches_cache').delete().in('date', datesToClear);
-
-    // 3. Fetch fresh matches (cache miss → goes to API, which now includes odds)
-    const results = await matchService.getMatchesForRange(todayStr, in7Days);
+    // 3. Fetch fresh matches (cache miss → API with odds, or Gemini parallel fallback)
+    const results = await matchService.getMatchesForRange(todayStr, tomorrowStr);
     const allMatches = Object.values(results.byDate).flat();
 
     if (allMatches.length === 0) {

@@ -126,15 +126,14 @@ class MatchService {
       ];
     }
 
-    let allMatches: RealMatch[] = [];
-    const orApiKey = process.env.OPENROUTER_API_KEY;
-    const useDirectSearch = !!orApiKey;
-
-    for (const segment of segments) {
-      console.log(`[MatchService] Querying segment: ${segment.name}...`);
-      const matches = await this.fetchOpenClawSegment(date, segment.prompt, sport);
-      allMatches = [...allMatches, ...matches];
-    }
+    // Run all segments in parallel for speed
+    const segmentResults = await Promise.all(
+      segments.map(segment => {
+        console.log(`[MatchService] Querying segment: ${segment.name}...`);
+        return this.fetchOpenClawSegment(date, segment.prompt, sport);
+      })
+    );
+    const allMatches: RealMatch[] = segmentResults.flat();
 
     // Deduplicate
     const uniqueMatchesMap = new Map();
