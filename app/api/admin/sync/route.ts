@@ -148,7 +148,52 @@ export async function POST() {
       }
     }
 
-    // 6. Invalidate Next.js ISR cache so /matchs shows fresh data immediately
+    // 6. Generate Montante & Optimus special tickets from today's predictions
+    if (seoCount > 0) {
+      try {
+        const today = todayStr;
+        const { data: pool } = await adminSupabase
+          .from('match_predictions')
+          .select('*')
+          .eq('match_date', today)
+          .order('probability', { ascending: false });
+
+        if (pool && pool.length >= 3) {
+          // Delete existing special tickets for today to regenerate fresh
+          await adminSupabase.from('daily_ticket').delete().eq('date', today).neq('type', 'classic');
+
+          // MONTANTE — 1 ultra safe match (lowest odds = most likely)
+          const safe = pool.find((m: any) => (m.odds_home < 1.50 || m.odds_away < 1.50));
+          if (safe) {
+            await adminSupabase.from('daily_ticket').upsert({
+              date: today,
+              type: 'montante',
+              matches: [{ matchId: safe.slug, homeTeam: safe.home_team, awayTeam: safe.away_team, league: safe.league, selection: { type: safe.prediction_type, value: safe.prediction_type === 'home' ? '1' : safe.prediction_type === 'away' ? '2' : 'X', odds: safe.recommended_odds } }],
+              total_odds: safe.recommended_odds,
+              confidence_pct: 90,
+              status: 'pending',
+            }, { onConflict: 'date,type' });
+          }
+
+          // OPTIMUS — top 4 highest probability matches
+          const top4 = pool.slice(0, 4);
+          const totalOdds = Math.round(top4.reduce((acc: number, m: any) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+          await adminSupabase.from('daily_ticket').upsert({
+            date: today,
+            type: 'optimus',
+            access_tier: 'optimised_only',
+            matches: top4.map((m: any) => ({ matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team, league: m.league, selection: { type: m.prediction_type, value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X', odds: m.recommended_odds } })),
+            total_odds: totalOdds,
+            confidence_pct: 75,
+            status: 'pending',
+          }, { onConflict: 'date,type' });
+        }
+      } catch (e) {
+        console.error('[Admin Sync] Special tickets error:', e);
+      }
+    }
+
+    // 7. Invalidate Next.js ISR cache so /matchs shows fresh data immediately
     if (seoCount > 0) {
       revalidatePath('/matchs');
       revalidatePath('/');
