@@ -38,7 +38,7 @@ export function SyncButton() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur lors de la génération');
       setDoneProno(true);
-      const count = data.inserted ?? data.count ?? '?';
+      const count = data.generated ?? data.inserted ?? data.count ?? '?';
       toast.success(`✅ ${count} pronostics générés avec succès !`, { id: toastId, duration: 5000 });
       setTimeout(() => setDoneProno(false), 3000);
     } catch (err: any) {

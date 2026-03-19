@@ -268,9 +268,9 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       return cached.filter((m) => leagueCodes.includes(m.leagueCode));
     }
 
-    const apiKey = process.env.FOOTBALL_API_KEY;
+    const apiKey = process.env.RAPIDAPI_KEY;
     if (!apiKey) {
-      console.warn('[MatchService] FOOTBALL_API_KEY not set and no cache found — returning empty matches.');
+      console.warn('[MatchService] RAPIDAPI_KEY not set and no cache found — returning empty matches.');
       return [];
     }
 
