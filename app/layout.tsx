@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { I18nProvider } from '@/lib/i18n/context';
+
+const inter = Inter({ subsets: ['latin'] });
 
 // Désactivation du zoom mobile + viewport responsive
 export const viewport: Viewport = {
@@ -196,7 +199,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(appJsonLd) }} />
       </head>
-      <body className="font-sans bg-background text-foreground antialiased overflow-x-hidden">
+      <body className={`${inter.className} bg-background text-foreground antialiased overflow-x-hidden`}>
         <I18nProvider>
           {children}
           <Toaster />
