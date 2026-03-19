@@ -130,24 +130,30 @@ export async function POST() {
       });
     }
 
-    // 5. Upsert all predictions at once
+    // 5. Upsert predictions in batches of 50 to avoid Supabase payload limits
     let seoCount = 0;
-    if (predictionsToUpsert.length > 0) {
+    const upsertErrors: string[] = [];
+    const BATCH = 50;
+    for (let i = 0; i < predictionsToUpsert.length; i += BATCH) {
+      const chunk = predictionsToUpsert.slice(i, i + BATCH);
       const { error } = await adminSupabase
         .from('match_predictions')
-        .upsert(predictionsToUpsert, { onConflict: 'slug' });
+        .upsert(chunk, { onConflict: 'slug' });
       if (error) {
         console.error('[Admin Sync] Upsert error:', error);
+        upsertErrors.push(error.message);
       } else {
-        seoCount = predictionsToUpsert.length;
+        seoCount += chunk.length;
       }
     }
 
     return NextResponse.json({
-      status: 'ok',
-      message: `Sync réussi. ${allMatches.length} matchs trouvés. ${seoCount} pages SEO générées/mises à jour.`,
+      status: upsertErrors.length === 0 ? 'ok' : 'partial',
+      message: `Sync: ${allMatches.length} matchs trouvés, ${predictionsToUpsert.length} construits, ${seoCount} sauvés en DB.`,
       count: allMatches.length,
+      built: predictionsToUpsert.length,
       seoPages: seoCount,
+      errors: upsertErrors,
     });
 
   } catch (err: any) {
