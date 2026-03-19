@@ -48,35 +48,35 @@ export default async function MatchsPage({
 }: {
   searchParams: { sport?: string; page?: string };
 }) {
-  const supabase = await createClient();
   const now = new Date();
   const today = now.toISOString().split('T')[0];
-  
   const yesterdayDate = new Date();
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
-
   const sport = searchParams.sport || 'football';
   const page = parseInt(searchParams.page || '1');
   const pageSize = 50;
   const offset = (page - 1) * pageSize;
-
-  // Compute +3 days limit
   const limitDate = new Date();
   limitDate.setDate(limitDate.getDate() + 3);
   const limitStr = limitDate.toISOString().split('T')[0];
 
-  const { data: matches } = await supabase
-    .from('match_predictions')
-    .select(
-      'slug, home_team, away_team, league, league_slug, country, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away, sport'
-    )
-    .eq('sport', sport)
-    .gte('match_date', yesterdayStr)
-    .lte('match_date', limitStr)
-    .order('match_date', { ascending: true })
-    .order('match_time', { ascending: true })
-    .range(offset, offset + pageSize - 1);
+  let matches: MatchRow[] = [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('match_predictions')
+      .select(
+        'slug, home_team, away_team, league, league_slug, country, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away, sport'
+      )
+      .eq('sport', sport)
+      .gte('match_date', yesterdayStr)
+      .lte('match_date', limitStr)
+      .order('match_date', { ascending: true })
+      .order('match_time', { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    matches = (data || []) as MatchRow[];
+  } catch { /* ISR will populate on first request with env vars */ }
 
   return (
     <main className="min-h-screen bg-background">

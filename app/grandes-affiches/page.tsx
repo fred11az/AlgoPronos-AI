@@ -72,28 +72,31 @@ function formatDate(dateStr: string): string {
 }
 
 export default async function GrandesAffichesPage() {
-  const supabase = createAdminClient();
+  let spotlight: Spotlight | null = null;
+  let archive: { slug: string; title: string; week_start: string; hero_match: string; featured_league: string }[] = [];
 
-  // Load the latest spotlight
-  const { data: spotlight, error } = await supabase
-    .from('weekly_spotlights')
-    .select('*')
-    .order('week_start', { ascending: false })
-    .limit(1)
-    .single();
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('weekly_spotlights')
+      .select('*')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single();
+    if (error || !data) { notFound(); }
+    spotlight = data as Spotlight;
 
-  if (error || !spotlight) {
+    const { data: archiveData } = await supabase
+      .from('weekly_spotlights')
+      .select('slug, title, week_start, hero_match, featured_league')
+      .order('week_start', { ascending: false })
+      .range(1, 5);
+    archive = archiveData || [];
+  } catch {
     notFound();
   }
 
-  const s = spotlight as Spotlight;
-
-  // Previous spotlights for archive section
-  const { data: archive } = await supabase
-    .from('weekly_spotlights')
-    .select('slug, title, week_start, hero_match, featured_league')
-    .order('week_start', { ascending: false })
-    .range(1, 5);
+  const s = spotlight!;
 
   return (
     <main className="min-h-screen bg-background">

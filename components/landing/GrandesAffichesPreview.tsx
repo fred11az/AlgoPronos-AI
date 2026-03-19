@@ -40,18 +40,23 @@ function formatWeek(start: string, end: string): string {
 }
 
 export async function GrandesAffichesPreview() {
-  const supabase = await createClient();
-
-  const { data: spotlight } = await supabase
-    .from('weekly_spotlights')
-    .select('id, slug, title, week_start, week_end, hero_match, featured_league, summary, key_matches')
-    .order('week_start', { ascending: false })
-    .limit(1)
-    .single();
+  let spotlight: Spotlight | null = null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('weekly_spotlights')
+      .select('id, slug, title, week_start, week_end, hero_match, featured_league, summary, key_matches')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single();
+    spotlight = data as Spotlight | null;
+  } catch {
+    return null;
+  }
 
   if (!spotlight) return null;
 
-  const s = spotlight as Spotlight;
+  const s = spotlight;
   // Afficher les 3 premiers matchs max en preview
   const previewMatches = (s.key_matches || []).slice(0, 3);
 

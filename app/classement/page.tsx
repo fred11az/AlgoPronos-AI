@@ -27,22 +27,24 @@ interface DailyTicket {
 }
 
 async function getTickets(): Promise<DailyTicket[]> {
-  const adminSupabase = createAdminClient();
-  const today = new Date().toISOString().split('T')[0];
+  try {
+    const adminSupabase = createAdminClient();
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  // Last 7 days of tickets, sorted by confidence then odds
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const { data } = await adminSupabase
+      .from('daily_ticket')
+      .select('id, date, matches, total_odds, confidence_pct, risk_level, status, analysis')
+      .gte('date', sevenDaysAgo.toISOString().split('T')[0])
+      .lte('date', today)
+      .order('confidence_pct', { ascending: false })
+      .limit(20);
 
-  const { data } = await adminSupabase
-    .from('daily_ticket')
-    .select('id, date, matches, total_odds, confidence_pct, risk_level, status, analysis')
-    .gte('date', sevenDaysAgo.toISOString().split('T')[0])
-    .lte('date', today)
-    .order('confidence_pct', { ascending: false })
-    .limit(20);
-
-  return (data || []) as DailyTicket[];
+    return (data || []) as DailyTicket[];
+  } catch {
+    return [];
+  }
 }
 
 export default async function ClassementPage() {

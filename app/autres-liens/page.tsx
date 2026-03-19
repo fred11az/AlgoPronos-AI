@@ -207,14 +207,16 @@ const SECTIONS = [
 import { createClient } from '@/lib/supabase/server';
 
 export default async function AutresLiensPage() {
-  const supabase = await createClient();
-  
-  // Fetch latest 100 predictions for SEO flooding
-  const { data: latestPredictions } = await supabase
-    .from('match_predictions')
-    .select('slug, home_team, away_team, league, match_date')
-    .order('match_date', { ascending: false })
-    .limit(100);
+  let latestPredictions: { slug: string; home_team: string; away_team: string; league: string; match_date: string }[] = [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('match_predictions')
+      .select('slug, home_team, away_team, league, match_date')
+      .order('match_date', { ascending: false })
+      .limit(100);
+    latestPredictions = data || [];
+  } catch { /* build without env vars — ISR will populate on first request */ }
 
   const totalLinks = SECTIONS.reduce((acc, s) => acc + s.links.length, 0) + (latestPredictions?.length || 0);
 
