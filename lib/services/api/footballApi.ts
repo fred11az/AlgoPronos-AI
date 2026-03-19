@@ -10,7 +10,7 @@ const supabase = createClient(
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 const RAPIDAPI_HOST = process.env.RAPIDAPI_HOST || 'api-football-v1.p.rapidapi.com';
-const API_BASE = `https://${RAPIDAPI_HOST}/v3`;
+const API_BASE = `https://${RAPIDAPI_HOST}`;
 
 /**
  * Robust fetcher with caching

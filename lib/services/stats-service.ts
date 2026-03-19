@@ -1,8 +1,4 @@
-// API-Football statistics & predictions service
-// Fetches real match stats for selected fixtures to power Groq analysis
-// Free plan: 100 req/day — we call this ONLY for user-selected matches (3-5 max)
-
-const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io';
+import { cachedFetch } from './api/footballApi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,15 +46,7 @@ export interface MatchStats {
 
 // ─── Fetch helpers ────────────────────────────────────────────────────────────
 
-async function apiFetch(endpoint: string, apiKey: string) {
-  const response = await fetch(`${API_FOOTBALL_BASE}${endpoint}`, {
-    headers: { 'x-apisports-key': apiKey },
-  });
-  if (!response.ok) {
-    throw new Error(`API-Football ${endpoint} → ${response.status}`);
-  }
-  return response.json();
-}
+// apiFetch is no longer needed, we use cachedFetch
 
 // ─── Main stats fetcher ───────────────────────────────────────────────────────
 
@@ -94,10 +82,10 @@ export async function fetchMatchStats(
   const fixtureId = matchId.replace('apif-', '');
 
   try {
-    // Fetch predictions + real odds in parallel (2 requests per match)
+    // Fetch predictions + real odds in parallel
     const [predictionsData, oddsData] = await Promise.all([
-      apiFetch(`/predictions?fixture=${fixtureId}`, apiKey).catch(() => null),
-      apiFetch(`/odds?fixture=${fixtureId}&bookmaker=8&bet=1`, apiKey).catch(() => null),
+      cachedFetch<any>(`/predictions`, { fixture: fixtureId }),
+      cachedFetch<any>(`/odds`, { fixture: fixtureId, bookmaker: '8', bet: '1' }),
     ]);
 
     // ── Parse predictions ───────────────────────────────────────────────────

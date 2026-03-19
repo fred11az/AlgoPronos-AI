@@ -23,6 +23,7 @@ export interface PredictionLogEntry {
  */
 export async function logPrediction(entry: PredictionLogEntry) {
   try {
+    console.log(`[prediction-tracking] Attempting to log prediction for ${entry.matchId}...`);
     const { error } = await supabase.from('predictions_log').upsert({
       match_id: entry.matchId,
       home_team: entry.homeTeam,
@@ -36,6 +37,8 @@ export async function logPrediction(entry: PredictionLogEntry) {
 
     if (error) {
       console.error(`[prediction-tracking] Failed to log prediction for ${entry.matchId}:`, error.message);
+    } else {
+      console.log(`[prediction-tracking] Success ! Prediction logged for ${entry.matchId}`);
     }
   } catch (err) {
     console.error(`[prediction-tracking] Error logging prediction:`, err);
@@ -44,8 +47,6 @@ export async function logPrediction(entry: PredictionLogEntry) {
 
 /**
  * Resolves a prediction with a result.
- * @param matchId The external fixture ID
- * @param result 'WIN' | 'LOSS'
  */
 export async function resolvePrediction(matchId: string, result: 'WIN' | 'LOSS') {
   try {

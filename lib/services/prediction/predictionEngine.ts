@@ -71,9 +71,9 @@ export function predict(input: PredictionInput): PredictionOutput {
       away: Math.round(lambdaAway * 100) / 100 
     },
     probabilities: {
-      home: Math.round(probabilities.home * 1000) / 10,
-      draw: Math.round(probabilities.draw * 1000) / 10,
-      away: Math.round(probabilities.away * 1000) / 10,
+      home: Math.round(probabilities.home * 1000) / 1000,
+      draw: Math.round(probabilities.draw * 1000) / 1000,
+      away: Math.round(probabilities.away * 1000) / 1000,
     },
     topScores,
     valueAnalysis,

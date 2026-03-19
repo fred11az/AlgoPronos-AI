@@ -34,6 +34,8 @@ import { GrandesAffichesPreview } from '@/components/landing/GrandesAffichesPrev
 import { BookmakersSection } from '@/components/landing/BookmakersSection';
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
 import { SocialProofTicker } from '@/components/landing/SocialProofTicker';
+import TicketOptimusWidget from '@/components/dashboard/TicketOptimusWidget';
+import TicketMontanteWidget from '@/components/dashboard/TicketMontanteWidget';
 
 // ─── FAQ JSON-LD (homepage uniquement — questions génériques IA paris sportifs) ─
 
@@ -175,88 +177,83 @@ export default function LandingPage() {
       <Header />
 
       {/* ─── HERO ──────────────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
-        {/* Animated blobs */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
-          <div className="absolute top-20 left-10 w-80 h-80 bg-primary rounded-full mix-blend-multiply filter blur-[120px] animate-blob" />
-          <div className="absolute top-40 right-10 w-80 h-80 bg-secondary rounded-full mix-blend-multiply filter blur-[120px] animate-blob animation-delay-2000" />
-          <div className="absolute bottom-20 left-1/3 w-72 h-72 bg-accent rounded-full mix-blend-multiply filter blur-[120px] animate-blob animation-delay-4000" />
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-[#050810]">
+        {/* Animated Background Mesh */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/10 rounded-full blur-[120px] animate-pulse animation-delay-2000" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('/grid.svg')] opacity-[0.03]" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 w-full">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
 
-            {/* Left */}
-            <div>
-              <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-8">
-                <Brain className="h-4 w-4 text-primary" />
-                <span className="text-primary text-sm font-medium">
-                  Outil d&apos;analyse IA pour les paris sportifs
-                </span>
-              </div>
+            {/* Left Content */}
+            <div className="text-center lg:text-left">
+              <ScrollReveal>
+                <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-md rounded-full px-4 py-2 mb-8 shadow-inner">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-ping" />
+                  <span className="text-primary text-[10px] font-black uppercase tracking-[0.2em]">
+                    Intelligence Artificielle de Pointe
+                  </span>
+                </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
-                Optimisez vos paris{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#00D4FF]">
-                  sportifs avec l&apos;IA
-                </span>
-              </h1>
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-8 leading-[0.9] tracking-tight uppercase italic">
+                  Battez les <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-[#00D4FF] to-secondary">
+                    Bookmakers
+                  </span>
+                </h1>
 
-              <p className="text-lg sm:text-xl text-text-secondary mb-10 max-w-xl leading-relaxed">
-                L&apos;algorithme analyse les statistiques, les cotes et la forme des équipes
-                pour générer des combinés optimisés.
-              </p>
+                <p className="text-lg md:text-xl text-text-secondary mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed font-medium">
+                  Le moteur neural v4.2 analyse 600+ signaux en temps réel pour 
+                  identifier les <strong className="text-white">Value Bets</strong> indétectables à l&apos;œil nu.
+                </p>
 
-              {/* Feature bullets */}
-              <div className="space-y-3 mb-10">
-                {[
-                  { icon: Star, text: 'Statistiques et cotes sportives en temps réel' },
-                  { icon: TrendingUp, text: 'Sélection optimisée des marchés par notre algorithme' },
-                  { icon: Zap, text: 'Analyse et ticket générés en moins de 15 secondes' },
-                ].map(({ icon: Icon, text }, i) => (
-                  <div key={i} className="flex items-center gap-3 text-text-secondary">
-                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Icon className="h-4 w-4 text-primary" />
+                {/* KPI highlights */}
+                <div className="grid grid-cols-3 gap-4 mb-10 max-w-md mx-auto lg:mx-0">
+                  {[
+                    { label: 'Gain Moyen', val: '+18%' },
+                    { label: 'Précision', val: '74%' },
+                    { label: 'Analyses/j', val: '2k+' },
+                  ].map((kpi, i) => (
+                    <div key={i} className="bg-white/5 border border-white/5 rounded-2xl p-4 text-center">
+                      <div className="text-white font-black text-xl leading-none mb-1">{kpi.val}</div>
+                      <div className="text-[9px] text-text-muted uppercase font-bold tracking-widest">{kpi.label}</div>
                     </div>
-                    <span className="text-sm">{text}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="xl" variant="gradient" asChild>
-                  <Link href="/onboarding">
-                    <Rocket className="mr-2 h-5 w-5" />
-                    Commencer mon analyse IA
-                  </Link>
-                </Button>
-                <Button size="xl" variant="outline" asChild>
-                  <Link href="#essai-demo">
-                    Essayer sans compte
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </div>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                  <Button size="xl" variant="gradient" className="h-16 px-10 text-base font-black uppercase italic shadow-2xl shadow-primary/20" asChild>
+                    <Link href="/onboarding">
+                      <Rocket className="mr-3 h-5 w-5" />
+                      Ouvrir mon compte IA
+                    </Link>
+                  </Button>
+                  <Button size="xl" variant="outline" className="h-16 px-10 border-white/10 hover:bg-white/5 text-white font-bold" asChild>
+                    <Link href="/historique">
+                      Historique Public
+                      <ArrowRight className="ml-3 h-5 w-5" />
+                    </Link>
+                  </Button>
+                </div>
 
-              <div className="flex flex-wrap items-center gap-5 mt-8 text-sm text-text-muted">
-                <div className="flex items-center gap-1.5">
-                  <Shield className="h-3.5 w-3.5 text-primary" />
-                  Accès gratuit via 1xBet
+                <div className="flex items-center justify-center lg:justify-start gap-4 mt-8 opacity-60 grayscale hover:grayscale-0 transition-all">
+                   <div className="text-[10px] font-bold text-text-muted uppercase">Disponible sur</div>
+                   <div className="px-3 py-1 bg-white/5 rounded border border-white/5 text-white text-[11px] font-black tracking-tighter">1XBET</div>
+                   <div className="px-3 py-1 bg-white/5 rounded border border-white/5 text-white text-[11px] font-black tracking-tighter">MELBET</div>
+                   <div className="px-3 py-1 bg-white/5 rounded border border-white/5 text-white text-[11px] font-black tracking-tighter">22BET</div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                  Historique public vérifiable
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5 text-secondary" />
-                  +15 000 utilisateurs actifs
-                </div>
-              </div>
+              </ScrollReveal>
             </div>
 
-            {/* Right — functional generator (mobile + desktop) */}
-            <div id="essai-demo" className="flex justify-center mt-8 lg:mt-0">
-              <HomepageTrial />
+            {/* Right — The Widget in a Neon Frame */}
+            <div className="relative group">
+              <div className="absolute -inset-4 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-[3rem] blur-2xl opacity-50 group-hover:opacity-100 transition duration-1000" />
+              <div id="essai-demo" className="relative bg-[#0F172A]/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-4 shadow-2xl">
+                 <HomepageTrial />
+              </div>
             </div>
           </div>
         </div>
@@ -271,6 +268,65 @@ export default function LandingPage() {
 
       {/* ─── STATS BAR ────────────────────────────────────────────────────────── */}
       <StatsBar />
+
+      {/* ─── STRATÉGIES EXCLUSIVES IA ─────────────────────────────────────────── */}
+      <section className="py-24 relative overflow-hidden bg-[#0A0F1E]">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-primary/5 rounded-full blur-[160px] pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          <ScrollReveal>
+            <div className="text-center mb-16">
+              <Badge variant="outline" className="mb-4 bg-primary/5 border-primary/20 text-primary uppercase tracking-[0.2em] font-black px-4 py-1">
+                Stratégies de Pointe
+              </Badge>
+              <h2 className="text-3xl md:text-5xl font-black text-white mb-6 tracking-tight uppercase italic">
+                Nos Algorithmes <span className="text-primary italic">Spécialisés</span>
+              </h2>
+              <p className="text-text-secondary text-lg max-w-2xl mx-auto">
+                Accédez aux deux stratégies les plus performantes de l&apos;Afrique, 
+                gérées en temps réel par notre moteur neural v4.2.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <div className="grid lg:grid-cols-2 gap-8 items-stretch pt-4">
+            <ScrollReveal delay={0.1}>
+              <div className="h-full">
+                <TicketOptimusWidget isVerified={false} />
+                <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 text-xs text-text-muted italic flex items-start gap-3">
+                  <Sparkles className="h-4 w-4 text-secondary shrink-0" />
+                  <span>
+                    <strong>Optimus</strong> : Vise des cotes élevées (5.0+) en combinant des marchés à forte probabilité cumulée.
+                  </span>
+                </div>
+              </div>
+            </ScrollReveal>
+            
+            <ScrollReveal delay={0.2}>
+              <div className="h-full">
+                <TicketMontanteWidget />
+                <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 text-xs text-text-muted italic flex items-start gap-3">
+                  <TrendingUp className="h-4 w-4 text-primary shrink-0" />
+                  <span>
+                    <strong>Montante</strong> : Stratégie de progression sécurisée avec un taux de réussite cible de 92% par étape.
+                  </span>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+
+          <ScrollReveal delay={0.3}>
+            <div className="mt-16 text-center">
+              <Link href="/onboarding">
+                <Button size="xl" variant="default" className="bg-white text-black hover:bg-white/90 font-black px-12 group">
+                  DÉBLOQUER TOUTES LES ANALYSES IA
+                  <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
 
       {/* ─── COMMENT ÇA MARCHE ────────────────────────────────────────────────── */}
       <section id="how-it-works" className="py-24 bg-surface">

@@ -76,8 +76,8 @@ export function analyzeValue(
         impliedProb,
         bookmakerOdds: bookOdds,
         fairOdds: Math.round(fairOdds * 100) / 100,
-        valueEdge: Math.round(valueEdge * 1000) / 10,
-        kellyFraction: Math.round(kelly * 1000) / 10,
+        valueEdge: Math.round(valueEdge * 1000) / 1000,
+        kellyFraction: Math.round(kelly * 1000) / 1000,
         recommendation: (
           valueEdge >= 0.15 ? 'STRONG BUY' :
           valueEdge >= minEdge ? 'BUY' : 'SKIP'

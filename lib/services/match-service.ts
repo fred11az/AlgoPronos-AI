@@ -1,8 +1,5 @@
-// API-Football match service
-// Docs: https://www.api-football.com/documentation-v3
-// Set FOOTBALL_API_KEY in your environment variables
-
 import { createAdminClient } from '@/lib/supabase/server';
+import { cachedFetch } from './api/footballApi';
 
 export interface RealMatch {
   id: string;
@@ -57,16 +54,26 @@ class MatchService {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    console.log(`[Sync] EXHAUSTIVE Sync for ${dates.length} days (${sport.toUpperCase()}). Source: AI Global Search.`);
-    console.warn(`[Sync] API-Football dependency REMOVED. Using pure AI discovery.`);
-
     for (const date of dates) {
-      // ── PRIMARY: AI Search ──────────────────────────────
-      console.log(`[Sync] ${date} (${sport}): Starting exhaustive global search...`);
+      if (sport === 'football') {
+        // ── PRIMARY: API-Football ──────────────────────────
+        console.log(`[Sync] ${date} (FOOTBALL): Fetching via API-Football...`);
+        const apiMatches = await this.fetchFootballFromAPI(date);
+        
+        if (apiMatches.length > 0) {
+          console.log(`[Sync] ${date} (FOOTBALL): Success! Found ${apiMatches.length} matches via API.`);
+          byDate[date] = apiMatches;
+          await this.cacheMatches(date, apiMatches, sport);
+          continue; // Found via API, skip AI fallback
+        }
+      }
+
+      // ── SECONDARY / FALLBACK: AI Search ──────────────────────────────
+      console.log(`[Sync] ${date} (${sport}): Falling back to exhaustive global search...`);
       const openClawMatches = await this.searchMatchesWithAI(date, sport);
       
       if (openClawMatches.length > 0) {
-        console.log(`[Sync] ${date} (${sport}): Success! Captured ${openClawMatches.length} matches.`);
+        console.log(`[Sync] ${date} (${sport}): AI Success! Captured ${openClawMatches.length} matches.`);
         byDate[date] = openClawMatches;
         await this.cacheMatches(date, openClawMatches, sport);
       } else {
@@ -268,6 +275,70 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     return matches.filter((m) => leagueCodes.includes(m.leagueCode));
   }
 
+  private leagueMap: Map<number, { name: string; country: string }> = new Map();
+
+  /**
+   * Fetch fixtures for a specific date from the new Free API
+   */
+  private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
+    try {
+      // 1. Ensure leagues are loaded for mapping
+      if (this.leagueMap.size === 0) {
+        console.log('[MatchService] Loading league map...');
+        // TTL: 30 days (2592000 seconds) for leagues catalog
+        const leaguesData = await cachedFetch<any>('/football-get-all-leagues', {}, 2592000);
+        if (leaguesData?.status === 'success' && Array.isArray(leaguesData.response?.leagues)) {
+          leaguesData.response.leagues.forEach((l: any) => {
+            this.leagueMap.set(l.id, { name: l.name, country: l.ccode });
+          });
+          console.log(`[MatchService] Loaded ${this.leagueMap.size} leagues.`);
+        }
+      }
+
+      // 2. Fetch matches (format YYYYMMDD)
+      const apiDate = date.replace(/-/g, '');
+      // TTL: 24 hours (86400 seconds) for matches list
+      const data = await cachedFetch<any>('/football-get-matches-by-date', { date: apiDate }, 86400);
+      
+      if (data?.status !== 'success' || !Array.isArray(data.response?.matches)) {
+        console.warn(`[MatchService] No matches found or API error for ${date}`);
+        return [];
+      }
+
+      return data.response.matches.map((f: any) => {
+        const leagueInfo = this.leagueMap.get(f.leagueId) || { name: 'Unknown League', country: '' };
+        
+        // Parse time: "19.03.2026 21:00" -> "21:00"
+        let matchTime = '00:00';
+        if (f.time && f.time.includes(' ')) {
+          matchTime = f.time.split(' ')[1];
+        }
+
+        return {
+          id: `fav-${f.id}`, // "fav" for API Venue / Fotmob wrapper
+          homeTeam: f.home.name,
+          awayTeam: f.away.name,
+          league: leagueInfo.name,
+          leagueCode: this.inferLeagueCode(leagueInfo.name),
+          country: leagueInfo.country,
+          date: date,
+          time: matchTime,
+          status: f.status?.finished ? 'finished' : (f.status?.started ? 'live' : 'scheduled'),
+          sport: 'football',
+        };
+      });
+    } catch (err) {
+      console.error('[MatchService] New API fetch failed:', err);
+      return [];
+    }
+  }
+
+  private mapStatus(short: string): 'scheduled' | 'live' | 'finished' {
+    if (['PST', 'NS', 'TBD'].includes(short)) return 'scheduled';
+    if (['FT', 'AET', 'PEN'].includes(short)) return 'finished';
+    return 'live';
+  }
+
   private async getCachedMatches(date: string, sport: string): Promise<RealMatch[] | null> {
     try {
       const supabase = createAdminClient();
@@ -276,7 +347,6 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         .from('matches_cache')
         .select('matches')
         .eq('date', date)
-        .eq('sport', sport)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
@@ -294,11 +364,10 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       const supabase = createAdminClient();
       const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(); // 12 hours
 
-      await supabase.from('matches_cache').delete().eq('date', date).eq('sport', sport);
+      await supabase.from('matches_cache').delete().eq('date', date);
 
       await supabase.from('matches_cache').insert({
         date,
-        sport,
         leagues: Array.from(new Set(matches.map((m) => m.leagueCode))),
         matches,
         expires_at: expiresAt,

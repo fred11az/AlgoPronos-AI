@@ -29,21 +29,8 @@ async function syncMatches() {
     return;
   }
 
-  // 2. Save matches to matches_cache
-  const records = Object.entries(results.byDate).map(([date, matches]) => ({
-    date: date,
-    leagues: Array.from(new Set(matches.map(m => m.leagueCode))),
-    matches: matches,
-    expires_at: new Date(new Date(date).getTime() + 3 * 86400000).toISOString(),
-    updated_at: new Date().toISOString()
-  }));
-
   try {
-    const dates = Object.keys(results.byDate);
-    console.log(`[Sync] Updating matches_cache for dates: ${dates.join(', ')}...`);
-    const { error: matchError } = await supabase.from('matches_cache').upsert(records, { onConflict: 'date' });
-    if (matchError) throw matchError;
-    console.log(`[Sync] Success: ${Object.values(results.byDate).flat().length} matches cached.`);
+    console.log(`[Sync] Success: ${Object.values(results.byDate).flat().length} matches found.`);
 
     // 3. Phase 2: Generate SEO Landing Pages (Pronostics)
     console.log('[Sync] Phase 2: Generating AI Predictions for SEO pages...');
@@ -61,6 +48,21 @@ async function syncMatches() {
       const batchResults = await Promise.all(batch.map(async (match) => {
         try {
           console.log(`[Sync] AI Analysis: ${match.homeTeam} vs ${match.awayTeam} (${match.league})...`);
+          // If odds are missing, try a quick AI lookup to enrich the SEO page
+          let realOdds = match.odds;
+          if (!realOdds || (!realOdds.home && !realOdds.away)) {
+            console.log(`[Sync] Odds missing for ${match.homeTeam}. Attempting AI lookup...`);
+            const aiMatches = await matchService.searchMatchesWithAI(`${match.homeTeam} vs ${match.awayTeam} ${match.date} odds`);
+            const found = aiMatches.find(m => 
+              m.homeTeam.toLowerCase().includes(match.homeTeam.toLowerCase().split(' ')[0]) ||
+              match.homeTeam.toLowerCase().includes(m.homeTeam.toLowerCase().split(' ')[0])
+            );
+            if (found?.odds) {
+              realOdds = found.odds;
+              console.log(`[Sync] Found AI odds: @${realOdds.home}`);
+            }
+          }
+
           const pred = await generatePrediction({
             homeTeam: match.homeTeam,
             awayTeam: match.awayTeam,
@@ -69,10 +71,10 @@ async function syncMatches() {
             date: match.date,
             time: match.time,
             odds: {
-              home: match.odds?.home || 1.8,
-              draw: match.odds?.draw || 3.3,
-              away: match.odds?.away || 4.0
-          }
+              home: realOdds?.home || 1.85,
+              draw: realOdds?.draw || 3.40,
+              away: realOdds?.away || 3.80
+            }
           });
           if (pred) console.log(`[Sync] OK: ${match.homeTeam} analyzed.`);
           return pred;

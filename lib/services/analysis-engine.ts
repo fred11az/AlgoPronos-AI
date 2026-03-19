@@ -635,23 +635,30 @@ export async function analyzeMatch(
       modelParams: defaultParams
     });
 
-    // 5. LOG to predictions_log for ROI Tracking
-    if (dcPrediction && dcPrediction.valueAnalysis) {
-      const bestValue = dcPrediction.valueAnalysis.recommendation === 'HOME' 
-        ? { market: 'home', edge: dcPrediction.valueAnalysis.homeEdge, odds: effectiveOdds.home }
-        : dcPrediction.valueAnalysis.recommendation === 'AWAY'
-        ? { market: 'away', edge: dcPrediction.valueAnalysis.awayEdge, odds: effectiveOdds.away }
-        : null;
+    console.log(`✅ [Dixon-Coles] ${homeTeam} vs ${awayTeam}`);
+    console.log(`   - Parameters: H_Att:${defaultParams.teams[homeTeam]?.attack.toFixed(2)} A_Att:${defaultParams.teams[awayTeam]?.attack.toFixed(2)} (Adv:${defaultParams.homeAdvantage})`);
+    console.log(`   - Lambdas: H:${dcPrediction.lambdas.home.toFixed(2)} A:${dcPrediction.lambdas.away.toFixed(2)}`);
+    console.log(`   - Probabilities: H:${(dcPrediction.probabilities.home * 100).toFixed(1)}% D:${(dcPrediction.probabilities.draw * 100).toFixed(1)}% A:${(dcPrediction.probabilities.away * 100).toFixed(1)}%`);
+    
+    if (dcPrediction.valueAnalysis) {
+      const best = dcPrediction.valueAnalysis.find((v: any) => v.valueEdge > 0.05);
+      if (best) console.log(`✅ [Value] Edge détecté: +${(best.valueEdge * 100).toFixed(1)}% sur marché ${best.market.toUpperCase()}`);
+    }
 
-      if (bestValue && bestValue.edge > 0.05) { // Log only significant value bets
+    // 5. LOG to predictions_log for ROI Tracking
+    if (dcPrediction && dcPrediction.valueAnalysis && dcPrediction.valueAnalysis.length > 0) {
+      // Find the best bet from value analysis (already sorted by best edge)
+      const bestValue = dcPrediction.valueAnalysis[0];
+      
+      if (bestValue && bestValue.valueEdge > 0.05) { // Log only significant value bets
         await logPrediction({
           matchId: matchId,
           homeTeam,
           awayTeam,
           market: bestValue.market as any,
-          modelProb: dcPrediction.probabilities[bestValue.market],
-          bookmakerOdds: bestValue.odds,
-          valueEdge: bestValue.edge
+          modelProb: bestValue.modelProb,
+          bookmakerOdds: bestValue.bookmakerOdds,
+          valueEdge: bestValue.valueEdge
         });
       }
     }
