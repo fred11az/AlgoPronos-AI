@@ -42,7 +42,7 @@ export function StatsBar() {
       suffix: '%',
       decimals: 1,
       label: 'Taux de réussite',
-      note: stats ? 'données réelles' : 'sur 6 mois',
+      note: stats?.roi_pct ? `ROI: +${stats.roi_pct}%` : 'données réelles',
     },
     {
       icon: CheckCircle,

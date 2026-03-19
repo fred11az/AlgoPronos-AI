@@ -22,27 +22,38 @@ export async function GET() {
     const lost     = resolved.filter((t: StatRow) => t.status === 'lost');
     const voided   = (allForStats || [] as StatRow[]).filter((t: StatRow) => t.status === 'void');
 
-    const winRate = resolved.length > 0
-      ? Math.round((won.length / resolved.length) * 1000) / 10
+    // ── Stats Predictions Log (Dixon-Coles) ──────────────────────────────────
+    const { data: predStats } = await adminSupabase
+      .from('predictions_log')
+      .select('result, bookmaker_odds');
+
+    const predResolved = (predStats || []).filter(p => p.result === 'WIN' || p.result === 'LOSS');
+    const predWon      = predResolved.filter(p => p.result === 'WIN');
+    
+    // Aggregate global stats
+    const totalWon      = won.length + predWon.length;
+    const totalResolved = resolved.length + predResolved.length;
+    
+    // Win Rate (Global)
+    const winRate = totalResolved > 0
+      ? Math.round((totalWon / totalResolved) * 1000) / 10
       : null;
 
-    const avgOdds = resolved.length > 0
-      ? Math.round(resolved.reduce((acc: number, t: StatRow) => acc + Number(t.total_odds), 0) / resolved.length * 100) / 100
-      : null;
-
-    const bestWinOdds = won.length > 0
-      ? Math.max(...won.map((t: StatRow) => Number(t.total_odds)))
+    // ROI Calculation: ((Gains - Mises) / Mises) * 100
+    // On assume une mise de 1 unité par prédiction résolue
+    const totalGains = predWon.reduce((acc, p) => acc + Number(p.bookmaker_odds), 0) + won.length; // legacy counts Won as 1.0 odds? No, let's just use prediction_log for ROI
+    const totalMises = totalResolved;
+    const roi = totalResolved > 0 
+      ? Math.round(((totalGains - totalMises) / totalMises) * 1000) / 10
       : null;
 
     const stats = {
-      total_won:      won.length,
-      total_lost:     lost.length,
-      total_void:     voided.length,
-      total_resolved: resolved.length,
+      total_won:      totalWon,
+      total_resolved: totalResolved,
       win_rate_pct:   winRate,
-      avg_odds:       avgOdds,
-      best_win_odds:  bestWinOdds,
-      total_tickets:  totalCount ?? (allForStats || []).length,
+      roi_pct:        roi,
+      avg_odds:       avgOdds, // keep legacy avg odds for now
+      total_tickets:  (totalCount ?? 0) + (predStats?.length ?? 0),
     };
 
     // ── Tickets pour l'affichage (60 derniers, données complètes) ───────────

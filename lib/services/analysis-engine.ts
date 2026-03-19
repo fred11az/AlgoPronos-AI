@@ -23,7 +23,8 @@ import {
   CACHE_TTL,
 } from './redis-cache';
 import { predict } from './prediction/predictionEngine';
-import { initializeParams } from './prediction/dixonColes';
+import { fetchModelParams, initializeParams } from './prediction/dixonColes';
+import { logPrediction } from './prediction/tracking';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -608,30 +609,63 @@ export async function analyzeMatch(
   const effectiveOdds = stats.realOdds ?? currentOdds;
 
   // ── 0. Dixon-Coles Prediction ───────────────────────────────────────────
-  const defaultParams = initializeParams([homeTeam, awayTeam]);
-  
-  // Update with derived stats if available
-  if (stats.homeAttack && stats.homeDefense) {
-    defaultParams.teams[homeTeam] = { attack: stats.homeAttack, defense: stats.homeDefense };
-  }
-  if (stats.awayAttack && stats.awayDefense) {
-    defaultParams.teams[awayTeam] = { attack: stats.awayAttack, defense: stats.awayDefense };
-  }
+  let dcPrediction: any = null;
+  try {
+    // 1. Initialisation des paramètres par défaut
+    const defaultParams = initializeParams([homeTeam, awayTeam]);
+    
+    // 2. Tentative de récupération des paramètres optimisés (MLE/Seeded)
+    const optimizedStrengths = await fetchModelParams([homeTeam, awayTeam]);
+    if (optimizedStrengths[homeTeam]) defaultParams.teams[homeTeam] = optimizedStrengths[homeTeam];
+    if (optimizedStrengths[awayTeam]) defaultParams.teams[awayTeam] = optimizedStrengths[awayTeam];
 
-  const dcPrediction = predict({
-    homeTeam,
-    awayTeam,
-    marketOdds: effectiveOdds,
-    modelParams: defaultParams
-  });
+    // 3. Update with derived stats (last 5) if MLE not available
+    if (!optimizedStrengths[homeTeam] && stats.homeAttack && stats.homeDefense) {
+      defaultParams.teams[homeTeam] = { attack: stats.homeAttack, defense: stats.homeDefense };
+    }
+    if (!optimizedStrengths[awayTeam] && stats.awayAttack && stats.awayDefense) {
+      defaultParams.teams[awayTeam] = { attack: stats.awayAttack, defense: stats.awayDefense };
+    }
+
+    // 4. Run Prediction
+    dcPrediction = predict({
+      homeTeam,
+      awayTeam,
+      marketOdds: effectiveOdds,
+      modelParams: defaultParams
+    });
+
+    // 5. LOG to predictions_log for ROI Tracking
+    if (dcPrediction && dcPrediction.valueAnalysis) {
+      const bestValue = dcPrediction.valueAnalysis.recommendation === 'HOME' 
+        ? { market: 'home', edge: dcPrediction.valueAnalysis.homeEdge, odds: effectiveOdds.home }
+        : dcPrediction.valueAnalysis.recommendation === 'AWAY'
+        ? { market: 'away', edge: dcPrediction.valueAnalysis.awayEdge, odds: effectiveOdds.away }
+        : null;
+
+      if (bestValue && bestValue.edge > 0.05) { // Log only significant value bets
+        await logPrediction({
+          matchId: matchId,
+          homeTeam,
+          awayTeam,
+          market: bestValue.market as any,
+          modelProb: dcPrediction.probabilities[bestValue.market],
+          bookmakerOdds: bestValue.odds,
+          valueEdge: bestValue.edge
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[analysis-engine] Dixon-Coles error:', err);
+  }
 
   // ── Process signals 1–5 ──────────────────────────────────────────────────
   const formSignal    = processFormSignal(stats.homeForm, stats.awayForm, homeTeam, awayTeam);
   const xgSignal      = processXgSignal(stats.goalsHomeExpected, stats.goalsAwayExpected, homeTeam, awayTeam);
   const oddsSignal    = processOddsSignal(stats.realOdds, currentOdds, homeTeam, awayTeam);
   const valueSignal   = processValueSignal(
-    dcPrediction.valueAnalysis.find(v => v.market === 'home')?.valueEdge ?? null,
-    dcPrediction.valueAnalysis.find(v => v.market === 'away')?.valueEdge ?? null,
+    dcPrediction.valueAnalysis.find((v: any) => v.market === 'home')?.valueEdge ?? null,
+    dcPrediction.valueAnalysis.find((v: any) => v.market === 'away')?.valueEdge ?? null,
     homeTeam, 
     awayTeam
   );
@@ -649,8 +683,8 @@ export async function analyzeMatch(
     dcPrediction.probabilities.home,
     dcPrediction.probabilities.draw,
     dcPrediction.probabilities.away,
-    dcPrediction.valueAnalysis.find(v => v.market === 'home')?.valueEdge ?? null,
-    dcPrediction.valueAnalysis.find(v => v.market === 'away')?.valueEdge ?? null,
+    dcPrediction.valueAnalysis.find((v: any) => v.market === 'home')?.valueEdge ?? null,
+    dcPrediction.valueAnalysis.find((v: any) => v.market === 'away')?.valueEdge ?? null,
     riskLevel,
   );
 

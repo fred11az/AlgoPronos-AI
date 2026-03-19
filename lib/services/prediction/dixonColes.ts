@@ -1,9 +1,41 @@
 /**
- * Dixon-Coles MLE (Maximum Likelihood Estimation) Skeleton
+ * Dixon-Coles MLE (Maximum Likelihood Estimation)
  */
-
+import { createClient } from '@supabase/supabase-js';
 import { poissonProb, tauCorrection } from './poissonBivariate';
 import type { ModelParams, TeamParams } from './teamStrength';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+/**
+ * Fetches optimized parameters from Supabase if available.
+ */
+export async function fetchModelParams(teamNames: string[]): Promise<Record<string, TeamParams>> {
+  const strengths: Record<string, TeamParams> = {};
+  
+  try {
+    const { data, error } = await supabase
+      .from('model_params')
+      .select('team_id, attack, defense')
+      .in('team_id', teamNames);
+
+    if (data && !error) {
+      data.forEach(row => {
+        strengths[row.team_id] = { 
+          attack: parseFloat(row.attack), 
+          defense: parseFloat(row.defense) 
+        };
+      });
+    }
+  } catch (err) {
+    console.error('[dixon-coles] Failed to fetch params:', err);
+  }
+
+  return strengths;
+}
 
 export interface MatchResult {
   homeTeam: string;
