@@ -10,6 +10,7 @@ interface HistoryStats {
   total_won: number;
   total_tickets: number;
   avg_odds: number | null;
+  roi_pct: number | null;
 }
 
 // Valeurs d'affichage tant que l'API n'a pas répondu

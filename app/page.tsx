@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Header } from '@/components/marketing/Header';
 import { Footer } from '@/components/marketing/Footer';
 import { StickyCodeCTA } from '@/components/landing/StickyCodeCTA';
@@ -25,6 +26,8 @@ import {
   LineChart,
   Users,
   Star,
+  Sparkles,
+  ChevronRight,
 } from 'lucide-react';
 import { HomepageTrial } from '@/components/landing/HomepageTrial';
 import { StatsBar } from '@/components/landing/StatsBar';
@@ -34,8 +37,8 @@ import { GrandesAffichesPreview } from '@/components/landing/GrandesAffichesPrev
 import { BookmakersSection } from '@/components/landing/BookmakersSection';
 import { ScrollReveal } from '@/components/landing/ScrollReveal';
 import { SocialProofTicker } from '@/components/landing/SocialProofTicker';
-import TicketOptimusWidget from '@/components/dashboard/TicketOptimusWidget';
-import TicketMontanteWidget from '@/components/dashboard/TicketMontanteWidget';
+const TicketOptimusWidget = dynamic(() => import('@/components/dashboard/TicketOptimusWidget'), { ssr: false });
+const TicketMontanteWidget = dynamic(() => import('@/components/dashboard/TicketMontanteWidget'), { ssr: false });
 
 // ─── FAQ JSON-LD (homepage uniquement — questions génériques IA paris sportifs) ─
 
@@ -296,7 +299,7 @@ export default function LandingPage() {
                 <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 text-xs text-text-muted italic flex items-start gap-3">
                   <Sparkles className="h-4 w-4 text-secondary shrink-0" />
                   <span>
-                    <strong>Optimus</strong> : Vise des cotes élevées (5.0+) en combinant des marchés à forte probabilité cumulée.
+                    <strong>Optimus</strong> : Vise des cotes elevees (5.0+) en combinant des marches a forte probabilite.
                   </span>
                 </div>
               </div>
@@ -308,7 +311,7 @@ export default function LandingPage() {
                 <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 text-xs text-text-muted italic flex items-start gap-3">
                   <TrendingUp className="h-4 w-4 text-primary shrink-0" />
                   <span>
-                    <strong>Montante</strong> : Stratégie de progression sécurisée avec un taux de réussite cible de 92% par étape.
+                    <strong>Montante</strong> : Strategie de progression securisee avec un taux de reussite cible eleve.
                   </span>
                 </div>
               </div>

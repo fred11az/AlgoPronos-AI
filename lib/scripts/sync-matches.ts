@@ -48,20 +48,7 @@ async function syncMatches() {
       const batchResults = await Promise.all(batch.map(async (match) => {
         try {
           console.log(`[Sync] AI Analysis: ${match.homeTeam} vs ${match.awayTeam} (${match.league})...`);
-          // If odds are missing, try a quick AI lookup to enrich the SEO page
-          let realOdds = match.odds;
-          if (!realOdds || (!realOdds.home && !realOdds.away)) {
-            console.log(`[Sync] Odds missing for ${match.homeTeam}. Attempting AI lookup...`);
-            const aiMatches = await matchService.searchMatchesWithAI(`${match.homeTeam} vs ${match.awayTeam} ${match.date} odds`);
-            const found = aiMatches.find(m => 
-              m.homeTeam.toLowerCase().includes(match.homeTeam.toLowerCase().split(' ')[0]) ||
-              match.homeTeam.toLowerCase().includes(m.homeTeam.toLowerCase().split(' ')[0])
-            );
-            if (found?.odds) {
-              realOdds = found.odds;
-              console.log(`[Sync] Found AI odds: @${realOdds.home}`);
-            }
-          }
+          const realOdds = match.odds;
 
           const pred = await generatePrediction({
             homeTeam: match.homeTeam,

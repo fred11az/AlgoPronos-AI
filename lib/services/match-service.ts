@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient } from '../supabase/server';
 import { cachedFetch } from './api/footballApi';
 
 export interface RealMatch {

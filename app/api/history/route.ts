@@ -47,6 +47,10 @@ export async function GET() {
       ? Math.round(((totalGains - totalMises) / totalMises) * 1000) / 10
       : null;
 
+    const avgOdds = predResolved.length > 0
+      ? Math.round((predResolved.reduce((acc, p) => acc + Number(p.bookmaker_odds || 0), 0) / predResolved.length) * 100) / 100
+      : 1.85;
+
     const stats = {
       total_won:      totalWon,
       total_resolved: totalResolved,
