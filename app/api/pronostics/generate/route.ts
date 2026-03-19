@@ -8,7 +8,7 @@
  * Protected by CRON_SECRET header.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { matchService, type RealMatch } from '@/lib/services/match-service';
 import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/slugify';
 
@@ -181,7 +181,20 @@ export async function POST(req: NextRequest) {
   const legacySecret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
   const secret = bearerSecret || legacySecret;
   if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Allow admin session as fallback (e.g. triggered from admin UI)
+    const supabaseUser = await createClient();
+    const { data: { session } } = await supabaseUser.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const { data: profile } = await supabaseUser
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+    if (profile?.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
 
   const supabase = await createAdminClient();

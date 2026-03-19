@@ -55,26 +55,37 @@ class MatchService {
     }
 
     for (const date of dates) {
+      // ── LEVEL 1: matches_cache (processed, TTL 12h) ───────────────────
+      const cached = await this.getCachedMatches(date, sport);
+      if (cached && cached.length > 0) {
+        console.log(`[Sync] ${date} (${sport}): Cache HIT — ${cached.length} matches from matches_cache.`);
+        byDate[date] = cached;
+        rawFixturesCount += cached.length;
+        continue;
+      }
+
       if (sport === 'football') {
-        // ── PRIMARY: API-Football ──────────────────────────
-        console.log(`[Sync] ${date} (FOOTBALL): Fetching via API-Football...`);
+        // ── LEVEL 2: api_cache → RapidAPI (raw response, TTL 24h) ────────
+        console.log(`[Sync] ${date} (FOOTBALL): Cache MISS — fetching via API-Football...`);
         const apiMatches = await this.fetchFootballFromAPI(date);
-        
+
         if (apiMatches.length > 0) {
           console.log(`[Sync] ${date} (FOOTBALL): Success! Found ${apiMatches.length} matches via API.`);
           byDate[date] = apiMatches;
+          rawFixturesCount += apiMatches.length;
           await this.cacheMatches(date, apiMatches, sport);
           continue; // Found via API, skip AI fallback
         }
       }
 
-      // ── SECONDARY / FALLBACK: AI Search ──────────────────────────────
+      // ── LEVEL 3: AI Search fallback ───────────────────────────────────
       console.log(`[Sync] ${date} (${sport}): Falling back to exhaustive global search...`);
       const openClawMatches = await this.searchMatchesWithAI(date, sport);
-      
+
       if (openClawMatches.length > 0) {
         console.log(`[Sync] ${date} (${sport}): AI Success! Captured ${openClawMatches.length} matches.`);
         byDate[date] = openClawMatches;
+        rawFixturesCount += openClawMatches.length;
         await this.cacheMatches(date, openClawMatches, sport);
       } else {
         console.warn(`[Sync] ${date} (${sport}): No matches found.`);
@@ -268,9 +279,9 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       return cached.filter((m) => leagueCodes.includes(m.leagueCode));
     }
 
-    const apiKey = process.env.FOOTBALL_API_KEY;
+    const apiKey = process.env.RAPIDAPI_KEY;
     if (!apiKey) {
-      console.warn('[MatchService] FOOTBALL_API_KEY not set and no cache found — returning empty matches.');
+      console.warn('[MatchService] RAPIDAPI_KEY not set and no cache found — returning empty matches.');
       return [];
     }
 
