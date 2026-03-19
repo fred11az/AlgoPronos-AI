@@ -12,6 +12,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { matchService, type RealMatch } from '@/lib/services/match-service';
 import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/slugify';
 
+export const maxDuration = 300; // 5 minutes (requires Vercel Pro)
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface PredictionRow {
