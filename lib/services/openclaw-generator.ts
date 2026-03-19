@@ -37,9 +37,12 @@ export async function generatePrediction(
     odds: { home: number; draw: number; away: number };
   }
 ): Promise<OpenClawPrediction | null> {
-  const groqKey = process.env.GROQ_API_KEY;
-  const url = groqKey ? 'https://api.groq.com/openai/v1/chat/completions' : (process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18790/v1/chat/completions');
-  const token = groqKey || process.env.OPENCLAW_GATEWAY_TOKEN;
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const useGemini = !!geminiKey;
+  const url = useGemini
+    ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`
+    : (process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18790/v1/chat/completions');
+  const token = geminiKey || process.env.OPENCLAW_GATEWAY_TOKEN;
 
   const systemPrompt = `Tu es AlgoPronos AI, expert en analyse de football et paris sportifs.
 RÈGLES:
@@ -67,20 +70,28 @@ Réponds avec ce JSON exact:
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for AI search
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (!useGemini) headers['Authorization'] = `Bearer ${token}`;
+
+    const body = useGemini
+      ? {
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          generationConfig: { temperature: 0.7 },
+        }
+      : {
+          model: 'openclaw',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.7,
+        };
+
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        model: groqKey ? 'llama-3.3-70b-versatile' : 'openclaw',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.7,
-      }),
+      headers,
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -91,7 +102,9 @@ Réponds avec ce JSON exact:
     }
 
     const data = await res.json();
-    const text = data.choices[0]?.message?.content || '';
+    const text = useGemini
+      ? data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      : data.choices[0]?.message?.content || '';
     
     const stripped = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
     const jsonMatch = stripped.match(/\{[\s\S]*\}/);

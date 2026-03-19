@@ -64,13 +64,33 @@ interface KeyMatch {
 
 // ─── AI Analysis ──────────────────────────────────────────────────────────────
 
+async function callGemini(prompt: string, temperature = 0.7, maxTokens = 350): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return '';
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature, maxOutputTokens: maxTokens },
+        }),
+      }
+    );
+    if (!res.ok) return '';
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+  } catch {
+    return '';
+  }
+}
+
 async function generateWeeklyIntro(
   keyMatches: KeyMatch[],
   weekLabel: string,
 ): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return `Sélection des grandes affiches pour la semaine du ${weekLabel}.`;
-
   const matchList = keyMatches
     .map((m) => `- ${m.home_team} vs ${m.away_team} (${m.league}, ${m.match_date})`)
     .join('\n');
@@ -82,57 +102,16 @@ ${matchList}
 
 Style : passionné, professionnel, en français. Pas de listes, juste du texte fluide. Mets en avant les enjeux et les confrontations les plus attendues. Ne mentionne pas d'IA ou d'algorithme.`;
 
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 350,
-      }),
-    });
-    if (!res.ok) return `Grandes affiches de la semaine du ${weekLabel}.`;
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim() || `Grandes affiches de la semaine du ${weekLabel}.`;
-  } catch {
-    return `Grandes affiches de la semaine du ${weekLabel}.`;
-  }
+  return (await callGemini(prompt, 0.7, 350)) || `Sélection des grandes affiches pour la semaine du ${weekLabel}.`;
 }
 
 async function generateDeepAnalysis(match: PredictionRow): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return match.ai_analysis || '';
-
   const prompt = `Tu es un analyste football expert. Rédige une analyse approfondie (5-6 phrases) du match ${match.home_team} vs ${match.away_team} en ${match.league}.
 Cotes : 1=${match.odds_home} / N=${match.odds_draw} / 2=${match.odds_away}
 Pronostic algorithme : ${match.prediction} (probabilité : ${match.probability}%, value edge : +${match.value_edge}%)
 Analyse en français, ton professionnel. Couvre les enjeux du match, les forces/faiblesses des équipes, et justifie le pronostic. Sans mentionner IA ou algorithme.`;
 
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.6,
-        max_tokens: 300,
-      }),
-    });
-    if (!res.ok) return match.ai_analysis || '';
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim() || match.ai_analysis || '';
-  } catch {
-    return match.ai_analysis || '';
-  }
+  return (await callGemini(prompt, 0.6, 300)) || match.ai_analysis || '';
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -140,16 +140,16 @@ class MatchService {
   }
 
   private async fetchOpenClawSegment(date: string, regionalPrompt: string, sport: string = 'football'): Promise<RealMatch[]> {
-    const groqKey = process.env.GROQ_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
     const orApiKey = process.env.OPENROUTER_API_KEY;
-    
-    // Choose the best available endpoint
-    const url = groqKey ? 'https://api.groq.com/openai/v1/chat/completions' : (orApiKey ? 'https://openrouter.ai/api/v1/chat/completions' : (process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18789/v1/chat/completions'));
-    const token = groqKey || orApiKey || process.env.OPENCLAW_GATEWAY_TOKEN;
-    const model = groqKey ? 'llama-3.3-70b-versatile' : (orApiKey ? 'perplexity/sonar' : 'openclaw');
+
+    // Choose the best available endpoint (Gemini first, then OpenRouter, then OpenClaw)
+    const url = geminiKey ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}` : (orApiKey ? 'https://openrouter.ai/api/v1/chat/completions' : (process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18789/v1/chat/completions'));
+    const token = geminiKey ? geminiKey : (orApiKey || process.env.OPENCLAW_GATEWAY_TOKEN);
+    const model = geminiKey ? 'gemini-2.0-flash' : (orApiKey ? 'perplexity/sonar' : 'openclaw');
 
     if (!token) {
-      console.warn('[MatchService] No Groq, OpenRouter or OpenClaw token set — cannot search web.');
+      console.warn('[MatchService] No Gemini, OpenRouter or OpenClaw token set — cannot search web.');
       return [];
     }
 
@@ -172,36 +172,42 @@ FORMAT DE RÉPONSE ATTENDU :
 Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
     try {
-      const body: any = {
-        model,
-        messages: [
-          { role: 'system', content: 'Tu es un agent expert en recherche de données web. Ta mission est de fournir des informations précises au format JSON.' },
-          { role: 'user', content: fullPrompt }
-        ],
-        temperature: 0.1,
-      };
+      // Build request body based on provider
+      const body: any = geminiKey
+        ? {
+            system_instruction: { parts: [{ text: 'Tu es un agent expert en recherche de données web. Ta mission est de fournir des informations précises au format JSON.' }] },
+            contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
+          }
+        : {
+            model,
+            messages: [
+              { role: 'system', content: 'Tu es un agent expert en recherche de données web. Ta mission est de fournir des informations précises au format JSON.' },
+              { role: 'user', content: fullPrompt }
+            ],
+            temperature: 0.1,
+            max_tokens: 2000,
+          };
 
-      if (orApiKey && !groqKey) {
-        body.max_tokens = 2000;
-      }
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (!geminiKey) headers['Authorization'] = `Bearer ${token}`;
 
       const res = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error(`[MatchService] Fetch error (${orApiKey ? 'OpenRouter' : 'OpenClaw'}): ${res.status} - ${errText}`);
+        console.error(`[MatchService] Fetch error (${geminiKey ? 'Gemini' : orApiKey ? 'OpenRouter' : 'OpenClaw'}): ${res.status} - ${errText}`);
         return [];
       }
 
       const data = await res.json();
-      const content = data.choices?.[0]?.message?.content;
+      const content = geminiKey
+        ? data.candidates?.[0]?.content?.parts?.[0]?.text
+        : data.choices?.[0]?.message?.content;
       
       if (!content) return [];
 

@@ -9,8 +9,8 @@
 //   5. Model Probability — API-Football statistical win/draw/loss percentages
 //   6. Risk Adaptation — pick scoring tuned to safe / balanced / risky profile
 //
-// Each signal is scored (0–100) and labelled. The engine then calls Claude Haiku
-// (primary) or Groq llama-3.3-70b (fallback) to convert the signal data into a
+// Each signal is scored (0–100) and labelled. The engine then calls Gemini Flash
+// (primary fallback) or OpenClaw (local gateway) to convert the signal data into a
 // human-readable, journalistic analysis. Results are cached in Redis (12 h TTL)
 // so repeat requests for the same match are served instantly at $0 cost.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ export interface MatchAnalysisResult {
   recommendation: BettingRecommendation;
   /** All candidates ranked by risk-level score */
   allRecommendations: BettingRecommendation[];
-  /** AI-generated 3-4 sentence reasoning (Claude Haiku or Groq) */
+  /** AI-generated 3-4 sentence reasoning (OpenClaw or Gemini Flash) */
   reasoning: string;
   /** 1-2 sentence executive summary */
   summary: string;
@@ -413,7 +413,7 @@ function buildRecommendations(
   return { primary: sorted[0], all: sorted };
 }
 
-// ─── AI Reasoning (Claude Haiku ▸ Groq fallback) ─────────────────────────────
+// ─── AI Reasoning (OpenClaw ▸ Gemini Flash fallback) ─────────────────────────────
 
 async function generateAIReasoning(
   homeTeam: string,
@@ -494,55 +494,30 @@ RÉPONDS avec ce JSON exact:
         text = data.choices[0]?.message?.content ?? '';
       }
     } catch (err) {
-      console.warn('[analysis-engine] OpenClaw failed, trying Claude:', err);
+      console.warn('[analysis-engine] OpenClaw failed, trying Gemini:', err);
     }
   }
 
-  // — Fallback: Claude Haiku (excellent French) ——————————————
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (anthropicKey && !text) {
+  // — Fallback: Gemini Flash ——————————————————————————————————————
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey && !text) {
     try {
-      const { default: Anthropic } = await import('@anthropic-ai/sdk');
-      const client  = new Anthropic({ apiKey: anthropicKey });
-      const message = await client.messages.create({
-        model:      'claude-haiku-4-5-20251001',
-        max_tokens: 700,
-        messages: [{ role: 'user', content: `${systemPrompt}\n\n${userPrompt}` }],
-      });
-      if (message.content[0].type === 'text') {
-        text = message.content[0].text;
-      }
-    } catch (err) {
-      console.warn('[analysis-engine] Claude Haiku failed, trying Groq:', err);
-    }
-  }
-
-  // — Fallback: Groq llama-3.3-70b ——————————————————————————————————————
-  const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey && !text) {
-    try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+      const res = await fetch(geminiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${groqKey}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model:      'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user',   content: userPrompt },
-          ],
-          temperature: 0.4,
-          max_tokens:  600,
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        text = data.choices[0]?.message?.content ?? '';
+        text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
       }
     } catch (err) {
-      console.warn('[analysis-engine] Groq fallback failed:', err);
+      console.warn('[analysis-engine] Gemini fallback failed:', err);
     }
   }
 
@@ -722,7 +697,7 @@ export async function analyzeMatch(
   const formBonus   = formSignal.direction === favSide ? 3 : formSignal.direction === 'neutral' ? 0 : -2;
   const estimatedProbability = Math.min(95, Math.max(5, Math.round(modelPct + formBonus)));
 
-  // ── AI reasoning (Claude Haiku ▸ Groq) ───────────────────────────────────
+  // ── AI reasoning (OpenClaw ▸ Gemini Flash) ───────────────────────────────────
   const { reasoning, summary, riskAssessment } = await generateAIReasoning(
     homeTeam, awayTeam, league, signals, recommendation, riskLevel,
   );

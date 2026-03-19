@@ -2,8 +2,10 @@
 import 'dotenv/config';
 import { createAdminClient } from '../supabase/server';
 
-const groqKey = process.env.GROQ_API_KEY;
-const baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
+const geminiKey = process.env.GEMINI_API_KEY;
+const baseUrl = geminiKey
+  ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`
+  : '';
 
 async function extractMatches(searchText: string, date: string) {
   const prompt = `Extrais tous les matchs de football pour le ${date} à partir du texte suivant.
@@ -24,19 +26,15 @@ ${searchText}`;
 
   const res = await fetch(baseUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${groqKey}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.1 },
     }),
   });
 
   const data = await res.json();
-  const content = data.choices[0].message.content;
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
   const jsonMatch = content.match(/\[[\s\S]*\]/);
   return jsonMatch ? JSON.parse(jsonMatch[0]) : [];
 }

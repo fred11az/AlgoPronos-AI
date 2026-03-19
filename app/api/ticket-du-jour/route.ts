@@ -97,32 +97,28 @@ function pickForMatch(
   };
 }
 
-// ─── Groq explanation ─────────────────────────────────────────────────────────
+// ─── Gemini explanation ─────────────────────────────────────────────────────────
 
-async function callGroq(prompt: string): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
+async function callGemini(prompt: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return '';
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        {
-          role: 'system',
-          content: `Tu es AlgoPronos AI, analyste sportif expert. Génère une analyse courte et percutante pour le Ticket IA du Jour. Réponds UNIQUEMENT en JSON valide.`,
-        },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.5,
-      max_tokens: 600,
-    }),
-  });
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: 'Tu es AlgoPronos AI, analyste sportif expert. Génère une analyse courte et percutante pour le Ticket IA du Jour. Réponds UNIQUEMENT en JSON valide.' }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.5, maxOutputTokens: 600 },
+      }),
+    }
+  );
 
   if (!response.ok) return '';
   const data = await response.json();
-  return data.choices[0]?.message?.content || '';
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
 // ─── Main: GET ────────────────────────────────────────────────────────────────
@@ -223,7 +219,7 @@ export async function GET(req: Request) {
 
       const prompt = `Analyse le Ticket IA du Jour AlgoPronos avec ces ${picks.length} sélections (cote totale: ${totalOdds}):\n\n${picksText}\n\nRéponds avec ce JSON:\n{"summary": "2 phrases max sur ce ticket du jour", "confidence": "phrase sur la confiance globale", "tip": "1 conseil clé pour le parieur"}`;
 
-      const raw = await callGroq(prompt);
+      const raw = await callGemini(prompt);
       const stripped = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
       const jsonMatch = stripped.match(/\{[\s\S]*\}/);
       if (jsonMatch) analysis = JSON.parse(jsonMatch[0]);
