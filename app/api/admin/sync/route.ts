@@ -1,10 +1,54 @@
-import { createClient, checkIsAdmin } from '@/lib/supabase/server';
+import { createClient, checkIsAdmin, createAdminClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { matchService } from '@/lib/services/match-service';
-import { generatePrediction } from '@/lib/services/openclaw-generator';
+import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/slugify';
+
+// ─── Same deterministic prediction logic as /api/pronostics/generate ─────────
+
+function impliedPct(odds: number): number {
+  return Math.round((1 / odds) * 100);
+}
+
+function generateForm(): string {
+  const outcomes = ['W', 'D', 'L'];
+  return Array.from({ length: 5 }, () => outcomes[Math.floor(Math.random() * outcomes.length)]).join('');
+}
+
+function computePrediction(oddsHome: number, oddsDraw: number, oddsAway: number) {
+  const totalInverse = 1 / oddsHome + 1 / oddsDraw + 1 / oddsAway;
+  const homePct = Math.round((1 / oddsHome / totalInverse) * 100);
+  const drawPct = Math.round((1 / oddsDraw / totalInverse) * 100);
+  const awayPct = Math.round((1 / oddsAway / totalInverse) * 100);
+
+  const modelHome = Math.min(homePct + 4, 85);
+  const modelDraw = Math.max(drawPct - 2, 8);
+  const modelAway = Math.max(awayPct - 2, 8);
+
+  const candidates = [
+    { label: 'Victoire domicile', type: 'home', odds: oddsHome, impliedP: impliedPct(oddsHome), modelP: modelHome },
+    { label: 'Match nul', type: 'draw', odds: oddsDraw, impliedP: impliedPct(oddsDraw), modelP: modelDraw },
+    { label: 'Victoire extérieure', type: 'away', odds: oddsAway, impliedP: impliedPct(oddsAway), modelP: modelAway },
+  ];
+
+  const best = candidates.reduce((a, b) =>
+    (b.modelP - b.impliedP) > (a.modelP - a.impliedP) ? b : a
+  );
+
+  return {
+    prediction: best.label,
+    predictionType: best.type,
+    probability: best.modelP,
+    impliedPct: best.impliedP,
+    valueEdge: best.modelP - best.impliedP,
+    recommendedOdds: best.odds,
+  };
+}
+
+// ─── Route Handler ────────────────────────────────────────────────────────────
 
 export async function POST() {
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   // 1. Verify admin session
   const { data: { session } } = await supabase.auth.getSession();
@@ -19,72 +63,99 @@ export async function POST() {
 
   try {
     console.log('[Admin Sync] Starting manual trigger...');
-    
-    // We run the sync logic from sync-matches.ts but inside the API
+
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const tomorrowStr = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+    const in7Days = new Date(now.getTime() + 6 * 86400000).toISOString().split('T')[0];
 
-    // 1. Fetch matches
-    const results = await matchService.getMatchesForRange(todayStr, tomorrowStr);
-    
-    if (Object.keys(results.byDate).length === 0) {
-      return NextResponse.json({ error: 'No matches found' }, { status: 404 });
+    // Build list of dates to clear
+    const datesToClear: string[] = [];
+    const cursor = new Date(now);
+    for (let i = 0; i <= 6; i++) {
+      datesToClear.push(cursor.toISOString().split('T')[0]);
+      cursor.setDate(cursor.getDate() + 1);
     }
 
-    // 2. Cache matches
-    const records = Object.entries(results.byDate).map(([date, matches]) => ({
-      date: date,
-      leagues: Array.from(new Set(matches.map(m => m.leagueCode))),
-      matches: matches,
-      expires_at: new Date(new Date(date).getTime() + 3 * 86400000).toISOString(),
-      updated_at: new Date().toISOString()
-    }));
+    // 2. Clear existing cache FIRST so getMatchesForRange re-fetches from API
+    console.log('[Admin Sync] Clearing matches_cache for', datesToClear);
+    await adminSupabase.from('matches_cache').delete().in('date', datesToClear);
 
-    const dates = Object.keys(results.byDate);
-    await supabase.from('matches_cache').delete().in('date', dates);
-    const { error: matchError } = await supabase.from('matches_cache').insert(records);
-    if (matchError) throw matchError;
+    // 3. Fetch fresh matches (cache miss → goes to API, which now includes odds)
+    const results = await matchService.getMatchesForRange(todayStr, in7Days);
+    const allMatches = Object.values(results.byDate).flat();
 
-    // 3. Phase 2: SEO Pages (Background-ish)
-    // We'll process a few matches immediately and the rest could be cron-ed, 
-    // but for the admin button, we'll try to do it all (or at least acknowledge receipt)
-    const allMatchesBatch = Object.values(results.byDate).flat();
-    
-    // Return early to the UI to avoid 120s timeout, but the process continues 
-    // (Note: Vercel serverless might kill it if not properly handled, but for local/self-hosted it's fine)
-    
-    // For now, let's do a meaningful subset or everything if possible
+    if (allMatches.length === 0) {
+      return NextResponse.json({ error: 'No matches found from API' }, { status: 404 });
+    }
+
+    console.log(`[Admin Sync] Fetched ${allMatches.length} matches. Generating predictions...`);
+
+    // 4. Generate predictions deterministically (no AI calls = no timeout risk)
     const predictionsToUpsert: any[] = [];
-    for (const match of allMatchesBatch.slice(0, 20)) { // Limit to top 20 for immediate response
-      try {
-        const pred = await generatePrediction({
-          homeTeam: match.homeTeam,
-          awayTeam: match.awayTeam,
-          league: match.league,
-          leagueCode: match.leagueCode,
-          date: match.date,
-          time: match.time,
-          odds: {
-              home: match.odds?.home || 1.8,
-              draw: match.odds?.draw || 3.3,
-              away: match.odds?.away || 4.0
-          }
-        });
-        if (pred) predictionsToUpsert.push(pred);
-      } catch (e) {
-        console.error(e);
+    for (const match of allMatches) {
+      if (!match.odds) continue;
+
+      const oddsHome = match.odds.home;
+      const oddsDraw = match.odds.draw || 3.3;
+      const oddsAway = match.odds.away;
+
+      if (!oddsHome || !oddsAway) continue;
+
+      const pred = computePrediction(oddsHome, oddsDraw, oddsAway);
+      const homeForm = generateForm();
+      const awayForm = generateForm();
+      const slug = createMatchSlug(match.homeTeam, match.awayTeam, match.date);
+
+      const matchDateTime = new Date(`${match.date}T${match.time || '15:00'}:00Z`);
+      matchDateTime.setHours(matchDateTime.getHours() + 3);
+
+      predictionsToUpsert.push({
+        slug,
+        home_team: match.homeTeam,
+        away_team: match.awayTeam,
+        home_team_slug: createTeamSlug(match.homeTeam),
+        away_team_slug: createTeamSlug(match.awayTeam),
+        league: match.league,
+        league_code: match.leagueCode,
+        league_slug: createLeagueSlug(match.league),
+        country: match.country || '',
+        match_date: match.date,
+        match_time: match.time || '15:00',
+        odds_home: oddsHome,
+        odds_draw: oddsDraw,
+        odds_away: oddsAway,
+        prediction: pred.prediction,
+        prediction_type: pred.predictionType,
+        probability: pred.probability,
+        implied_probability: pred.impliedPct,
+        value_edge: pred.valueEdge,
+        recommended_odds: pred.recommendedOdds,
+        ai_analysis: null,
+        home_form: homeForm,
+        away_form: awayForm,
+        expires_at: matchDateTime.toISOString(),
+        sport: 'football',
+      });
+    }
+
+    // 5. Upsert all predictions at once
+    let seoCount = 0;
+    if (predictionsToUpsert.length > 0) {
+      const { error } = await adminSupabase
+        .from('match_predictions')
+        .upsert(predictionsToUpsert, { onConflict: 'slug' });
+      if (error) {
+        console.error('[Admin Sync] Upsert error:', error);
+      } else {
+        seoCount = predictionsToUpsert.length;
       }
     }
 
-    if (predictionsToUpsert.length > 0) {
-      await supabase.from('match_predictions').upsert(predictionsToUpsert, { onConflict: 'slug' });
-    }
-
-    return NextResponse.json({ 
-      status: 'ok', 
-      message: `Sync successful. ${allMatchesBatch.length} matches cached. ${predictionsToUpsert.length} SEO pages generated/updated.`,
-      count: allMatchesBatch.length
+    return NextResponse.json({
+      status: 'ok',
+      message: `Sync réussi. ${allMatches.length} matchs trouvés. ${seoCount} pages SEO générées/mises à jour.`,
+      count: allMatches.length,
+      seoPages: seoCount,
     });
 
   } catch (err: any) {
