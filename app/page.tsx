@@ -188,8 +188,8 @@ export default function LandingPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('/grid.svg')] opacity-[0.03]" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 w-full">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-20 items-center">
 
             {/* Left Content */}
             <div className="text-center lg:text-left">
@@ -201,20 +201,20 @@ export default function LandingPage() {
                   </span>
                 </div>
 
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-8 leading-[0.9] tracking-tight uppercase italic">
+                <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-white mb-6 md:mb-8 leading-[0.95] md:leading-[0.9] tracking-tight uppercase italic">
                   Battez les <br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-[#00D4FF] to-secondary">
                     Bookmakers
                   </span>
                 </h1>
 
-                <p className="text-lg md:text-xl text-text-secondary mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed font-medium">
+                <p className="text-base md:text-xl text-text-secondary mb-6 md:mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed font-medium">
                   Le moteur neural v4.2 analyse 600+ signaux en temps réel pour 
                   identifier les <strong className="text-white">Value Bets</strong> indétectables à l&apos;œil nu.
                 </p>
 
                 {/* KPI highlights */}
-                <div className="grid grid-cols-3 gap-4 mb-10 max-w-md mx-auto lg:mx-0">
+                <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6 md:mb-10 max-w-md mx-auto lg:mx-0">
                   {[
                     { label: 'Gain Moyen', val: '+18%' },
                     { label: 'Précision', val: '74%' },
@@ -228,13 +228,13 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                  <Button size="xl" variant="gradient" className="h-16 px-10 text-base font-black uppercase italic shadow-2xl shadow-primary/20" asChild>
+                  <Button size="xl" variant="gradient" className="h-14 px-6 md:h-16 md:px-10 text-sm md:text-base font-black uppercase italic shadow-2xl shadow-primary/20" asChild>
                     <Link href="/onboarding">
                       <Rocket className="mr-3 h-5 w-5" />
-                      Ouvrir mon compte IA
+                      Essayer AlgoPronos
                     </Link>
                   </Button>
-                  <Button size="xl" variant="outline" className="h-16 px-10 border-white/10 hover:bg-white/5 text-white font-bold" asChild>
+                  <Button size="xl" variant="outline" className="h-14 px-6 md:h-16 md:px-10 text-sm md:text-base border-white/10 hover:bg-white/5 text-white font-bold" asChild>
                     <Link href="/historique">
                       Historique Public
                       <ArrowRight className="ml-3 h-5 w-5" />
@@ -273,7 +273,7 @@ export default function LandingPage() {
       <StatsBar />
 
       {/* ─── STRATÉGIES EXCLUSIVES IA ─────────────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden bg-[#0A0F1E]">
+      <section className="py-12 md:py-24 relative overflow-hidden bg-[#0A0F1E]">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-primary/5 rounded-full blur-[160px] pointer-events-none" />
         
         <div className="max-w-7xl mx-auto px-4 relative z-10">
@@ -282,7 +282,7 @@ export default function LandingPage() {
               <Badge variant="outline" className="mb-4 bg-primary/5 border-primary/20 text-primary uppercase tracking-[0.2em] font-black px-4 py-1">
                 Stratégies de Pointe
               </Badge>
-              <h2 className="text-3xl md:text-5xl font-black text-white mb-6 tracking-tight uppercase italic">
+              <h2 className="text-2xl md:text-5xl font-black text-white mb-6 tracking-tight uppercase italic">
                 Nos Algorithmes <span className="text-primary italic">Spécialisés</span>
               </h2>
               <p className="text-text-secondary text-lg max-w-2xl mx-auto">
@@ -332,7 +332,7 @@ export default function LandingPage() {
       </section>
 
       {/* ─── COMMENT ÇA MARCHE ────────────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-24 bg-surface">
+      <section id="how-it-works" className="py-12 md:py-24 bg-surface">
         <div className="max-w-7xl mx-auto px-4">
           <ScrollReveal>
             <div className="text-center mb-16">
@@ -392,9 +392,9 @@ export default function LandingPage() {
       </section>
 
       {/* ─── VÉRIFICATEUR COMPTE OPTIMISÉ IA ─────────────────────────────────── */}
-      <section className="py-20 bg-surface border-t border-surface-light">
+      <section className="py-10 md:py-20 bg-surface border-t border-surface-light">
         <div className="max-w-4xl mx-auto px-4">
-          <div className="bg-gradient-to-br from-primary/10 via-surface-light to-surface rounded-2xl border border-primary/20 p-8 md:p-12 relative overflow-hidden">
+          <div className="bg-gradient-to-br from-primary/10 via-surface-light to-surface rounded-2xl border border-primary/20 p-5 md:p-12 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
             <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
               <div className="flex-1">
@@ -455,7 +455,7 @@ export default function LandingPage() {
       <BookmakersSection />
 
       {/* ─── DONNÉES ANALYSÉES ────────────────────────────────────────────────── */}
-      <section id="data" className="py-24 bg-background">
+      <section id="data" className="py-12 md:py-24 bg-background">
         <div className="max-w-7xl mx-auto px-4">
           <ScrollReveal>
             <div className="text-center mb-16">
@@ -518,7 +518,7 @@ export default function LandingPage() {
       </section>
 
       {/* ─── FAQ ──────────────────────────────────────────────────────────────── */}
-      <section id="faq" className="py-24 bg-background">
+      <section id="faq" className="py-12 md:py-24 bg-background">
         <div className="max-w-3xl mx-auto px-4">
           <ScrollReveal>
             <div className="text-center mb-16">
@@ -546,13 +546,13 @@ export default function LandingPage() {
       </section>
 
       {/* ─── FINAL CTA ────────────────────────────────────────────────────────── */}
-      <section className="py-24 bg-surface relative overflow-hidden">
+      <section className="py-12 md:py-24 bg-surface relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
           <ScrollReveal>
-            <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">
+            <h2 className="text-2xl sm:text-5xl font-bold text-white mb-6">
               Prêt à analyser vos prochains paris ?
             </h2>
             <p className="text-text-secondary text-lg mb-10 max-w-2xl mx-auto">
