@@ -7,31 +7,30 @@ async function run() {
   const date = '2026-03-18';
   console.log('Targeted CL Sync for', date);
   
-  const groqKey = process.env.GROQ_API_KEY;
-  if (!groqKey) {
-    console.error('GROQ_API_KEY missing');
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) {
+    console.error('GEMINI_API_KEY missing');
     return;
   }
 
-  const prompt = `MISSION : Liste exhaustive des matchs de UEFA Champions League RÉELS pour le ${date}. 
+  const prompt = `MISSION : Liste exhaustive des matchs de UEFA Champions League RÉELS pour le ${date}.
   Retourne UNIQUEMENT un tableau JSON avec homeTeam, awayTeam, league:"UEFA Champions League", time, odds:{home, draw, away}.`;
 
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${groqKey}`
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{role: 'user', content: prompt}],
-        temperature: 0.1
-      })
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{role: 'user', parts: [{text: prompt}]}],
+          generationConfig: { temperature: 0.1 }
+        })
+      }
+    );
 
     const data = await res.json();
-    const content = data.choices[0].message.content;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
     const jsonStr = content.match(/\[[\s\S]*\]/)[0];
     const matches = JSON.parse(jsonStr);
 

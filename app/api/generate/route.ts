@@ -72,51 +72,45 @@ function generateCacheKey(params: CombineParameters): string {
   return createHash('sha256').update(JSON.stringify(normalized)).digest('hex').substring(0, 16);
 }
 
-// ─── AI Call Selector (Groq or OpenClaw) ──────────────────────────────────────
+// ─── AI Call Selector (Gemini or OpenClaw) ──────────────────────────────────────
 async function callAI(
   systemPrompt: string,
   userPrompt: string,
-  model: string,
+  _model: string,
   maxTokens: number,
 ): Promise<string> {
-  const groqKey = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
   const ocUrl = process.env.OPENCLAW_GATEWAY_URL;
   const ocToken = process.env.OPENCLAW_GATEWAY_TOKEN;
 
-  // PRIORITY: Groq first (fast, reliable <5s), OpenClaw as fallback (slow local model)
-  // OpenClaw is reserved for match SEARCH (in match-service.ts), not analysis here.
-  async function tryGroq(): Promise<string> {
-    if (!groqKey) throw new Error('No GROQ_API_KEY');
+  async function tryGemini(): Promise<string> {
+    if (!geminiKey) throw new Error('No GEMINI_API_KEY');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s max
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${groqKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature: 0.4,
-          max_tokens: maxTokens,
-        }),
-        signal: controller.signal,
-      });
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            generationConfig: { temperature: 0.4, maxOutputTokens: maxTokens },
+          }),
+          signal: controller.signal,
+        }
+      );
       clearTimeout(timeoutId);
       if (!response.ok) {
         const err = await response.text();
-        throw new Error(`Groq error ${response.status}: ${err.substring(0, 100)}`);
+        throw new Error(`Gemini error ${response.status}: ${err.substring(0, 100)}`);
       }
       const data = await response.json();
-      return data.choices[0]?.message?.content || '';
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     } catch (err: any) {
       clearTimeout(timeoutId);
-      if (err.name === 'AbortError') throw new Error('Groq timeout (30s)');
+      if (err.name === 'AbortError') throw new Error('Gemini timeout (30s)');
       throw err;
     }
   }
@@ -124,7 +118,7 @@ async function callAI(
   async function tryOpenClaw(): Promise<string> {
     if (!ocUrl) throw new Error('No OPENCLAW_GATEWAY_URL');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s max
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
       const response = await fetch(ocUrl, {
         method: 'POST',
@@ -157,18 +151,18 @@ async function callAI(
     }
   }
 
-  // Try Groq first, then OpenClaw, then give up gracefully
-  if (groqKey) {
+  // Try Gemini first, then OpenClaw, then give up gracefully
+  if (geminiKey) {
     try {
-      console.log('[callAI] Trying Groq...');
-      const result = await tryGroq();
-      console.log('[callAI] Groq OK');
+      console.log('[callAI] Trying Gemini...');
+      const result = await tryGemini();
+      console.log('[callAI] Gemini OK');
       return result;
     } catch (err: any) {
-      console.warn('[callAI] Groq failed:', err.message, '— Trying OpenClaw fallback...');
+      console.warn('[callAI] Gemini failed:', err.message, '— Trying OpenClaw fallback...');
     }
   }
-  
+
   if (ocUrl) {
     try {
       console.log('[callAI] Trying OpenClaw...');
@@ -180,7 +174,7 @@ async function callAI(
     }
   }
 
-  // Both AI services failed — return empty to allow coupon without analysis
+  // All AI services failed — return empty to allow coupon without analysis
   console.error('[callAI] All AI services failed. Returning empty analysis.');
   return '';
 }
@@ -763,12 +757,11 @@ export async function POST(request: Request) {
     } else {
       // Registered/verified: AI explains pre-selected picks
       const useOptimized = isVerified;
-      const groqModel = useOptimized ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
       const maxTokens = Math.min(600 + algorithmPicks.length * (useOptimized ? 350 : 180), useOptimized ? 4000 : 2000);
       const { system, user: userMsg } = buildExplainPrompt(algorithmPicks, statsMap, useOptimized, params.riskLevel);
 
-      console.log(`[generate] Calling AI (${groqModel}) for reasoning...`);
-      const responseText = await callAI(system, userMsg, groqModel, maxTokens);
+      console.log(`[generate] Calling Gemini for reasoning...`);
+      const responseText = await callAI(system, userMsg, 'gemini-2.0-flash', maxTokens);
       console.log(`[generate] AI response received (${responseText.length} chars)`);
       
       // Graceful parse — if AI returned nothing or invalid JSON, build coupon without analysis
