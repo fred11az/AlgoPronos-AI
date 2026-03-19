@@ -3,10 +3,12 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 const RAPIDAPI_HOST = process.env.RAPIDAPI_HOST || 'api-football-v1.p.rapidapi.com';
@@ -22,6 +24,7 @@ export async function cachedFetch<T>(endpoint: string, params: Record<string, st
   const cacheKey = url.toString();
 
   try {
+    const supabase = getSupabase();
     // 1. Check Supabase cache
     const { data: cacheEntry, error: cacheError } = await supabase
       .from('api_cache')

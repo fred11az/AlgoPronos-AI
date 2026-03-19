@@ -5,17 +5,20 @@ import { createClient } from '@supabase/supabase-js';
 import { poissonProb, tauCorrection } from './poissonBivariate';
 import type { ModelParams, TeamParams } from './teamStrength';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 /**
  * Fetches optimized parameters from Supabase if available.
  */
 export async function fetchModelParams(teamNames: string[]): Promise<Record<string, TeamParams>> {
+  const supabase = getSupabase();
   const strengths: Record<string, TeamParams> = {};
-  
+
   try {
     const { data, error } = await supabase
       .from('model_params')

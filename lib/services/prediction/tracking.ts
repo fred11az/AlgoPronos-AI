@@ -3,10 +3,12 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export interface PredictionLogEntry {
   matchId: string;
@@ -22,6 +24,7 @@ export interface PredictionLogEntry {
  * Logs a prediction to the database.
  */
 export async function logPrediction(entry: PredictionLogEntry) {
+  const supabase = getSupabase();
   try {
     console.log(`[prediction-tracking] Attempting to log prediction for ${entry.matchId}...`);
     const { error } = await supabase.from('predictions_log').upsert({
@@ -49,6 +52,7 @@ export async function logPrediction(entry: PredictionLogEntry) {
  * Resolves a prediction with a result.
  */
 export async function resolvePrediction(matchId: string, result: 'WIN' | 'LOSS') {
+  const supabase = getSupabase();
   try {
     const { error } = await supabase
       .from('predictions_log')
