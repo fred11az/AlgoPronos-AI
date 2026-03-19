@@ -342,6 +342,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
           time: matchTime,
           status: f.status?.finished ? 'finished' : (f.status?.started ? 'live' : 'scheduled'),
           sport: 'football',
+          odds: this.generateRealisticOdds('football'),
         };
       });
     } catch (err) {
