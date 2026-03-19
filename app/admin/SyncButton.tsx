@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Check, Calendar } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export function SyncButton() {
   const [loading, setLoading] = useState(false);
@@ -13,15 +14,16 @@ export function SyncButton() {
   const handleSync = async () => {
     setLoading(true);
     setDone(false);
+    const toastId = toast.loading('Synchronisation des matchs...');
     try {
       const res = await fetch('/api/admin/sync', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur lors de la synchronisation');
       setDone(true);
-      alert(data.message || 'Synchronisation terminée !');
+      toast.success(data.message || 'Synchronisation terminée !', { id: toastId });
       setTimeout(() => setDone(false), 3000);
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message, { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -30,15 +32,17 @@ export function SyncButton() {
   const handleGeneratePronostics = async () => {
     setLoadingProno(true);
     setDoneProno(false);
+    const toastId = toast.loading('Génération des pronostics en cours... (30-60s)');
     try {
       const res = await fetch('/api/pronostics/generate', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur lors de la génération');
       setDoneProno(true);
-      alert(`✅ Pronostics générés !\n${JSON.stringify(data, null, 2).substring(0, 300)}`);
+      const count = data.inserted ?? data.count ?? '?';
+      toast.success(`✅ ${count} pronostics générés avec succès !`, { id: toastId, duration: 5000 });
       setTimeout(() => setDoneProno(false), 3000);
     } catch (err: any) {
-      alert('Erreur: ' + err.message);
+      toast.error('Erreur : ' + err.message, { id: toastId });
     } finally {
       setLoadingProno(false);
     }
