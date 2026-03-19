@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { notifyTicketResult, TicketMatch } from '@/lib/services/notification-service';
+import { cachedFetch } from '@/lib/services/api/footballApi';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -33,24 +34,19 @@ interface APIFootballFixture {
 
 async function fetchFixtureResults(
   fixtureIds: number[],
-  apiKey: string,
 ): Promise<Map<number, { homeGoals: number; awayGoals: number; finished: boolean }>> {
   const results = new Map<number, { homeGoals: number; awayGoals: number; finished: boolean }>();
   if (fixtureIds.length === 0) return results;
 
-  // API-Football allows multiple ids in one call (up to ~20)
+  // Use cachedFetch (RapidAPI) — results cache TTL short (5 min) for live score accuracy
   const ids = fixtureIds.join('-');
-  const res = await fetch(
-    `https://v3.football.api-sports.io/fixtures?ids=${ids}`,
-    { headers: { 'x-apisports-key': apiKey } }
-  );
+  const data = await cachedFetch<any>('/fixtures', { ids }, 300);
 
-  if (!res.ok) {
-    console.error(`[resolve-tickets] API-Football error: ${res.status}`);
+  if (!data) {
+    console.error('[resolve-tickets] cachedFetch returned null for /fixtures');
     return results;
   }
 
-  const data = await res.json();
   const FINISHED = ['FT', 'AET', 'PEN', 'AWD', 'WO'];
 
   for (const item of (data.response ?? []) as APIFootballFixture[]) {
@@ -95,9 +91,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const footballApiKey = process.env.FOOTBALL_API_KEY;
-  if (!footballApiKey) {
-    return NextResponse.json({ error: 'FOOTBALL_API_KEY not set' }, { status: 500 });
+  if (!process.env.RAPIDAPI_KEY) {
+    return NextResponse.json({ error: 'RAPIDAPI_KEY not set' }, { status: 500 });
   }
 
   const adminSupabase = createAdminClient();
@@ -141,7 +136,7 @@ export async function GET(req: NextRequest) {
       );
 
       // Fetch results from API-Football for all apif- fixture IDs we found
-      const fixtureResults = await fetchFixtureResults(fixtureIds, footballApiKey);
+      const fixtureResults = await fetchFixtureResults(fixtureIds);
 
       // Check if any resolvable apif matches are still not finished
       const unresolvedApif = fixtureIds.filter(id => !fixtureResults.get(id)?.finished);

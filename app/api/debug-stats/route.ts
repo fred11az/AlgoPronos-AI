@@ -1,115 +1,68 @@
-// Debug endpoint — vérifie que l'API-Football répond correctement
+// Debug endpoint — vérifie que l'API-Football (RapidAPI) répond correctement
 // Usage: GET /api/debug-stats?fixture=1035071
 // Retire ce fichier en production une fois validé
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cachedFetch } from '@/lib/services/api/footballApi';
 
 export async function GET(request: NextRequest) {
-  const apiKey = process.env.FOOTBALL_API_KEY;
   const fixtureId = request.nextUrl.searchParams.get('fixture');
   const date = request.nextUrl.searchParams.get('date') || new Date().toISOString().split('T')[0];
 
   const result: Record<string, unknown> = {
-    apiKeyPresent: !!apiKey,
-    apiKeyPrefix: apiKey ? apiKey.substring(0, 6) + '...' : null,
+    apiKeyPresent: !!process.env.RAPIDAPI_KEY,
+    apiKeyPrefix: process.env.RAPIDAPI_KEY ? process.env.RAPIDAPI_KEY.substring(0, 6) + '...' : null,
     fixtureId,
     date,
   };
 
-  if (!apiKey) {
-    return NextResponse.json({ ...result, error: 'FOOTBALL_API_KEY manquante dans les variables d\'environnement' }, { status: 500 });
+  if (!process.env.RAPIDAPI_KEY) {
+    return NextResponse.json({ ...result, error: 'RAPIDAPI_KEY manquante dans les variables d\'environnement' }, { status: 500 });
   }
 
-  // ── Test 1: /status (vérifie que la clé est valide) ────────────────────────
+  // ── Test 1: /football-get-matches-by-date ─────────────────────────────────
   try {
-    const statusRes = await fetch('https://v3.football.api-sports.io/status', {
-      headers: { 'x-apisports-key': apiKey },
-    });
-    const statusData = await statusRes.json();
-    result.apiStatus = {
-      httpStatus: statusRes.status,
-      account: statusData.response?.account,
-      subscription: statusData.response?.subscription,
-      requests: statusData.response?.requests,
-    };
-  } catch (e) {
-    result.apiStatus = { error: String(e) };
-  }
-
-  // ── Test 2: /fixtures?date=... (tous les matchs du jour, toutes ligues) ────
-  try {
-    const fixturesRes = await fetch(
-      `https://v3.football.api-sports.io/fixtures?date=${date}`,
-      { headers: { 'x-apisports-key': apiKey } }
-    );
-    const fixturesData = await fixturesRes.json();
+    const apiDate = date.replace(/-/g, '');
+    const fixturesData = await cachedFetch<any>('/football-get-matches-by-date', { date: apiDate }, 3600);
     result.fixtures = {
-      httpStatus: fixturesRes.status,
-      totalResults: fixturesData.results,
-      // Filtre uniquement les ligues supportées par l'app (mapAPIFootballLeague)
-      supportedLeagueIds: [39, 140, 135, 78, 61, 2, 3, 94, 88, 144, 71, 262, 253, 233, 200, 307],
-      sample: fixturesData.response
-        ?.filter((f: { league: { id: number } }) =>
-          [39, 140, 135, 78, 61, 2, 3, 94, 88, 144, 71, 262, 253, 233, 200, 307].includes(f.league.id)
-        )
-        .slice(0, 15)
-        .map((f: {
-          fixture: { id: number; date: string };
-          teams: { home: { name: string }; away: { name: string } };
-          league: { id: number; name: string; country: string };
-        }) => ({
-          fixtureId: f.fixture.id,
-          match: `${f.teams.home.name} vs ${f.teams.away.name}`,
-          league: `${f.league.name} (${f.league.country}) — leagueId: ${f.league.id}`,
-          date: f.fixture.date,
-        })),
+      status: fixturesData?.status,
+      totalResults: fixturesData?.response?.matches?.length ?? 0,
+      sample: (fixturesData?.response?.matches ?? []).slice(0, 5).map((f: any) => ({
+        id: f.id,
+        time: f.time,
+        home: f.home?.name,
+        away: f.away?.name,
+        leagueId: f.leagueId,
+      })),
     };
   } catch (e) {
     result.fixtures = { error: String(e) };
   }
 
-  // ── Test 2b: vérifier si les matchs viennent de API-Football ou TheSportsDB
-  result.matchSourceInfo = {
-    explanation: 'Si fixtures.totalResults = 0, les matchs affichés viennent de TheSportsDB (tsdb-*) et les stats réelles ne peuvent pas être récupérées. Si >0, les matchs ont des IDs apif-* et les stats fonctionnent.',
-    tip: 'Prends un fixtureId du tableau fixtures.sample et rappelle /api/debug-stats?fixture={id}&date=' + date,
-  };
-
-  // ── Test 3: /predictions (si fixture fourni) ───────────────────────────────
+  // ── Test 2: /predictions (si fixture fourni) ──────────────────────────────
   if (fixtureId) {
     try {
-      const predRes = await fetch(
-        `https://v3.football.api-sports.io/predictions?fixture=${fixtureId}`,
-        { headers: { 'x-apisports-key': apiKey } }
-      );
-      const predData = await predRes.json();
-      const pred = predData.response?.[0];
+      const predData = await cachedFetch<any>('/predictions', { fixture: fixtureId });
+      const pred = predData?.response?.[0];
       result.predictions = {
-        httpStatus: predRes.status,
-        totalResults: predData.results,
+        totalResults: predData?.results,
         winner: pred?.predictions?.winner?.name,
         percent: pred?.predictions?.percent,
         advice: pred?.predictions?.advice,
         goalsExpected: pred?.predictions?.goals,
         homeForm: pred?.teams?.home?.last_5?.form,
         awayForm: pred?.teams?.away?.last_5?.form,
-        homeGoalsFor: pred?.teams?.home?.last_5?.goals?.for?.average,
-        awayGoalsFor: pred?.teams?.away?.last_5?.goals?.for?.average,
       };
     } catch (e) {
       result.predictions = { error: String(e) };
     }
 
-    // ── Test 4: /odds (si fixture fourni) ─────────────────────────────────────
+    // ── Test 3: /odds ─────────────────────────────────────────────────────────
     try {
-      const oddsRes = await fetch(
-        `https://v3.football.api-sports.io/odds?fixture=${fixtureId}&bookmaker=8&bet=1`,
-        { headers: { 'x-apisports-key': apiKey } }
-      );
-      const oddsData = await oddsRes.json();
-      const values = oddsData.response?.[0]?.bookmakers?.[0]?.bets?.[0]?.values;
+      const oddsData = await cachedFetch<any>('/odds', { fixture: fixtureId, bookmaker: '8', bet: '1' });
+      const values = oddsData?.response?.[0]?.bookmakers?.[0]?.bets?.[0]?.values;
       result.odds = {
-        httpStatus: oddsRes.status,
-        totalResults: oddsData.results,
+        totalResults: oddsData?.results,
         home: values?.find((v: { value: string }) => v.value === 'Home')?.odd,
         draw: values?.find((v: { value: string }) => v.value === 'Draw')?.odd,
         away: values?.find((v: { value: string }) => v.value === 'Away')?.odd,

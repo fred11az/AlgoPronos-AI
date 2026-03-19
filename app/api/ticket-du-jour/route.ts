@@ -166,7 +166,7 @@ export async function GET(req: Request) {
     const selected = available.slice(0, DAILY_MATCH_COUNT);
 
     // ── 3. Fetch real stats ──────────────────────────────────────────────────
-    const footballApiKey = process.env.FOOTBALL_API_KEY;
+    const footballApiKey = process.env.RAPIDAPI_KEY;
     const statsMap = await fetchStatsForMatches(
       selected.map(m => ({ 
         ...m, 
