@@ -127,7 +127,6 @@ export async function POST() {
         home_form: homeForm,
         away_form: awayForm,
         expires_at: matchDateTime.toISOString(),
-        sport: 'football',
       });
     }
 
