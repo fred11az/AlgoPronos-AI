@@ -67,9 +67,8 @@ export default async function MatchsPage({
     const { data } = await supabase
       .from('match_predictions')
       .select(
-        'slug, home_team, away_team, league, league_slug, country, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away, sport'
+        'slug, home_team, away_team, league, league_slug, country, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away'
       )
-      .eq('sport', sport)
       .gte('match_date', yesterdayStr)
       .lte('match_date', limitStr)
       .order('match_date', { ascending: true })
