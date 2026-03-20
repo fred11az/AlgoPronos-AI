@@ -104,6 +104,7 @@ export async function POST() {
 
       predictionsToUpsert.push({
         slug,
+        sport: 'football',
         home_team: match.homeTeam,
         away_team: match.awayTeam,
         home_team_slug: createTeamSlug(match.homeTeam),
