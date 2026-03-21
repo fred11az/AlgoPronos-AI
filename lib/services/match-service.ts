@@ -256,17 +256,32 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    */
   private inferLeagueCode(leagueName: string): string {
     const l = leagueName.toUpperCase();
-    if (l.includes('PREMIER LEAGUE')) return 'PL';
-    if (l.includes('LALIGA') || l.includes('LA LIGA')) return 'LA';
+    // England
+    if (l.includes('PREMIER LEAGUE') || l.includes('ENGLISH PREMIER')) return 'PL';
+    if (l.includes('CHAMPIONSHIP')) return 'ENG2';
+    // Spain
+    if (l.includes('LALIGA') || l.includes('LA LIGA') || l.includes('PRIMERA DIVISIÓN') || l.includes('PRIMERA DIVISION') || l.includes('LIGA ESPAÑOLA') || l.includes('LIGA ESPANOLA')) return 'LA';
+    // Italy
     if (l.includes('SERIE A')) return 'SA';
-    if (l.includes('BUNDESLIGA')) return 'BL';
-    if (l.includes('LIGUE 1')) return 'FL';
-    if (l.includes('CHAMPIONS LEAGUE')) return 'CL';
-    if (l.includes('EUROPA LEAGUE')) return 'EL';
+    if (l.includes('SERIE B')) return 'ITA2';
+    // Germany
+    if (l.includes('BUNDESLIGA') && !l.includes('2.')) return 'BL';
+    if (l.includes('2. BUNDESLIGA') || l.includes('2.BUNDESLIGA')) return 'GER2';
+    // France
+    if (l.includes('LIGUE 1') || l.includes('LIGUE1')) return 'FL';
+    if (l.includes('LIGUE 2')) return 'FRA2';
+    // Europe
+    if (l.includes('CHAMPIONS LEAGUE') || l.includes('UEFA CL') || l.includes('UCL')) return 'CL';
+    if (l.includes('EUROPA LEAGUE') || l.includes('UEFA EL') || l.includes('UEL')) return 'EL';
+    if (l.includes('CONFERENCE LEAGUE') || l.includes('UECL')) return 'ECL';
+    // Americas
     if (l.includes('MLS')) return 'US1';
-    if (l.includes('SÉNÉGAL')) return 'SN1';
-    if (l.includes('CÔTE D\'IVOIRE')) return 'CI1';
-    if (l.includes('BÉNIN')) return 'BJ1';
+    if (l.includes('BRASILEIRAO') || l.includes('SÉRIE A') || l.includes('BRAZIL')) return 'BR1';
+    if (l.includes('LIGA MX') || l.includes('MEXICO')) return 'MX1';
+    // Africa
+    if (l.includes('SÉNÉGAL') || l.includes('SENEGAL')) return 'SN1';
+    if (l.includes('CÔTE D\'IVOIRE') || l.includes('COTE D\'IVOIRE') || l.includes('IVORY COAST')) return 'CI1';
+    if (l.includes('BÉNIN') || l.includes('BENIN')) return 'BJ1';
     return 'TOP'; // Default category
   }
 
@@ -274,8 +289,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
   async getMatchesForDate(date: string, sport: string = 'football', leagueCodes?: string[]): Promise<RealMatch[]> {
     const cached = await this.getCachedMatches(date, sport);
     if (cached && cached.length > 0) {
-      if (!leagueCodes || leagueCodes.length === 0) return cached;
-      return cached.filter((m) => leagueCodes.includes(m.leagueCode));
+      return this.filterByLeague(cached, leagueCodes);
     }
 
     const apiKey = process.env.RAPIDAPI_KEY;
@@ -287,11 +301,58 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     // Fetch just this date if not cached
     const { byDate } = await this.getMatchesForRange(date, date, sport);
     const matches = byDate[date] ?? [];
+    return this.filterByLeague(matches, leagueCodes);
+  }
+
+  /** Filter matches by league codes, falling back to 'TOP' (unclassified) if no match found */
+  private filterByLeague(matches: RealMatch[], leagueCodes?: string[]): RealMatch[] {
     if (!leagueCodes || leagueCodes.length === 0) return matches;
-    return matches.filter((m) => leagueCodes.includes(m.leagueCode));
+
+    // Re-infer leagueCode from league name for stale cache entries tagged as 'TOP'
+    const normalized = matches.map((m) => {
+      if (m.leagueCode !== 'TOP') return m;
+      const reInferred = this.inferLeagueCode(m.league);
+      if (reInferred === 'TOP') return m;
+      const info = MatchService.LEAGUE_CODE_TO_INFO[reInferred];
+      return {
+        ...m,
+        leagueCode: reInferred,
+        league: m.league === 'Unknown League' && info ? info.name : m.league,
+        country: (!m.country && info) ? info.country : m.country,
+      };
+    });
+
+    const filtered = normalized.filter((m) => leagueCodes.includes(m.leagueCode));
+    // If nothing matched, show unclassified matches so the user sees something
+    if (filtered.length === 0 && normalized.length > 0) {
+      return normalized.filter((m) => m.leagueCode === 'TOP');
+    }
+    return filtered;
   }
 
   private leagueMap: Map<number, { name: string; country: string }> = new Map();
+
+  /** Fallback: derive a proper display name+country from the inferred league code */
+  private static readonly LEAGUE_CODE_TO_INFO: Record<string, { name: string; country: string }> = {
+    PL:  { name: 'Premier League',            country: 'Angleterre' },
+    LA:  { name: 'La Liga',                   country: 'Espagne' },
+    SA:  { name: 'Serie A',                   country: 'Italie' },
+    BL:  { name: 'Bundesliga',                country: 'Allemagne' },
+    FL:  { name: 'Ligue 1',                   country: 'France' },
+    CL:  { name: 'UEFA Champions League',     country: 'Europe' },
+    EL:  { name: 'UEFA Europa League',        country: 'Europe' },
+    ECL: { name: 'UEFA Conference League',    country: 'Europe' },
+    ENG2: { name: 'Championship',             country: 'Angleterre' },
+    ITA2: { name: 'Serie B',                  country: 'Italie' },
+    GER2: { name: '2. Bundesliga',            country: 'Allemagne' },
+    FRA2: { name: 'Ligue 2',                  country: 'France' },
+    US1:  { name: 'MLS',                      country: 'États-Unis' },
+    BR1:  { name: 'Brasileirão',              country: 'Brésil' },
+    MX1:  { name: 'Liga MX',                  country: 'Mexique' },
+    SN1:  { name: 'Ligue 1 Sénégal',         country: 'Sénégal' },
+    CI1:  { name: "Ligue 1 Côte d'Ivoire",   country: "Côte d'Ivoire" },
+    BJ1:  { name: 'Championnat Bénin',        country: 'Bénin' },
+  };
 
   /**
    * Fetch fixtures for a specific date from free-api-live-football-data.p.rapidapi.com
@@ -326,7 +387,15 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       console.log(`[MatchService] API returned ${data.response.matches.length} matches for ${date}`);
 
       const rawMatches = data.response.matches.map((f: any) => {
-        const leagueInfo = this.leagueMap.get(Number(f.leagueId)) || { name: f.leagueName ?? 'Unknown League', country: '' };
+        // Try leagueMap first, then API field variants, then infer from code
+        let leagueInfo = this.leagueMap.get(Number(f.leagueId));
+        if (!leagueInfo) {
+          const rawName: string = f.leagueName ?? f.league_name ?? f.league ?? '';
+          const code = rawName ? this.inferLeagueCode(rawName) : 'TOP';
+          leagueInfo = (code !== 'TOP' && MatchService.LEAGUE_CODE_TO_INFO[code])
+            ? MatchService.LEAGUE_CODE_TO_INFO[code]
+            : { name: rawName || 'Unknown League', country: '' };
+        }
 
         // Parse time: "19.03.2026 21:00" -> "21:00"
         let matchTime = '00:00';
@@ -383,13 +452,23 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
           odds = geminiOdds[geminiIdx++] ?? this.generateRealisticOdds('football');
         }
 
+        const code = this.inferLeagueCode(m.leagueInfo.name);
+        // If leagueInfo has a generic/unknown name but we inferred a proper code, use the canonical name
+        const knownInfo = code !== 'TOP' ? MatchService.LEAGUE_CODE_TO_INFO[code] : null;
+        const finalLeague = (m.leagueInfo.name === 'Unknown League' && knownInfo)
+          ? knownInfo.name
+          : m.leagueInfo.name;
+        const finalCountry = ((!m.leagueInfo.country || m.leagueInfo.country === '') && knownInfo)
+          ? knownInfo.country
+          : m.leagueInfo.country;
+
         return {
           id: `apif-${m.raw.id}`,
           homeTeam: m.homeTeam,
           awayTeam: m.awayTeam,
-          league: m.leagueInfo.name,
-          leagueCode: this.inferLeagueCode(m.leagueInfo.name),
-          country: m.leagueInfo.country,
+          league: finalLeague,
+          leagueCode: code,
+          country: finalCountry,
           date,
           time: m.matchTime,
           status: m.raw.status?.finished ? 'finished' : (m.raw.status?.started ? 'live' : 'scheduled'),

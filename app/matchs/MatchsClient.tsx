@@ -25,11 +25,8 @@ export default function MatchsClient({ matches, today }: Props) {
     return sorted; // Contains yesterdayStr if data exists
   }, [matches]);
 
-  // Default to today if available, otherwise first date
-  const [activeDate, setActiveDate] = useState<string>(() => {
-    if (dates.includes(today)) return today;
-    return dates[0] || today;
-  });
+  // Always default to today
+  const [activeDate, setActiveDate] = useState<string>(today);
 
   const filtered = useMemo(
     () => matches.filter((m) => m.match_date === activeDate),

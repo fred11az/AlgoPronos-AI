@@ -175,14 +175,44 @@ export async function POST() {
             }, { onConflict: 'date,type' });
           }
 
-          // OPTIMUS — top 4 highest probability matches
-          const top4 = pool.slice(0, 4);
-          const totalOdds = Math.round(top4.reduce((acc: number, m: any) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+          // OPTIMUS — combinaison 2-4 matchs dont la cote totale est la plus proche de 5.00
+          const OPTIMUS_TARGET = 5.0;
+          const candidates = pool.slice(0, 15);
+          let optimusMatches: any[] = candidates.slice(0, 3);
+          let bestDiff = Infinity;
+
+          for (let size = 2; size <= 4; size++) {
+            for (let i = 0; i < candidates.length; i++) {
+              for (let j = i + 1; j < candidates.length; j++) {
+                if (size === 2) {
+                  const o = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1);
+                  const diff = Math.abs(o - OPTIMUS_TARGET);
+                  if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j]]; }
+                } else {
+                  for (let k = j + 1; k < candidates.length; k++) {
+                    if (size === 3) {
+                      const o = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1) * (candidates[k].recommended_odds || 1);
+                      const diff = Math.abs(o - OPTIMUS_TARGET);
+                      if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j], candidates[k]]; }
+                    } else {
+                      for (let l = k + 1; l < candidates.length; l++) {
+                        const o = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1) * (candidates[k].recommended_odds || 1) * (candidates[l].recommended_odds || 1);
+                        const diff = Math.abs(o - OPTIMUS_TARGET);
+                        if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j], candidates[k], candidates[l]]; }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          const totalOdds = Math.round(optimusMatches.reduce((acc: number, m: any) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
           await adminSupabase.from('daily_ticket').upsert({
             date: today,
             type: 'optimus',
             access_tier: 'optimised_only',
-            matches: top4.map((m: any) => ({ matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team, league: m.league, selection: { type: m.prediction_type, value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X', odds: m.recommended_odds } })),
+            matches: optimusMatches.map((m: any) => ({ matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team, league: m.league, selection: { type: m.prediction_type, value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X', odds: m.recommended_odds } })),
             total_odds: totalOdds,
             confidence_pct: 75,
             status: 'pending',
