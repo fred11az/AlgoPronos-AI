@@ -230,20 +230,23 @@ export async function GET(req: Request) {
       const optimusTicket = {
         date: today,
         type: 'optimus',
-        access_tier: 'optimised_only',
         matches: optimusPicks,
         total_odds: totalOdds,
         confidence_pct: confidencePct,
-        risk_level: 'value',
+        risk_level: 'balanced',
         analysis: {},
         status: 'pending',
       };
 
       const { data: savedOptimus, error: optimusError } = await adminSupabase
         .from('daily_ticket')
-        .insert(optimusTicket)
+        .upsert(optimusTicket, { onConflict: 'date,type' })
         .select()
         .single();
+
+      if (optimusError) {
+        console.error('[ticket-du-jour] Optimus DB error:', optimusError);
+      }
 
       return NextResponse.json({
         ticket: optimusError ? { ...optimusTicket, id: 'temp', created_at: new Date().toISOString() } : savedOptimus,
