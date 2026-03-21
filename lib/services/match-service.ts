@@ -322,12 +322,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       };
     });
 
-    const filtered = normalized.filter((m) => leagueCodes.includes(m.leagueCode));
-    // If nothing matched, show unclassified matches so the user sees something
-    if (filtered.length === 0 && normalized.length > 0) {
-      return normalized.filter((m) => m.leagueCode === 'TOP');
-    }
-    return filtered;
+    return normalized.filter((m) => leagueCodes.includes(m.leagueCode));
   }
 
   private leagueMap: Map<number, { name: string; country: string }> = new Map();
@@ -684,7 +679,20 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         .single();
 
       if (error || !data) return null;
-      return data.matches as RealMatch[];
+
+      const matches = data.matches as RealMatch[];
+
+      // Detect corrupted cache: if >50% of matches have 'Unknown League', invalidate it
+      if (matches.length > 0) {
+        const unknownCount = matches.filter((m) => m.league === 'Unknown League').length;
+        if (unknownCount / matches.length > 0.5) {
+          console.warn(`[MatchService] Cache for ${date} is corrupted (${unknownCount}/${matches.length} unknown leagues) — purging`);
+          await supabase.from('matches_cache').delete().eq('date', date).eq('sport', sport);
+          return null;
+        }
+      }
+
+      return matches;
     } catch {
       return null;
     }
