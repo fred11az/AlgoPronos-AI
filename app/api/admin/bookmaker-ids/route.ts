@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient, checkIsAdmin } from '@/lib/supabase/server';
+import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const ok = await checkIsAdmin(user.id);
+  return ok ? user : null;
+}
+
 /** GET /api/admin/bookmaker-ids — liste tous les IDs approuvés */
 export async function GET(req: NextRequest) {
-  const isAdmin = await checkIsAdmin();
-  if (!isAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  if (!await requireAdmin()) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -20,8 +26,7 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/admin/bookmaker-ids — ajoute un ID */
 export async function POST(req: NextRequest) {
-  const isAdmin = await checkIsAdmin();
-  if (!isAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  if (!await requireAdmin()) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
   const { bookmaker, account_id, notes } = await req.json() as {
     bookmaker?: string;
@@ -54,8 +59,7 @@ export async function POST(req: NextRequest) {
 
 /** DELETE /api/admin/bookmaker-ids — supprime un ID */
 export async function DELETE(req: NextRequest) {
-  const isAdmin = await checkIsAdmin();
-  if (!isAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  if (!await requireAdmin()) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
   const { id } = await req.json() as { id?: string };
   if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
