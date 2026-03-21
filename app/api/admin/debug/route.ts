@@ -33,33 +33,25 @@ export async function GET(request: Request) {
   const leaguesData = leaguesRes.data?.data;
   const matchesData = matchesRes.data?.data;
 
-  // Sample first 3 fixtures to see their fields
-  const sampleFixtures = Array.isArray(matchesData?.response?.matches)
-    ? matchesData.response.matches.slice(0, 3)
-    : null;
+  // All unique leagueIds with match count and sample teams
+  const allFixtures: any[] = Array.isArray(matchesData?.response?.matches)
+    ? matchesData.response.matches
+    : [];
 
-  // Sample first 3 leagues
-  const sampleLeagues = Array.isArray(leaguesData?.response?.leagues)
-    ? leaguesData.response.leagues.slice(0, 3)
-    : null;
+  const leagueIdMap: Record<number, { count: number; teams: string[] }> = {};
+  for (const f of allFixtures) {
+    const lid = f.leagueId;
+    if (!leagueIdMap[lid]) leagueIdMap[lid] = { count: 0, teams: [] };
+    leagueIdMap[lid].count++;
+    if (leagueIdMap[lid].teams.length < 4) {
+      leagueIdMap[lid].teams.push(`${f.home?.longName ?? f.home?.name} vs ${f.away?.longName ?? f.away?.name}`);
+    }
+  }
 
   return NextResponse.json({
     date,
-    leagues_cache: {
-      found: !!leaguesData,
-      fetched_at: leaguesRes.data?.fetched_at,
-      status: leaguesData?.status,
-      leagues_count: leaguesData?.response?.leagues?.length ?? 0,
-      sample: sampleLeagues,
-      raw_keys: leaguesData ? Object.keys(leaguesData) : null,
-    },
-    matches_cache: {
-      found: !!matchesData,
-      fetched_at: matchesRes.data?.fetched_at,
-      status: matchesData?.status,
-      matches_count: matchesData?.response?.matches?.length ?? 0,
-      sample_fixtures: sampleFixtures,
-      raw_keys: matchesData ? Object.keys(matchesData) : null,
-    },
+    leagues_api_status: leaguesData?.status,
+    matches_count: allFixtures.length,
+    league_ids: leagueIdMap,
   });
 }
