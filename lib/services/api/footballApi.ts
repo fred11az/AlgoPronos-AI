@@ -61,8 +61,11 @@ export async function cachedFetch<T>(endpoint: string, params: Record<string, st
       return null;
     }
 
-    const json = await res.json();
-    
+    // Force UTF-8 decoding regardless of Content-Type charset header
+    const buffer = await res.arrayBuffer();
+    const text = new TextDecoder('utf-8').decode(buffer);
+    const json = JSON.parse(text);
+
     // 3. Save to cache
     await supabase.from('api_cache').upsert({
       cache_key: cacheKey,

@@ -48,15 +48,18 @@ export async function GET(request: Request) {
     }
   }
 
-  // ?purge=true → delete matches_cache for this date so next request re-fetches with correct codes
+  // ?purge=true → delete matches_cache + api_cache for this date so next request re-fetches with correct encoding
   const purge = searchParams.get('purge') === 'true';
   let purgeResult: string | null = null;
   if (purge) {
-    const { error } = await adminSb
-      .from('matches_cache')
-      .delete()
-      .eq('date', date);
-    purgeResult = error ? `error: ${error.message}` : `matches_cache for ${date} deleted`;
+    const [mc, ac] = await Promise.all([
+      adminSb.from('matches_cache').delete().eq('date', date),
+      adminSb.from('api_cache').delete().eq('cache_key', matchesKey),
+    ]);
+    const errors = [mc.error?.message, ac.error?.message].filter(Boolean);
+    purgeResult = errors.length
+      ? `error: ${errors.join('; ')}`
+      : `matches_cache + api_cache for ${date} deleted`;
   }
 
   return NextResponse.json({
