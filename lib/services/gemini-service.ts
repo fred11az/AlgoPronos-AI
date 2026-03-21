@@ -1,27 +1,16 @@
-// Gemini Flash API Service - FREE AI Alternative
-// Google Gemini Flash offers free API access via Google AI Studio
-// Get your free key: https://aistudio.google.com → "Get API key"
-// Model: gemini-2.0-flash (free tier: 15 req/min, 1500 req/day)
+// AI Service — Groq (Llama 3.3 70B)
+// Remplace Gemini Flash pour de meilleures analyses en français
+// Get your free key: https://console.groq.com → API Keys
+// Free tier: ~14 000 req/jour, 30 req/min
 
-interface GeminiMessage {
-  role: 'user' | 'model';
-  parts: { text: string }[];
-}
-
-interface GeminiResponse {
-  candidates: {
-    content: {
-      parts: { text: string }[];
-    };
-  }[];
-}
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 class GeminiService {
   private apiKey: string;
-  private baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
 
   constructor() {
-    this.apiKey = process.env.GEMINI_API_KEY || '';
+    this.apiKey = process.env.GROQ_API_KEY || '';
   }
 
   async chat(
@@ -34,47 +23,43 @@ class GeminiService {
     } = {}
   ): Promise<string> {
     if (!this.apiKey) {
-      throw new Error('GEMINI_API_KEY is not configured');
+      throw new Error('GROQ_API_KEY is not configured');
     }
 
-    const {
-      model = 'gemini-2.0-flash',
-      temperature = 0.7,
-      maxTokens = 4096,
-    } = options;
-
-    const url = `${this.baseUrl}/${model}:generateContent?key=${this.apiKey}`;
-
-    const body = {
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      generationConfig: {
-        temperature,
-        maxOutputTokens: maxTokens,
-      },
-    };
+    const { temperature = 0.7, maxTokens = 4096 } = options;
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(GROQ_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature,
+          max_tokens: maxTokens,
+        }),
+        signal: AbortSignal.timeout(30000),
       });
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(`Gemini API error: ${response.status} - ${error}`);
+        throw new Error(`Groq API error: ${response.status} - ${error}`);
       }
 
-      const data: GeminiResponse = await response.json();
-      return data.candidates[0]?.content?.parts[0]?.text || '';
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || '';
     } catch (error) {
-      console.error('Gemini API error:', error);
+      console.error('Groq API error:', error);
       throw error;
     }
   }
 
-  // Generate simple predictions
   async generateQuickPrediction(matchInfo: {
     homeTeam: string;
     awayTeam: string;
@@ -103,7 +88,7 @@ Réponds en JSON:
       const response = await this.chat(
         'Tu es un expert en analyse de matchs de football. Réponds toujours en JSON valide.',
         userPrompt,
-        { model: 'gemini-2.0-flash', temperature: 0.5, maxTokens: 500 }
+        { temperature: 0.5, maxTokens: 500 }
       );
 
       const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -126,18 +111,14 @@ Réponds en JSON:
 export const geminiService = new GeminiService();
 
 /*
-GEMINI API - FREE TIER INFO:
-=============================
-- Créer une clé: https://aistudio.google.com → "Get API key"
+GROQ API - FREE TIER INFO:
+===========================
+- Créer une clé: https://console.groq.com → API Keys
 - Rate limits (gratuit):
-  - 15 requêtes/minute
-  - 1 500 requêtes/jour
-  - 1 million de tokens/minute
-
-Available Models:
-- gemini-2.0-flash: Rapide et gratuit (recommandé)
-- gemini-1.5-flash: Alternative stable
+  - 30 requêtes/minute
+  - ~14 000 requêtes/jour
+  - Modèle: llama-3.3-70b-versatile
 
 Add to .env:
-GEMINI_API_KEY=AIzaSy_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 */

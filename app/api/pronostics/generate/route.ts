@@ -149,24 +149,27 @@ Rédige en français, ton expert, sans mentionner l'IA.`;
     }
   }
 
-  // --- 2. Fallback: Gemini Flash ---
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) return '';
+  // --- 2. Fallback: Groq ---
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) return '';
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.5, maxOutputTokens: 200 },
-        }),
-      }
-    );
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${groqKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.5,
+        max_tokens: 200,
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
     if (!res.ok) return '';
     const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    return data.choices?.[0]?.message?.content?.trim() || '';
   } catch {
     return '';
   }

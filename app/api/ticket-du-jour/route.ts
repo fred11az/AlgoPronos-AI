@@ -97,28 +97,37 @@ function pickForMatch(
   };
 }
 
-// ─── Gemini explanation ─────────────────────────────────────────────────────────
+// ─── Groq analysis ────────────────────────────────────────────────────────────
 
-async function callGemini(prompt: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+async function callGroq(prompt: string): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return '';
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: 'Tu es AlgoPronos AI, analyste sportif expert. Génère une analyse courte et percutante pour le Ticket IA du Jour. Réponds UNIQUEMENT en JSON valide.' }] },
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.5, maxOutputTokens: 600 },
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: 'Tu es AlgoPronos AI, analyste sportif expert. Génère une analyse courte et percutante pour le Ticket IA du Jour. Réponds UNIQUEMENT en JSON valide.' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.5,
+        max_tokens: 600,
       }),
-    }
-  );
+      signal: AbortSignal.timeout(20000),
+    });
 
-  if (!response.ok) return '';
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!response.ok) return '';
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || '';
+  } catch {
+    return '';
+  }
 }
 
 // ─── Main: GET ────────────────────────────────────────────────────────────────
@@ -140,6 +149,96 @@ export async function GET(req: Request) {
 
     if (existing) {
       return NextResponse.json({ ticket: existing, fromCache: true });
+    }
+
+    // ── 2b. OPTIMUS: logique dédiée — combo 2-4 matchs ciblant cote ~5.00 ───
+    if (type === 'optimus') {
+      const { data: pool } = await adminSupabase
+        .from('match_predictions')
+        .select('*')
+        .eq('match_date', today)
+        .eq('sport', 'football')
+        .gte('probability', 55)
+        .order('probability', { ascending: false })
+        .limit(20);
+
+      if (!pool || pool.length < 2) {
+        return NextResponse.json(
+          { error: 'Pas assez de pronostics disponibles pour générer le ticket Optimus aujourd\'hui.' },
+          { status: 503 }
+        );
+      }
+
+      const OPTIMUS_TARGET = 5.0;
+      const candidates = pool.slice(0, 15);
+      let optimusMatches: typeof candidates = candidates.slice(0, 3);
+      let bestDiff = Infinity;
+
+      for (let size = 2; size <= 4; size++) {
+        for (let i = 0; i < candidates.length; i++) {
+          for (let j = i + 1; j < candidates.length; j++) {
+            const combo2 = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1);
+            if (size === 2) {
+              const diff = Math.abs(combo2 - OPTIMUS_TARGET);
+              if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j]]; }
+            } else {
+              for (let k = j + 1; k < candidates.length; k++) {
+                const combo3 = combo2 * (candidates[k].recommended_odds || 1);
+                if (size === 3) {
+                  const diff = Math.abs(combo3 - OPTIMUS_TARGET);
+                  if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j], candidates[k]]; }
+                } else {
+                  for (let l = k + 1; l < candidates.length; l++) {
+                    const combo4 = combo3 * (candidates[l].recommended_odds || 1);
+                    const diff = Math.abs(combo4 - OPTIMUS_TARGET);
+                    if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j], candidates[k], candidates[l]]; }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const totalOdds = Math.round(optimusMatches.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+      const confidencePct = Math.round(optimusMatches.reduce((acc, m) => acc + (m.probability || 60), 0) / optimusMatches.length);
+
+      const optimusPicks = optimusMatches.map(m => ({
+        matchId: m.slug,
+        homeTeam: m.home_team,
+        awayTeam: m.away_team,
+        league: m.league,
+        kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
+        selection: {
+          type: m.prediction_type,
+          value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X',
+          odds: m.recommended_odds,
+          impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100),
+        },
+      }));
+
+      const optimusTicket = {
+        date: today,
+        type: 'optimus',
+        access_tier: 'optimised_only',
+        matches: optimusPicks,
+        total_odds: totalOdds,
+        confidence_pct: confidencePct,
+        risk_level: 'value',
+        analysis: {},
+        status: 'pending',
+      };
+
+      const { data: savedOptimus, error: optimusError } = await adminSupabase
+        .from('daily_ticket')
+        .insert(optimusTicket)
+        .select()
+        .single();
+
+      return NextResponse.json({
+        ticket: optimusError ? { ...optimusTicket, id: 'temp', created_at: new Date().toISOString() } : savedOptimus,
+        fromCache: false,
+      });
     }
 
     // ── 2. Fetch today's matches ─────────────────────────────────────────────
@@ -243,7 +342,7 @@ export async function GET(req: Request) {
 
       const prompt = `Analyse le Ticket IA du Jour AlgoPronos avec ces ${picks.length} sélections (cote totale: ${totalOdds}):\n\n${picksText}\n\nRéponds avec ce JSON:\n{"summary": "2 phrases max sur ce ticket du jour", "confidence": "phrase sur la confiance globale", "tip": "1 conseil clé pour le parieur"}`;
 
-      const raw = await callGemini(prompt);
+      const raw = await callGroq(prompt);
       const stripped = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
       const jsonMatch = stripped.match(/\{[\s\S]*\}/);
       if (jsonMatch) analysis = JSON.parse(jsonMatch[0]);
