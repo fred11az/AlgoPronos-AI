@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <defs>
+    <linearGradient id="afroGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FF6B00;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF9500;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background pill -->
+  <rect width="200" height="60" rx="8" fill="#1a1a1a"/>
+  <!-- Africa map icon simplified -->
+  <circle cx="28" cy="30" r="16" fill="url(#afroGrad)" opacity="0.15"/>
+  <text x="28" y="35" font-family="Arial, sans-serif" font-size="18" font-weight="900" fill="url(#afroGrad)" text-anchor="middle">A</text>
+  <!-- Text -->
+  <text x="50" y="26" font-family="Arial Black, sans-serif" font-size="16" font-weight="900" fill="#FF6B00" letter-spacing="0.5">AFRO</text>
+  <text x="50" y="44" font-family="Arial Black, sans-serif" font-size="16" font-weight="900" fill="#ffffff" letter-spacing="0.5">PARI</text>
+  <!-- Accent dot -->
+  <circle cx="120" cy="30" r="3" fill="#FF6B00"/>
+</svg>

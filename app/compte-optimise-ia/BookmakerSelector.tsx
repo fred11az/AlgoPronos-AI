@@ -104,6 +104,19 @@ const BOOKMAKERS: Bookmaker[] = [
       'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     live: false,
   },
+  {
+    id: 'afropari',
+    name: 'AfroPari',
+    logo: '/bookmakers/afropari.svg',
+    bgColor: 'bg-[#1a1a1a]',
+    bonus: 'Bonus Afrique',
+    bonusDetail: 'offre exclusive Afrique de l\'Ouest',
+    affiliateUrl:
+      process.env.NEXT_PUBLIC_AFROPARI_AFFILIATE_URL ||
+      'https://refpa84423.com/L?tag=d_5390010m_70055c_&site=5390010&ad=70055',
+    badge: 'Partenaire officiel',
+    live: true,
+  },
 ];
 
 // ─── Composant principal ────────────────────────────────────────────────────

@@ -69,6 +69,18 @@ const BOOKMAKERS = [
     badge: null,
     badgeColor: '',
   },
+  {
+    name: 'AfroPari',
+    logo: '/bookmakers/afropari.svg',
+    description: 'Spécialiste Afrique',
+    bonus: 'Bonus Afrique',
+    bgColor: 'bg-[#1a1a1a]',
+    borderColor: 'border-orange-600/30 hover:border-orange-500/60',
+    shadowColor: 'hover:shadow-orange-900/20',
+    url: process.env.NEXT_PUBLIC_AFROPARI_AFFILIATE_URL || 'https://refpa84423.com/L?tag=d_5390010m_70055c_&site=5390010&ad=70055',
+    badge: 'Partenaire officiel',
+    badgeColor: 'bg-orange-500/20 text-orange-300 border border-orange-500/30',
+  },
 ];
 
 export function BookmakersSection() {
