@@ -307,10 +307,25 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
   /** Filter matches by league codes, falling back to 'TOP' (unclassified) if no match found */
   private filterByLeague(matches: RealMatch[], leagueCodes?: string[]): RealMatch[] {
     if (!leagueCodes || leagueCodes.length === 0) return matches;
-    const filtered = matches.filter((m) => leagueCodes.includes(m.leagueCode));
-    // If nothing matched, also include unclassified matches so the user sees something
-    if (filtered.length === 0 && matches.length > 0) {
-      return matches.filter((m) => m.leagueCode === 'TOP');
+
+    // Re-infer leagueCode from league name for stale cache entries tagged as 'TOP'
+    const normalized = matches.map((m) => {
+      if (m.leagueCode !== 'TOP') return m;
+      const reInferred = this.inferLeagueCode(m.league);
+      if (reInferred === 'TOP') return m;
+      const info = MatchService.LEAGUE_CODE_TO_INFO[reInferred];
+      return {
+        ...m,
+        leagueCode: reInferred,
+        league: m.league === 'Unknown League' && info ? info.name : m.league,
+        country: (!m.country && info) ? info.country : m.country,
+      };
+    });
+
+    const filtered = normalized.filter((m) => leagueCodes.includes(m.leagueCode));
+    // If nothing matched, show unclassified matches so the user sees something
+    if (filtered.length === 0 && normalized.length > 0) {
+      return normalized.filter((m) => m.leagueCode === 'TOP');
     }
     return filtered;
   }
