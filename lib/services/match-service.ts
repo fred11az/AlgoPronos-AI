@@ -291,61 +291,50 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     return matches.filter((m) => leagueCodes.includes(m.leagueCode));
   }
 
-  private leagueMap: Map<number, { name: string; country: string }> = new Map();
-
   /**
-   * Fetch fixtures for a specific date from the new Free API
+   * Fetch fixtures for a specific date from API-Football (api-football-v1.p.rapidapi.com)
+   * Endpoint: GET /fixtures?date=YYYY-MM-DD
+   * Response: { response: [{ fixture: { id, date, status }, league: { id, name, country }, teams: { home, away } }] }
    */
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
-      // 1. Ensure leagues are loaded for mapping
-      if (this.leagueMap.size === 0) {
-        console.log('[MatchService] Loading league map...');
-        // TTL: 30 days (2592000 seconds) for leagues catalog
-        const leaguesData = await cachedFetch<any>('/football-get-all-leagues', {}, 2592000);
-        if (leaguesData?.status === 'success' && Array.isArray(leaguesData.response?.leagues)) {
-          leaguesData.response.leagues.forEach((l: any) => {
-            this.leagueMap.set(l.id, { name: l.name, country: l.ccode });
-          });
-          console.log(`[MatchService] Loaded ${this.leagueMap.size} leagues.`);
-        }
-      }
-
-      // 2. Fetch matches (format YYYYMMDD)
-      const apiDate = date.replace(/-/g, '');
       // TTL: 24 hours (86400 seconds) for matches list
-      const data = await cachedFetch<any>('/football-get-matches-by-date', { date: apiDate }, 86400);
-      
-      if (data?.status !== 'success' || !Array.isArray(data.response?.matches)) {
-        console.warn(`[MatchService] No matches found or API error for ${date}`);
+      const data = await cachedFetch<any>('/fixtures', { date }, 86400);
+
+      if (!Array.isArray(data?.response) || data.response.length === 0) {
+        console.warn(`[MatchService] No fixtures from API for ${date}. Response:`, JSON.stringify(data).substring(0, 200));
         return [];
       }
 
-      return data.response.matches.map((f: any) => {
-        const leagueInfo = this.leagueMap.get(f.leagueId) || { name: 'Unknown League', country: '' };
-        
-        // Parse time: "19.03.2026 21:00" -> "21:00"
+      console.log(`[MatchService] API returned ${data.response.length} fixtures for ${date}`);
+
+      return data.response.map((f: any) => {
+        const leagueName = f.league?.name ?? 'Unknown League';
+        const country = f.league?.country ?? '';
+
+        // Parse ISO date to local time "HH:MM"
         let matchTime = '00:00';
-        if (f.time && f.time.includes(' ')) {
-          matchTime = f.time.split(' ')[1];
+        if (f.fixture?.date) {
+          const d = new Date(f.fixture.date);
+          matchTime = d.toISOString().substring(11, 16);
         }
 
         return {
-          id: `fav-${f.id}`, // "fav" for API Venue / Fotmob wrapper
-          homeTeam: f.home.name,
-          awayTeam: f.away.name,
-          league: leagueInfo.name,
-          leagueCode: this.inferLeagueCode(leagueInfo.name),
-          country: leagueInfo.country,
-          date: date,
+          id: `apif-${f.fixture.id}`, // "apif-" prefix enables stats-service to fetch real odds/predictions
+          homeTeam: f.teams.home.name,
+          awayTeam: f.teams.away.name,
+          league: leagueName,
+          leagueCode: this.inferLeagueCode(leagueName),
+          country,
+          date,
           time: matchTime,
-          status: f.status?.finished ? 'finished' : (f.status?.started ? 'live' : 'scheduled'),
+          status: this.mapStatus(f.fixture?.status?.short ?? 'NS'),
           sport: 'football',
-          odds: this.generateRealisticOdds('football'),
+          odds: this.generateRealisticOdds('football'), // Placeholder; real odds fetched via stats-service /odds
         };
       });
     } catch (err) {
-      console.error('[MatchService] New API fetch failed:', err);
+      console.error('[MatchService] API-Football fetch failed:', err);
       return [];
     }
   }

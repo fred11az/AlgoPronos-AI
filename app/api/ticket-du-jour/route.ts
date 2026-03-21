@@ -173,6 +173,19 @@ export async function GET(req: Request) {
       );
     }
 
+    // Guard: block ticket generation if no real API data (all matches from AI fallback)
+    // Real matches have id starting with "apif-"; AI-generated have "openclaw-"
+    const hasRealApiMatches = available.some(m => m.id.startsWith('apif-'));
+    if (!hasRealApiMatches) {
+      return NextResponse.json(
+        {
+          error: 'Données insuffisantes: impossible de générer un ticket fiable. Les matchs proviennent d\'une source IA non vérifiée (pas de données API réelles). Réessayez dans quelques minutes ou vérifiez la clé RAPIDAPI_KEY.',
+          dataSource: 'ai-fallback',
+        },
+        { status: 503 }
+      );
+    }
+
     // Select the top DAILY_MATCH_COUNT matches
     const selected = available.slice(0, DAILY_MATCH_COUNT);
 
