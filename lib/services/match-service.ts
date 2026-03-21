@@ -255,34 +255,36 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    * Simple helper to map common league names to codes for filtering
    */
   private inferLeagueCode(leagueName: string): string {
-    const l = leagueName.toUpperCase();
+    const l = leagueName.trim().toUpperCase();
+    // Exact or anchor matches only — avoids "Premier League Russe" / "Bundesliga Autrichienne" false positives
     // England
-    if (l.includes('PREMIER LEAGUE') || l.includes('ENGLISH PREMIER')) return 'PL';
-    if (l.includes('CHAMPIONSHIP')) return 'ENG2';
+    if (l === 'PREMIER LEAGUE' || l.includes('ENGLISH PREMIER')) return 'PL';
+    if (l === 'CHAMPIONSHIP' || l === 'EFL CHAMPIONSHIP') return 'ENG2';
     // Spain
-    if (l.includes('LALIGA') || l.includes('LA LIGA') || l.includes('PRIMERA DIVISIÓN') || l.includes('PRIMERA DIVISION') || l.includes('LIGA ESPAÑOLA') || l.includes('LIGA ESPANOLA')) return 'LA';
+    if (l === 'LA LIGA' || l === 'LALIGA' || l === 'PRIMERA DIVISIÓN' || l === 'PRIMERA DIVISION') return 'LA';
+    if (l === 'LA LIGA 2' || l === 'LALIGA 2' || l === 'SEGUNDA DIVISIÓN' || l === 'SEGUNDA DIVISION') return 'ESP2';
     // Italy
-    if (l.includes('SERIE A')) return 'SA';
-    if (l.includes('SERIE B')) return 'ITA2';
+    if (l === 'SERIE A') return 'SA';
+    if (l === 'SERIE B') return 'ITA2';
     // Germany
-    if (l.includes('BUNDESLIGA') && !l.includes('2.')) return 'BL';
-    if (l.includes('2. BUNDESLIGA') || l.includes('2.BUNDESLIGA')) return 'GER2';
+    if (l === 'BUNDESLIGA' || l === '1. BUNDESLIGA') return 'BL';
+    if (l === '2. BUNDESLIGA' || l === '2.BUNDESLIGA') return 'GER2';
     // France
-    if (l.includes('LIGUE 1') || l.includes('LIGUE1')) return 'FL';
-    if (l.includes('LIGUE 2')) return 'FRA2';
+    if (l === 'LIGUE 1' || l === 'LIGUE1') return 'FL';
+    if (l === 'LIGUE 2' || l === 'LIGUE2') return 'FRA2';
     // Europe
-    if (l.includes('CHAMPIONS LEAGUE') || l.includes('UEFA CL') || l.includes('UCL')) return 'CL';
-    if (l.includes('EUROPA LEAGUE') || l.includes('UEFA EL') || l.includes('UEL')) return 'EL';
-    if (l.includes('CONFERENCE LEAGUE') || l.includes('UECL')) return 'ECL';
+    if (l.includes('CHAMPIONS LEAGUE') || l.includes('UEFA CL') || l === 'UCL') return 'CL';
+    if (l.includes('EUROPA LEAGUE') || l.includes('UEFA EL') || l === 'UEL') return 'EL';
+    if (l.includes('CONFERENCE LEAGUE') || l === 'UECL') return 'ECL';
     // Americas
-    if (l.includes('MLS')) return 'US1';
-    if (l.includes('BRASILEIRAO') || l.includes('SÉRIE A') || l.includes('BRAZIL')) return 'BR1';
-    if (l.includes('LIGA MX') || l.includes('MEXICO')) return 'MX1';
+    if (l === 'MLS' || l.includes('MAJOR LEAGUE SOCCER')) return 'US1';
+    if (l === 'LIGA MX') return 'MX1';
+    if (l.includes('BRASILEIRAO') || l.includes('CAMPEONATO BRASILEIRO')) return 'BR1';
     // Africa
     if (l.includes('SÉNÉGAL') || l.includes('SENEGAL')) return 'SN1';
-    if (l.includes('CÔTE D\'IVOIRE') || l.includes('COTE D\'IVOIRE') || l.includes('IVORY COAST')) return 'CI1';
+    if (l.includes("CÔTE D'IVOIRE") || l.includes("COTE D'IVOIRE") || l.includes('IVORY COAST')) return 'CI1';
     if (l.includes('BÉNIN') || l.includes('BENIN')) return 'BJ1';
-    return 'TOP'; // Default category
+    return 'TOP';
   }
 
   // Single-date fetch (reads from cache first, falls back to range fetch)
@@ -577,7 +579,21 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     // ── Americas ────────────────────────────────────────────────────────────
     913550: 'US1',  // MLS
     916051: 'MX1',  // Liga MX
-    // All other leagues → 'TOP' (handled by fallback)
+    // ── Explicit 'TOP' for leagues whose names would trigger false positives ─
+    // (e.g. "Premier League" named leagues outside England, "Bundesliga" outside Germany)
+    63:     'TOP',  // Russian Premier League
+    901329: 'TOP',  // Russian First League
+    900627: 'TOP',  // Ukrainian Premier League
+    923518: 'TOP',  // Austrian Bundesliga
+    900626: 'TOP',  // Austrian 2. Liga
+    250:    'TOP',  // Faroe Islands Premier League
+    902649: 'TOP',  // Kuwait Premier League
+    9084:   'TOP',  // EPL U21 (not a first-team competition)
+    10068:  'TOP',  // EPL U18
+    9227:   'TOP',  // Women's Super League (separate competition)
+    9676:   'TOP',  // German Frauen-Bundesliga
+    901923: 'TOP',  // Italian Serie A Femminile
+    // All other leagues → fallback to inferLeagueCode → 'TOP' for unknowns
   };
 
   /** Fallback: derive a proper display name+country from the inferred league code */

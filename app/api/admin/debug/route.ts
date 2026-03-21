@@ -48,10 +48,23 @@ export async function GET(request: Request) {
     }
   }
 
+  // ?purge=true → delete matches_cache for this date so next request re-fetches with correct codes
+  const purge = searchParams.get('purge') === 'true';
+  let purgeResult: string | null = null;
+  if (purge) {
+    const { error } = await adminSb
+      .from('matches_cache')
+      .delete()
+      .eq('date', date)
+      .eq('sport', 'football');
+    purgeResult = error ? `error: ${error.message}` : `matches_cache for ${date} deleted`;
+  }
+
   return NextResponse.json({
     date,
     leagues_api_status: leaguesData?.status,
     matches_count: allFixtures.length,
     league_ids: leagueIdMap,
+    ...(purge ? { purge: purgeResult } : {}),
   });
 }
