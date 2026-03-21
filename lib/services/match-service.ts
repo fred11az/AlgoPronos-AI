@@ -345,29 +345,58 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         };
       });
 
-      // Estimate realistic odds for all matches in a single Gemini batch call
-      console.log(`[MatchService] Estimating odds for ${rawMatches.length} matches via Gemini...`);
-      const oddsArray = await this.estimateOddsWithGemini(
-        rawMatches.map((m: { homeTeam: string; awayTeam: string; leagueInfo: { name: string } }) => ({
+      // ── Step 1: Fetch real bookmaker odds from The Odds API ──────────────
+      const oddsMap = await this.fetchOddsFromTheOddsAPI(date);
+      const oddsSource = oddsMap.size > 0 ? 'TheOddsAPI' : 'none';
+      console.log(`[MatchService] Odds source: ${oddsSource} (${oddsMap.size} events with real odds)`);
+
+      // ── Step 2: Assign odds per match (real → Gemini fallback) ───────────
+      const matchedByReal: boolean[] = rawMatches.map((m: { homeTeam: string; awayTeam: string }) => {
+        return oddsMap.has(this.makeOddsKey(m.homeTeam, m.awayTeam)) ||
+          this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap) !== null;
+      });
+
+      // Gemini batch only for matches not covered by The Odds API
+      const needsGemini = rawMatches.filter((_: any, i: number) => !matchedByReal[i]);
+      let geminiOdds: Array<{ home: number; draw: number; away: number }> = [];
+      if (needsGemini.length > 0) {
+        console.log(`[MatchService] ${needsGemini.length} matches need Gemini odds estimation...`);
+        geminiOdds = await this.estimateOddsWithGemini(
+          needsGemini.map((m: { homeTeam: string; awayTeam: string; leagueInfo: { name: string } }) => ({
+            homeTeam: m.homeTeam,
+            awayTeam: m.awayTeam,
+            league: m.leagueInfo.name,
+          }))
+        );
+      }
+
+      let geminiIdx = 0;
+      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; matchTime: string; homeTeam: string; awayTeam: string }, idx: number) => {
+        let odds: { home: number; draw?: number; away: number };
+
+        if (matchedByReal[idx]) {
+          // Real bookmaker odds from The Odds API
+          const realOdds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap);
+          odds = realOdds ?? this.generateRealisticOdds('football');
+        } else {
+          // Gemini-estimated odds
+          odds = geminiOdds[geminiIdx++] ?? this.generateRealisticOdds('football');
+        }
+
+        return {
+          id: `apif-${m.raw.id}`,
           homeTeam: m.homeTeam,
           awayTeam: m.awayTeam,
           league: m.leagueInfo.name,
-        }))
-      );
-
-      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; matchTime: string; homeTeam: string; awayTeam: string }, idx: number) => ({
-        id: `apif-${m.raw.id}`, // "apif-" prefix enables the data-quality guard in ticket generation
-        homeTeam: m.homeTeam,
-        awayTeam: m.awayTeam,
-        league: m.leagueInfo.name,
-        leagueCode: this.inferLeagueCode(m.leagueInfo.name),
-        country: m.leagueInfo.country,
-        date,
-        time: m.matchTime,
-        status: m.raw.status?.finished ? 'finished' : (m.raw.status?.started ? 'live' : 'scheduled'),
-        sport: 'football',
-        odds: oddsArray[idx] ?? this.generateRealisticOdds('football'),
-      }));
+          leagueCode: this.inferLeagueCode(m.leagueInfo.name),
+          country: m.leagueInfo.country,
+          date,
+          time: m.matchTime,
+          status: m.raw.status?.finished ? 'finished' : (m.raw.status?.started ? 'live' : 'scheduled'),
+          sport: 'football',
+          odds,
+        };
+      });
     } catch (err) {
       console.error('[MatchService] API fetch failed:', err);
       return [];
@@ -378,6 +407,188 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     if (['PST', 'NS', 'TBD'].includes(short)) return 'scheduled';
     if (['FT', 'AET', 'PEN'].includes(short)) return 'finished';
     return 'live';
+  }
+
+  // ── The Odds API integration ───────────────────────────────────────────────
+
+  /** Major soccer sport keys covered by The Odds API (EU bookmakers, h2h market) */
+  private readonly ODDS_SPORT_KEYS = [
+    'soccer_epl',
+    'soccer_spain_la_liga',
+    'soccer_italy_serie_a',
+    'soccer_germany_bundesliga',
+    'soccer_france_ligue_one',
+    'soccer_uefa_champs_league',
+    'soccer_europa_league',
+  ];
+
+  /**
+   * Fetch real 1X2 bookmaker odds from The Odds API for a given date.
+   * Results are cached in api_cache for 6 hours to save credits.
+   * Returns a Map keyed by "home::away" (normalized) → { home, draw, away }.
+   */
+  private async fetchOddsFromTheOddsAPI(
+    date: string
+  ): Promise<Map<string, { home: number; draw: number; away: number }>> {
+    const apiKey = process.env.THE_ODDS_API_KEY;
+    const oddsMap = new Map<string, { home: number; draw: number; away: number }>();
+
+    if (!apiKey) {
+      console.warn('[OddsAPI] THE_ODDS_API_KEY not set — skipping real odds fetch.');
+      return oddsMap;
+    }
+
+    const supabase = createAdminClient();
+    const cacheKey = `the-odds-api:soccer:${date}`;
+
+    // Try Supabase cache first (6h TTL)
+    try {
+      const { data: cached } = await supabase
+        .from('api_cache')
+        .select('data, fetched_at')
+        .eq('cache_key', cacheKey)
+        .single();
+
+      if (cached) {
+        const ageSeconds = (Date.now() - new Date(cached.fetched_at).getTime()) / 1000;
+        if (ageSeconds < 21600) {
+          console.log(`[OddsAPI] Cache HIT for ${date}`);
+          this.hydrateOddsMap(cached.data as any[], oddsMap);
+          return oddsMap;
+        }
+      }
+    } catch { /* cache miss, continue */ }
+
+    // Fetch from all sport keys in parallel
+    const [nextDay] = [new Date(date)];
+    nextDay.setDate(nextDay.getDate() + 1);
+    const commenceTimeFrom = `${date}T00:00:00Z`;
+    const commenceTimeTo = nextDay.toISOString().split('T')[0] + 'T00:00:00Z';
+
+    console.log(`[OddsAPI] Fetching real odds for ${date} (${this.ODDS_SPORT_KEYS.length} competitions)...`);
+
+    const results = await Promise.allSettled(
+      this.ODDS_SPORT_KEYS.map(async (sportKey) => {
+        const url = new URL(`https://api.the-odds-api.com/v4/sports/${sportKey}/odds/`);
+        url.searchParams.set('apiKey', apiKey);
+        url.searchParams.set('regions', 'eu');
+        url.searchParams.set('markets', 'h2h');
+        url.searchParams.set('oddsFormat', 'decimal');
+        url.searchParams.set('dateFormat', 'iso');
+        url.searchParams.set('commenceTimeFrom', commenceTimeFrom);
+        url.searchParams.set('commenceTimeTo', commenceTimeTo);
+
+        const res = await fetch(url.toString());
+        if (!res.ok) {
+          console.warn(`[OddsAPI] ${sportKey}: ${res.status}`);
+          return [] as any[];
+        }
+        const remaining = res.headers.get('x-requests-remaining');
+        if (remaining) console.log(`[OddsAPI] Credits remaining: ${remaining}`);
+        return res.json() as Promise<any[]>;
+      })
+    );
+
+    const allEvents: any[] = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+
+    // Persist to cache
+    if (allEvents.length > 0) {
+      await supabase.from('api_cache').upsert({
+        cache_key: cacheKey,
+        data: allEvents,
+        fetched_at: new Date().toISOString(),
+      });
+    }
+
+    this.hydrateOddsMap(allEvents, oddsMap);
+    console.log(`[OddsAPI] ${oddsMap.size} matches with real odds loaded for ${date}.`);
+    return oddsMap;
+  }
+
+  /** Populate oddsMap from a The Odds API event list */
+  private hydrateOddsMap(
+    events: any[],
+    oddsMap: Map<string, { home: number; draw: number; away: number }>
+  ): void {
+    for (const event of events) {
+      if (!event?.bookmakers?.length) continue;
+
+      // Average h2h market across bookmakers for stability
+      const allOutcomes: { home: number[]; draw: number[]; away: number[] } = { home: [], draw: [], away: [] };
+
+      for (const bm of event.bookmakers) {
+        const h2h = bm.markets?.find((m: any) => m.key === 'h2h');
+        if (!h2h?.outcomes) continue;
+        for (const o of h2h.outcomes) {
+          const price = Number(o.price);
+          if (!price || price < 1) continue;
+          if (o.name === event.home_team) allOutcomes.home.push(price);
+          else if (o.name === event.away_team) allOutcomes.away.push(price);
+          else allOutcomes.draw.push(price);
+        }
+      }
+
+      const avg = (arr: number[]) =>
+        arr.length ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100 : 0;
+
+      const homeOdd = avg(allOutcomes.home);
+      const awayOdd = avg(allOutcomes.away);
+      const drawOdd = avg(allOutcomes.draw);
+
+      if (!homeOdd || !awayOdd) continue;
+
+      const key = this.makeOddsKey(event.home_team, event.away_team);
+      oddsMap.set(key, { home: homeOdd, draw: drawOdd || 3.2, away: awayOdd });
+    }
+  }
+
+  /** Normalize a team name for fuzzy matching */
+  private normalizeTeam(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
+      .replace(/\b(fc|cf|sc|ac|as|rc|us|ss|vfb|rb|bsc|fk|sk|if|afc|lfc|cfc)\b/g, '')
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private makeOddsKey(home: string, away: string): string {
+    return `${this.normalizeTeam(home)}::${this.normalizeTeam(away)}`;
+  }
+
+  /**
+   * Look up odds for a match. Tries exact key, then partial word overlap.
+   */
+  private lookupOdds(
+    homeTeam: string,
+    awayTeam: string,
+    oddsMap: Map<string, { home: number; draw: number; away: number }>
+  ): { home: number; draw: number; away: number } | null {
+    const exactKey = this.makeOddsKey(homeTeam, awayTeam);
+    if (oddsMap.has(exactKey)) return oddsMap.get(exactKey)!;
+
+    // Fuzzy: find the closest key where both team names overlap significantly
+    const normHome = this.normalizeTeam(homeTeam);
+    const normAway = this.normalizeTeam(awayTeam);
+
+    for (const [key, odds] of Array.from(oddsMap.entries())) {
+      const [kHome, kAway] = key.split('::');
+      if (this.wordOverlap(normHome, kHome) && this.wordOverlap(normAway, kAway)) {
+        return odds;
+      }
+    }
+    return null;
+  }
+
+  /** Returns true if the longer string contains the shorter one (by words) */
+  private wordOverlap(a: string, b: string): boolean {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (a.includes(b) || b.includes(a)) return true;
+    const wordsA = a.split(' ').filter((w) => w.length > 2);
+    const wordsB = b.split(' ').filter((w) => w.length > 2);
+    return wordsA.some((w) => wordsB.includes(w));
   }
 
   private async getCachedMatches(date: string, sport: string): Promise<RealMatch[] | null> {
