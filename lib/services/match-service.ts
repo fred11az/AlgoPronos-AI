@@ -256,17 +256,32 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    */
   private inferLeagueCode(leagueName: string): string {
     const l = leagueName.toUpperCase();
-    if (l.includes('PREMIER LEAGUE')) return 'PL';
-    if (l.includes('LALIGA') || l.includes('LA LIGA')) return 'LA';
+    // England
+    if (l.includes('PREMIER LEAGUE') || l.includes('ENGLISH PREMIER')) return 'PL';
+    if (l.includes('CHAMPIONSHIP')) return 'ENG2';
+    // Spain
+    if (l.includes('LALIGA') || l.includes('LA LIGA') || l.includes('PRIMERA DIVISIÓN') || l.includes('PRIMERA DIVISION') || l.includes('LIGA ESPAÑOLA') || l.includes('LIGA ESPANOLA')) return 'LA';
+    // Italy
     if (l.includes('SERIE A')) return 'SA';
-    if (l.includes('BUNDESLIGA')) return 'BL';
-    if (l.includes('LIGUE 1')) return 'FL';
-    if (l.includes('CHAMPIONS LEAGUE')) return 'CL';
-    if (l.includes('EUROPA LEAGUE')) return 'EL';
+    if (l.includes('SERIE B')) return 'ITA2';
+    // Germany
+    if (l.includes('BUNDESLIGA') && !l.includes('2.')) return 'BL';
+    if (l.includes('2. BUNDESLIGA') || l.includes('2.BUNDESLIGA')) return 'GER2';
+    // France
+    if (l.includes('LIGUE 1') || l.includes('LIGUE1')) return 'FL';
+    if (l.includes('LIGUE 2')) return 'FRA2';
+    // Europe
+    if (l.includes('CHAMPIONS LEAGUE') || l.includes('UEFA CL') || l.includes('UCL')) return 'CL';
+    if (l.includes('EUROPA LEAGUE') || l.includes('UEFA EL') || l.includes('UEL')) return 'EL';
+    if (l.includes('CONFERENCE LEAGUE') || l.includes('UECL')) return 'ECL';
+    // Americas
     if (l.includes('MLS')) return 'US1';
-    if (l.includes('SÉNÉGAL')) return 'SN1';
-    if (l.includes('CÔTE D\'IVOIRE')) return 'CI1';
-    if (l.includes('BÉNIN')) return 'BJ1';
+    if (l.includes('BRASILEIRAO') || l.includes('SÉRIE A') || l.includes('BRAZIL')) return 'BR1';
+    if (l.includes('LIGA MX') || l.includes('MEXICO')) return 'MX1';
+    // Africa
+    if (l.includes('SÉNÉGAL') || l.includes('SENEGAL')) return 'SN1';
+    if (l.includes('CÔTE D\'IVOIRE') || l.includes('COTE D\'IVOIRE') || l.includes('IVORY COAST')) return 'CI1';
+    if (l.includes('BÉNIN') || l.includes('BENIN')) return 'BJ1';
     return 'TOP'; // Default category
   }
 
@@ -274,8 +289,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
   async getMatchesForDate(date: string, sport: string = 'football', leagueCodes?: string[]): Promise<RealMatch[]> {
     const cached = await this.getCachedMatches(date, sport);
     if (cached && cached.length > 0) {
-      if (!leagueCodes || leagueCodes.length === 0) return cached;
-      return cached.filter((m) => leagueCodes.includes(m.leagueCode));
+      return this.filterByLeague(cached, leagueCodes);
     }
 
     const apiKey = process.env.RAPIDAPI_KEY;
@@ -287,8 +301,18 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     // Fetch just this date if not cached
     const { byDate } = await this.getMatchesForRange(date, date, sport);
     const matches = byDate[date] ?? [];
+    return this.filterByLeague(matches, leagueCodes);
+  }
+
+  /** Filter matches by league codes, falling back to 'TOP' (unclassified) if no match found */
+  private filterByLeague(matches: RealMatch[], leagueCodes?: string[]): RealMatch[] {
     if (!leagueCodes || leagueCodes.length === 0) return matches;
-    return matches.filter((m) => leagueCodes.includes(m.leagueCode));
+    const filtered = matches.filter((m) => leagueCodes.includes(m.leagueCode));
+    // If nothing matched, also include unclassified matches so the user sees something
+    if (filtered.length === 0 && matches.length > 0) {
+      return matches.filter((m) => m.leagueCode === 'TOP');
+    }
+    return filtered;
   }
 
   private leagueMap: Map<number, { name: string; country: string }> = new Map();
