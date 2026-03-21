@@ -498,26 +498,33 @@ RÉPONDS avec ce JSON exact:
     }
   }
 
-  // — Fallback: Gemini Flash ——————————————————————————————————————
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (geminiKey && !text) {
+  // — Fallback: Groq ——————————————————————————————————————————————
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey && !text) {
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
-      const res = await fetch(geminiUrl, {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqKey}`,
+        },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.4,
+          max_tokens: 600,
         }),
+        signal: AbortSignal.timeout(20000),
       });
       if (res.ok) {
         const data = await res.json();
-        text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        text = data.choices?.[0]?.message?.content ?? '';
       }
     } catch (err) {
-      console.warn('[analysis-engine] Gemini fallback failed:', err);
+      console.warn('[analysis-engine] Groq fallback failed:', err);
     }
   }
 

@@ -72,45 +72,49 @@ function generateCacheKey(params: CombineParameters): string {
   return createHash('sha256').update(JSON.stringify(normalized)).digest('hex').substring(0, 16);
 }
 
-// ─── AI Call Selector (Gemini or OpenClaw) ──────────────────────────────────────
+// ─── AI Call Selector (Groq or OpenClaw) ─────────────────────────────────────
 async function callAI(
   systemPrompt: string,
   userPrompt: string,
   _model: string,
   maxTokens: number,
 ): Promise<string> {
-  const geminiKey = process.env.GEMINI_API_KEY;
   const ocUrl = process.env.OPENCLAW_GATEWAY_URL;
   const ocToken = process.env.OPENCLAW_GATEWAY_TOKEN;
 
-  async function tryGemini(): Promise<string> {
-    if (!geminiKey) throw new Error('No GEMINI_API_KEY');
+  async function tryGroq(): Promise<string> {
+    const groqKey = process.env.GROQ_API_KEY;
+    if (!groqKey) throw new Error('No GROQ_API_KEY');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-            generationConfig: { temperature: 0.4, maxOutputTokens: maxTokens },
-          }),
-          signal: controller.signal,
-        }
-      );
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.4,
+          max_tokens: maxTokens,
+        }),
+        signal: controller.signal,
+      });
       clearTimeout(timeoutId);
       if (!response.ok) {
         const err = await response.text();
-        throw new Error(`Gemini error ${response.status}: ${err.substring(0, 100)}`);
+        throw new Error(`Groq error ${response.status}: ${err.substring(0, 100)}`);
       }
       const data = await response.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      return data.choices?.[0]?.message?.content || '';
     } catch (err: any) {
       clearTimeout(timeoutId);
-      if (err.name === 'AbortError') throw new Error('Gemini timeout (30s)');
+      if (err.name === 'AbortError') throw new Error('Groq timeout (30s)');
       throw err;
     }
   }
@@ -151,16 +155,14 @@ async function callAI(
     }
   }
 
-  // Try Gemini first, then OpenClaw, then give up gracefully
-  if (geminiKey) {
-    try {
-      console.log('[callAI] Trying Gemini...');
-      const result = await tryGemini();
-      console.log('[callAI] Gemini OK');
-      return result;
-    } catch (err: any) {
-      console.warn('[callAI] Gemini failed:', err.message, '— Trying OpenClaw fallback...');
-    }
+  // Try Groq first, then OpenClaw, then give up gracefully
+  try {
+    console.log('[callAI] Trying Groq...');
+    const result = await tryGroq();
+    console.log('[callAI] Groq OK');
+    return result;
+  } catch (err: any) {
+    console.warn('[callAI] Groq failed:', err.message, '— Trying OpenClaw fallback...');
   }
 
   if (ocUrl) {
