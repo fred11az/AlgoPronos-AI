@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const isAdmin = await checkIsAdmin(user?.id);
+  const isAdmin = await checkIsAdmin(user?.id ?? '');
   if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
   const { searchParams } = new URL(request.url);
