@@ -317,6 +317,28 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
   private leagueMap: Map<number, { name: string; country: string }> = new Map();
 
+  /** Fallback: derive a proper display name+country from the inferred league code */
+  private static readonly LEAGUE_CODE_TO_INFO: Record<string, { name: string; country: string }> = {
+    PL:  { name: 'Premier League',            country: 'Angleterre' },
+    LA:  { name: 'La Liga',                   country: 'Espagne' },
+    SA:  { name: 'Serie A',                   country: 'Italie' },
+    BL:  { name: 'Bundesliga',                country: 'Allemagne' },
+    FL:  { name: 'Ligue 1',                   country: 'France' },
+    CL:  { name: 'UEFA Champions League',     country: 'Europe' },
+    EL:  { name: 'UEFA Europa League',        country: 'Europe' },
+    ECL: { name: 'UEFA Conference League',    country: 'Europe' },
+    ENG2: { name: 'Championship',             country: 'Angleterre' },
+    ITA2: { name: 'Serie B',                  country: 'Italie' },
+    GER2: { name: '2. Bundesliga',            country: 'Allemagne' },
+    FRA2: { name: 'Ligue 2',                  country: 'France' },
+    US1:  { name: 'MLS',                      country: 'États-Unis' },
+    BR1:  { name: 'Brasileirão',              country: 'Brésil' },
+    MX1:  { name: 'Liga MX',                  country: 'Mexique' },
+    SN1:  { name: 'Ligue 1 Sénégal',         country: 'Sénégal' },
+    CI1:  { name: "Ligue 1 Côte d'Ivoire",   country: "Côte d'Ivoire" },
+    BJ1:  { name: 'Championnat Bénin',        country: 'Bénin' },
+  };
+
   /**
    * Fetch fixtures for a specific date from free-api-live-football-data.p.rapidapi.com
    * Endpoint: GET /football-get-matches-by-date?date=YYYYMMDD
@@ -350,7 +372,15 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       console.log(`[MatchService] API returned ${data.response.matches.length} matches for ${date}`);
 
       const rawMatches = data.response.matches.map((f: any) => {
-        const leagueInfo = this.leagueMap.get(Number(f.leagueId)) || { name: f.leagueName ?? 'Unknown League', country: '' };
+        // Try leagueMap first, then API field variants, then infer from code
+        let leagueInfo = this.leagueMap.get(Number(f.leagueId));
+        if (!leagueInfo) {
+          const rawName: string = f.leagueName ?? f.league_name ?? f.league ?? '';
+          const code = rawName ? this.inferLeagueCode(rawName) : 'TOP';
+          leagueInfo = (code !== 'TOP' && MatchService.LEAGUE_CODE_TO_INFO[code])
+            ? MatchService.LEAGUE_CODE_TO_INFO[code]
+            : { name: rawName || 'Unknown League', country: '' };
+        }
 
         // Parse time: "19.03.2026 21:00" -> "21:00"
         let matchTime = '00:00';
@@ -407,13 +437,23 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
           odds = geminiOdds[geminiIdx++] ?? this.generateRealisticOdds('football');
         }
 
+        const code = this.inferLeagueCode(m.leagueInfo.name);
+        // If leagueInfo has a generic/unknown name but we inferred a proper code, use the canonical name
+        const knownInfo = code !== 'TOP' ? MatchService.LEAGUE_CODE_TO_INFO[code] : null;
+        const finalLeague = (m.leagueInfo.name === 'Unknown League' && knownInfo)
+          ? knownInfo.name
+          : m.leagueInfo.name;
+        const finalCountry = ((!m.leagueInfo.country || m.leagueInfo.country === '') && knownInfo)
+          ? knownInfo.country
+          : m.leagueInfo.country;
+
         return {
           id: `apif-${m.raw.id}`,
           homeTeam: m.homeTeam,
           awayTeam: m.awayTeam,
-          league: m.leagueInfo.name,
-          leagueCode: this.inferLeagueCode(m.leagueInfo.name),
-          country: m.leagueInfo.country,
+          league: finalLeague,
+          leagueCode: code,
+          country: finalCountry,
           date,
           time: m.matchTime,
           status: m.raw.status?.finished ? 'finished' : (m.raw.status?.started ? 'live' : 'scheduled'),

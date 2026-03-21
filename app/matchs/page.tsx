@@ -50,15 +50,12 @@ export default async function MatchsPage({
 }) {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
   const sport = searchParams.sport || 'football';
   const page = parseInt(searchParams.page || '1');
-  const pageSize = 50;
+  const pageSize = 100;
   const offset = (page - 1) * pageSize;
   const limitDate = new Date();
-  limitDate.setDate(limitDate.getDate() + 3);
+  limitDate.setDate(limitDate.getDate() + 4);
   const limitStr = limitDate.toISOString().split('T')[0];
 
   let matches: MatchRow[] = [];
@@ -69,7 +66,7 @@ export default async function MatchsPage({
       .select(
         'slug, home_team, away_team, league, league_slug, country, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away'
       )
-      .gte('match_date', yesterdayStr)
+      .gte('match_date', today)
       .lte('match_date', limitStr)
       .order('match_date', { ascending: true })
       .order('match_time', { ascending: true })
