@@ -7,11 +7,11 @@ export const dynamic = 'force-dynamic';
  * POST /api/verify-account
  * Body: { bookmaker: string, accountId: string }
  *
- * Logique:
- * - Si l'accountId est dans vip_verifications avec status='approved' → optimisé IA ✅
- * - Sinon → non optimisé IA ❌
- *
- * Délai artificiel simulé côté client (pas côté serveur).
+ * Logique (dans l'ordre) :
+ * 1. ID dans admin_approved_bookmaker_ids → optimisé IA ✅ (ajouté manuellement par admin)
+ * 2. ID dans vip_verifications status='approved' → optimisé IA ✅ (demande approuvée)
+ * 3. ID dans vip_verifications status='pending' → en attente ⏳
+ * 4. Sinon → non optimisé ❌
  */
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -28,8 +28,20 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // Cherche si l'ID a été soumis ET approuvé par un admin AlgoPronos
-  const { data } = await supabase
+  // 1. Vérifier la liste admin (IDs ajoutés directement par les admins)
+  const { data: adminEntry } = await supabase
+    .from('admin_approved_bookmaker_ids')
+    .select('id')
+    .ilike('account_id', clean)
+    .limit(1)
+    .maybeSingle();
+
+  if (adminEntry) {
+    return NextResponse.json({ optimized: true });
+  }
+
+  // 2. Vérifier les demandes approuvées par les admins
+  const { data: approved } = await supabase
     .from('vip_verifications')
     .select('id, status, bookmaker_identifier')
     .ilike('bookmaker_identifier', clean)
@@ -37,11 +49,11 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .maybeSingle();
 
-  if (data) {
+  if (approved) {
     return NextResponse.json({ optimized: true });
   }
 
-  // Vérifier aussi si l'ID a été soumis mais est encore en attente
+  // 3. Soumis mais pas encore approuvé
   const { data: pending } = await supabase
     .from('vip_verifications')
     .select('id, status')
@@ -51,9 +63,9 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (pending) {
-    // Soumis mais pas encore approuvé
     return NextResponse.json({ optimized: false, reason: 'pending_review' });
   }
 
   return NextResponse.json({ optimized: false, reason: 'not_registered' });
 }
+

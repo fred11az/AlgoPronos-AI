@@ -15,12 +15,14 @@ import {
   Menu,
   X,
   UserPlus,
+  ShieldCheck,
 } from 'lucide-react';
 
 const adminNavItems = [
   { label: 'Dashboard',         href: '/admin',                icon: LayoutDashboard },
   { label: 'Utilisateurs',      href: '/admin/users',          icon: Users },
   { label: 'Vérifications VIP', href: '/admin/verifications',  icon: CheckCircle },
+  { label: 'IDs Bookmakers',    href: '/admin/bookmakers',     icon: ShieldCheck },
   { label: 'Tickets IA',        href: '/admin/tickets',        icon: Ticket },
   { label: 'Analytics',         href: '/admin/analytics',      icon: BarChart3 },
   { label: 'Paramètres',        href: '/admin/settings',       icon: Settings },

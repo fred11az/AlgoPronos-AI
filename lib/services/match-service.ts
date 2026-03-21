@@ -294,50 +294,56 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
   private leagueMap: Map<number, { name: string; country: string }> = new Map();
 
   /**
-   * Fetch fixtures for a specific date from the new Free API
+   * Fetch fixtures for a specific date from free-api-live-football-data.p.rapidapi.com
+   * Endpoint: GET /football-get-matches-by-date?date=YYYYMMDD
+   * Response: { status: "success", response: { matches: [{ id, leagueId, home, away, time, status }] } }
    */
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
-      // 1. Ensure leagues are loaded for mapping
+      // 1. Ensure league map is loaded for name resolution
       if (this.leagueMap.size === 0) {
         console.log('[MatchService] Loading league map...');
-        // TTL: 30 days (2592000 seconds) for leagues catalog
         const leaguesData = await cachedFetch<any>('/football-get-all-leagues', {}, 2592000);
         if (leaguesData?.status === 'success' && Array.isArray(leaguesData.response?.leagues)) {
           leaguesData.response.leagues.forEach((l: any) => {
-            this.leagueMap.set(l.id, { name: l.name, country: l.ccode });
+            this.leagueMap.set(Number(l.id), { name: l.name, country: l.ccode ?? l.country ?? '' });
           });
           console.log(`[MatchService] Loaded ${this.leagueMap.size} leagues.`);
+        } else {
+          console.warn('[MatchService] League map failed to load. Raw response:', JSON.stringify(leaguesData).substring(0, 300));
         }
       }
 
       // 2. Fetch matches (format YYYYMMDD)
       const apiDate = date.replace(/-/g, '');
-      // TTL: 24 hours (86400 seconds) for matches list
       const data = await cachedFetch<any>('/football-get-matches-by-date', { date: apiDate }, 86400);
-      
+
       if (data?.status !== 'success' || !Array.isArray(data.response?.matches)) {
-        console.warn(`[MatchService] No matches found or API error for ${date}`);
+        console.warn(`[MatchService] No matches from API for ${date}. Response:`, JSON.stringify(data).substring(0, 300));
         return [];
       }
 
+      console.log(`[MatchService] API returned ${data.response.matches.length} matches for ${date}`);
+
       return data.response.matches.map((f: any) => {
-        const leagueInfo = this.leagueMap.get(f.leagueId) || { name: 'Unknown League', country: '' };
-        
+        const leagueInfo = this.leagueMap.get(Number(f.leagueId)) || { name: f.leagueName ?? 'Unknown League', country: '' };
+
         // Parse time: "19.03.2026 21:00" -> "21:00"
         let matchTime = '00:00';
         if (f.time && f.time.includes(' ')) {
           matchTime = f.time.split(' ')[1];
+        } else if (f.time) {
+          matchTime = f.time;
         }
 
         return {
-          id: `fav-${f.id}`, // "fav" for API Venue / Fotmob wrapper
-          homeTeam: f.home.name,
-          awayTeam: f.away.name,
+          id: `apif-${f.id}`, // "apif-" prefix enables the data-quality guard in ticket generation
+          homeTeam: f.home?.name ?? f.homeName ?? 'Unknown',
+          awayTeam: f.away?.name ?? f.awayName ?? 'Unknown',
           league: leagueInfo.name,
           leagueCode: this.inferLeagueCode(leagueInfo.name),
           country: leagueInfo.country,
-          date: date,
+          date,
           time: matchTime,
           status: f.status?.finished ? 'finished' : (f.status?.started ? 'live' : 'scheduled'),
           sport: 'football',
@@ -345,7 +351,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         };
       });
     } catch (err) {
-      console.error('[MatchService] New API fetch failed:', err);
+      console.error('[MatchService] API fetch failed:', err);
       return [];
     }
   }
