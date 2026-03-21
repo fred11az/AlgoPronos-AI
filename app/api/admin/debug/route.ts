@@ -25,6 +25,40 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  // ?refetch=true → call RapidAPI directly and store result in api_cache
+  const refetch = searchParams.get('refetch') === 'true';
+  let refetchResult: any = null;
+  if (refetch) {
+    const rapidKey = process.env.RAPIDAPI_KEY;
+    if (!rapidKey) {
+      refetchResult = { error: 'RAPIDAPI_KEY not set' };
+    } else {
+      try {
+        const res = await fetch(matchesKey, {
+          headers: { 'x-rapidapi-key': rapidKey, 'x-rapidapi-host': host },
+        });
+        const status = res.status;
+        const contentType = res.headers.get('content-type') ?? 'unknown';
+        const buffer = await res.arrayBuffer();
+        const text = new TextDecoder('utf-8').decode(buffer);
+        let json: any = null;
+        try { json = JSON.parse(text); } catch { /* not JSON */ }
+        if (res.ok && json) {
+          await adminSb.from('api_cache').upsert({
+            cache_key: matchesKey,
+            data: json,
+            fetched_at: new Date().toISOString(),
+          });
+          refetchResult = { status, contentType, matches: json?.response?.matches?.length ?? 0, apiStatus: json?.status };
+        } else {
+          refetchResult = { status, contentType, body: text.substring(0, 500) };
+        }
+      } catch (e: any) {
+        refetchResult = { error: String(e?.message ?? e) };
+      }
+    }
+  }
+
   const [leaguesRes, matchesRes] = await Promise.all([
     adminSb.from('api_cache').select('data, fetched_at').eq('cache_key', leaguesKey).single(),
     adminSb.from('api_cache').select('data, fetched_at').eq('cache_key', matchesKey).single(),
@@ -64,9 +98,13 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     date,
+    api_cache_key: matchesKey,
+    api_cache_hit: !!matchesRes.data,
+    api_cache_fetched_at: matchesRes.data?.fetched_at ?? null,
     leagues_api_status: leaguesData?.status,
     matches_count: allFixtures.length,
     league_ids: leagueIdMap,
     ...(purge ? { purge: purgeResult } : {}),
+    ...(refetch ? { refetch: refetchResult } : {}),
   });
 }
