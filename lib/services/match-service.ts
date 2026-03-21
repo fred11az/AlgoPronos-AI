@@ -291,50 +291,67 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     return matches.filter((m) => leagueCodes.includes(m.leagueCode));
   }
 
+  private leagueMap: Map<number, { name: string; country: string }> = new Map();
+
   /**
-   * Fetch fixtures for a specific date from API-Football (api-football-v1.p.rapidapi.com)
-   * Endpoint: GET /fixtures?date=YYYY-MM-DD
-   * Response: { response: [{ fixture: { id, date, status }, league: { id, name, country }, teams: { home, away } }] }
+   * Fetch fixtures for a specific date from free-api-live-football-data.p.rapidapi.com
+   * Endpoint: GET /football-get-matches-by-date?date=YYYYMMDD
+   * Response: { status: "success", response: { matches: [{ id, leagueId, home, away, time, status }] } }
    */
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
-      // TTL: 24 hours (86400 seconds) for matches list
-      const data = await cachedFetch<any>('/fixtures', { date }, 86400);
+      // 1. Ensure league map is loaded for name resolution
+      if (this.leagueMap.size === 0) {
+        console.log('[MatchService] Loading league map...');
+        const leaguesData = await cachedFetch<any>('/football-get-all-leagues', {}, 2592000);
+        if (leaguesData?.status === 'success' && Array.isArray(leaguesData.response?.leagues)) {
+          leaguesData.response.leagues.forEach((l: any) => {
+            this.leagueMap.set(Number(l.id), { name: l.name, country: l.ccode ?? l.country ?? '' });
+          });
+          console.log(`[MatchService] Loaded ${this.leagueMap.size} leagues.`);
+        } else {
+          console.warn('[MatchService] League map failed to load. Raw response:', JSON.stringify(leaguesData).substring(0, 300));
+        }
+      }
 
-      if (!Array.isArray(data?.response) || data.response.length === 0) {
-        console.warn(`[MatchService] No fixtures from API for ${date}. Response:`, JSON.stringify(data).substring(0, 200));
+      // 2. Fetch matches (format YYYYMMDD)
+      const apiDate = date.replace(/-/g, '');
+      const data = await cachedFetch<any>('/football-get-matches-by-date', { date: apiDate }, 86400);
+
+      if (data?.status !== 'success' || !Array.isArray(data.response?.matches)) {
+        console.warn(`[MatchService] No matches from API for ${date}. Response:`, JSON.stringify(data).substring(0, 300));
         return [];
       }
 
-      console.log(`[MatchService] API returned ${data.response.length} fixtures for ${date}`);
+      console.log(`[MatchService] API returned ${data.response.matches.length} matches for ${date}`);
 
-      return data.response.map((f: any) => {
-        const leagueName = f.league?.name ?? 'Unknown League';
-        const country = f.league?.country ?? '';
+      return data.response.matches.map((f: any) => {
+        const leagueInfo = this.leagueMap.get(Number(f.leagueId)) || { name: f.leagueName ?? 'Unknown League', country: '' };
 
-        // Parse ISO date to local time "HH:MM"
+        // Parse time: "19.03.2026 21:00" -> "21:00"
         let matchTime = '00:00';
-        if (f.fixture?.date) {
-          const d = new Date(f.fixture.date);
-          matchTime = d.toISOString().substring(11, 16);
+        if (f.time && f.time.includes(' ')) {
+          matchTime = f.time.split(' ')[1];
+        } else if (f.time) {
+          matchTime = f.time;
         }
 
         return {
-          id: `apif-${f.fixture.id}`, // "apif-" prefix enables stats-service to fetch real odds/predictions
-          homeTeam: f.teams.home.name,
-          awayTeam: f.teams.away.name,
-          league: leagueName,
-          leagueCode: this.inferLeagueCode(leagueName),
-          country,
+          id: `apif-${f.id}`, // "apif-" prefix enables the data-quality guard in ticket generation
+          homeTeam: f.home?.name ?? f.homeName ?? 'Unknown',
+          awayTeam: f.away?.name ?? f.awayName ?? 'Unknown',
+          league: leagueInfo.name,
+          leagueCode: this.inferLeagueCode(leagueInfo.name),
+          country: leagueInfo.country,
           date,
           time: matchTime,
-          status: this.mapStatus(f.fixture?.status?.short ?? 'NS'),
+          status: f.status?.finished ? 'finished' : (f.status?.started ? 'live' : 'scheduled'),
           sport: 'football',
-          odds: this.generateRealisticOdds('football'), // Placeholder; real odds fetched via stats-service /odds
+          odds: this.generateRealisticOdds('football'),
         };
       });
     } catch (err) {
-      console.error('[MatchService] API-Football fetch failed:', err);
+      console.error('[MatchService] API fetch failed:', err);
       return [];
     }
   }
