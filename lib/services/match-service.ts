@@ -325,7 +325,229 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     return normalized.filter((m) => leagueCodes.includes(m.leagueCode));
   }
 
-  private leagueMap: Map<number, { name: string; country: string }> = new Map();
+  /**
+   * Static league ID → display info map.
+   * Replaces the broken /football-get-all-leagues API call (returns "status: failed" on free plan).
+   * IDs verified from live API fixtures (2026-03-21).
+   */
+  private static readonly LEAGUE_ID_TO_INFO: Record<number, { name: string; country: string }> = {
+    // Top 5 leagues
+    47:  { name: 'Premier League',        country: 'Angleterre' },
+    53:  { name: 'Ligue 1',              country: 'France' },
+    54:  { name: 'Bundesliga',            country: 'Allemagne' },
+    55:  { name: 'Serie A',              country: 'Italie' },
+    87:  { name: 'La Liga',              country: 'Espagne' },
+    // England
+    900638: { name: 'Championship',      country: 'Angleterre' },
+    900639: { name: 'League One',        country: 'Angleterre' },
+    900640: { name: 'League Two',        country: 'Angleterre' },
+    9084:   { name: 'Premier League U21',country: 'Angleterre' },
+    10068:  { name: 'Premier League U18',country: 'Angleterre' },
+    9227:   { name: "Women's Super League", country: 'Angleterre' },
+    // France
+    110:  { name: 'Ligue 2',             country: 'France' },
+    8970: { name: 'National',            country: 'France' },
+    901477: { name: 'Division 1 Féminine', country: 'France' },
+    // Germany
+    146:    { name: '2. Bundesliga',     country: 'Allemagne' },
+    208:    { name: '3. Liga',           country: 'Allemagne' },
+    888:    { name: 'DFB-Pokal',         country: 'Allemagne' },
+    9676:   { name: 'Frauen-Bundesliga', country: 'Allemagne' },
+    899888: { name: 'Regionalliga Bayern', country: 'Allemagne' },
+    899890: { name: 'Regionalliga Nord', country: 'Allemagne' },
+    901198: { name: 'Regionalliga Nord 2', country: 'Allemagne' },
+    901354: { name: 'Regionalliga Südwest', country: 'Allemagne' },
+    901355: { name: 'Regionalliga West', country: 'Allemagne' },
+    // Italy
+    902171: { name: 'Serie B',          country: 'Italie' },
+    901979: { name: 'Serie C',          country: 'Italie' },
+    901968: { name: 'Serie C Groupe B', country: 'Italie' },
+    901990: { name: 'Serie C Play-off', country: 'Italie' },
+    901923: { name: 'Serie A Femminile', country: 'Italie' },
+    // Spain
+    901075: { name: 'La Liga 2',        country: 'Espagne' },
+    901481: { name: 'Segunda Federación', country: 'Espagne' },
+    901480: { name: 'Primera Federación', country: 'Espagne' },
+    901483: { name: 'Tercera Federación Gr.8', country: 'Espagne' },
+    901484: { name: 'Tercera Federación Gr.15', country: 'Espagne' },
+    901485: { name: 'Tercera Federación Gr.11', country: 'Espagne' },
+    901486: { name: 'Tercera Federación Gr.10', country: 'Espagne' },
+    901487: { name: 'Tercera Federación Gr.7', country: 'Espagne' },
+    902647: { name: 'Primera Federación Féminine', country: 'Espagne' },
+    // Portugal
+    61:   { name: 'Primeira Liga',       country: 'Portugal' },
+    185:  { name: 'Liga Portugal 2',     country: 'Portugal' },
+    920295: { name: 'Liga 3',            country: 'Portugal' },
+    920297: { name: 'Campeonato de Portugal Gr.B', country: 'Portugal' },
+    920298: { name: 'Campeonato de Portugal Gr.C', country: 'Portugal' },
+    905808: { name: 'Liga BPI Féminine', country: 'Portugal' },
+    // Netherlands
+    900368: { name: 'Eredivisie',        country: 'Pays-Bas' },
+    111:    { name: 'Eerste Divisie',    country: 'Pays-Bas' },
+    9195:   { name: 'Tweede Divisie',   country: 'Pays-Bas' },
+    10289:  { name: 'Vrouwen Eredivisie', country: 'Pays-Bas' },
+    // Scotland
+    900474: { name: 'Scottish Premiership', country: 'Écosse' },
+    900476: { name: 'Scottish Championship', country: 'Écosse' },
+    900477: { name: 'Scottish League One', country: 'Écosse' },
+    900478: { name: 'Scottish League Two', country: 'Écosse' },
+    9545:   { name: 'Scottish Lowland League', country: 'Écosse' },
+    // Belgium
+    264:    { name: 'Pro League',        country: 'Belgique' },
+    // Switzerland
+    900529: { name: 'Super League',      country: 'Suisse' },
+    900530: { name: 'Challenge League',  country: 'Suisse' },
+    // Austria
+    923518: { name: 'Bundesliga',        country: 'Autriche' },
+    900626: { name: '2. Liga',           country: 'Autriche' },
+    // Russia
+    63:    { name: 'Premier League',     country: 'Russie' },
+    901329: { name: 'First League',      country: 'Russie' },
+    // Ukraine
+    900627: { name: 'Premier League',    country: 'Ukraine' },
+    // Turkey
+    165:    { name: 'TFF 1. Lig',        country: 'Turquie' },
+    // Norway
+    59:    { name: 'Eliteserien',        country: 'Norvège' },
+    333:   { name: 'Toppserien (W)',      country: 'Norvège' },
+    916229:{ name: 'Toppserien Féminin', country: 'Norvège' },
+    921414:{ name: 'Toppserien 1 (W)',   country: 'Norvège' },
+    // Denmark
+    900339: { name: '1. Division',       country: 'Danemark' },
+    900633: { name: '2. Division',       country: 'Danemark' },
+    900634: { name: '3. Division',       country: 'Danemark' },
+    916899: { name: 'Kvindeligaen (W)',  country: 'Danemark' },
+    // Poland
+    197:    { name: '1. Liga',           country: 'Pologne' },
+    899985: { name: 'Ekstraklasa',       country: 'Pologne' },
+    8935:   { name: '2. Liga',           country: 'Pologne' },
+    // Ireland
+    126:    { name: 'League of Ireland Prem.', country: 'Irlande' },
+    916016: { name: 'First Division',    country: 'Irlande' },
+    10210:  { name: "Women's National League", country: 'Irlande' },
+    // Northern Ireland
+    900833: { name: 'NIFL Premiership',  country: 'Irlande du Nord' },
+    // Serbia
+    182:    { name: 'Superliga',         country: 'Serbie' },
+    // Croatia
+    252:    { name: 'HNL',              country: 'Croatie' },
+    // Bulgaria
+    9096:   { name: 'Segunda Liga',      country: 'Bulgarie' },
+    899885: { name: 'Parva Liga',        country: 'Bulgarie' },
+    // Romania
+    923553: { name: 'Liga 1',            country: 'Roumanie' },
+    923521: { name: 'Liga 2',            country: 'Roumanie' },
+    923942: { name: 'Liga 3',            country: 'Roumanie' },
+    924028: { name: 'Liga 4',            country: 'Roumanie' },
+    924029: { name: 'Liga 4',            country: 'Roumanie' },
+    // Hungary
+    212:    { name: 'OTP Bank Liga',     country: 'Hongrie' },
+    // Slovakia
+    922965: { name: 'Fortuna Liga',      country: 'Slovaquie' },
+    922967: { name: 'Druhá liga',        country: 'Slovaquie' },
+    901093: { name: 'Tretia liga',       country: 'Slovaquie' },
+    // Czech Republic
+    253:    { name: '2. liga',           country: 'Tchéquie' },
+    // Slovenia
+    173:    { name: 'Prva liga',         country: 'Slovénie' },
+    // Montenegro
+    232:    { name: 'Prva CFL',          country: 'Monténégro' },
+    // Bosnia
+    900837: { name: 'Premier liga',      country: 'Bosnie' },
+    // North Macedonia
+    249:    { name: 'Prva fudbalska liga', country: 'Macédoine du Nord' },
+    // Albania
+    260:    { name: 'Superliga',         country: 'Albanie' },
+    // Kosovo
+    262:    { name: 'Superliga',         country: 'Kosovo' },
+    // Cyprus
+    924301: { name: 'First Division',    country: 'Chypre' },
+    924302: { name: 'Second Division',   country: 'Chypre' },
+    918603: { name: 'Third Division',    country: 'Chypre' },
+    918604: { name: 'Fourth Division',   country: 'Chypre' },
+    // Greece
+    920541: { name: 'Super League 2',    country: 'Grèce' },
+    920542: { name: 'Gamma Ethniki',     country: 'Grèce' },
+    // Armenia
+    118:    { name: 'Armenian Premier League', country: 'Arménie' },
+    // Azerbaijan / Costa Rica (both used ID 914695 in different contexts — Costa Rica entry below takes precedence)
+    // 914695: { name: 'Azerbaijani Premier League', country: 'Azerbaïdjan' },
+    // Estonia
+    248:    { name: 'Meistriliiga',      country: 'Estonie' },
+    // Latvia
+    226:    { name: 'Virsliga',          country: 'Lettonie' },
+    // Lithuania
+    228:    { name: 'A Lyga',            country: 'Lituanie' },
+    // Moldova
+    915154: { name: 'Divizia Nationala', country: 'Moldavie' },
+    // Belarus
+    923169: { name: 'Vysshaya Liga',     country: 'Biélorussie' },
+    // Finland
+    923292: { name: 'Veikkausliiga',     country: 'Finlande' },
+    // Faroe Islands
+    250:    { name: 'Premier League',    country: 'Îles Féroé' },
+    // Iceland
+    923865: { name: 'Úrvalsdeild',       country: 'Islande' },
+    // Kazakhstan
+    922739: { name: 'Premier Liga',      country: 'Kazakhstan' },
+    // Wales
+    919717: { name: 'Cymru Premier',     country: 'Pays de Galles' },
+    919718: { name: 'Cymru North/South', country: 'Pays de Galles' },
+    // England lower
+    901315: { name: 'National League',   country: 'Angleterre' },
+    901317: { name: 'National League North', country: 'Angleterre' },
+    901319: { name: 'National League South', country: 'Angleterre' },
+    901529: { name: 'Southern League',   country: 'Angleterre' },
+    901530: { name: 'Southern League Central', country: 'Angleterre' },
+    901535: { name: 'Northern Premier League', country: 'Angleterre' },
+    901537: { name: 'Isthmian League',   country: 'Angleterre' },
+    // Americas
+    913550: { name: 'MLS',              country: 'États-Unis' },
+    916051: { name: 'Liga MX',          country: 'Mexique' },
+    916290: { name: 'Liga de Expansión MX', country: 'Mexique' },
+    916500: { name: 'Liga MX Femenil',  country: 'Mexique' },
+    905256: { name: 'Liga Profesional', country: 'Argentine' },
+    916553: { name: 'Primera Nacional', country: 'Argentine' },
+    916561: { name: 'Primera B Metro.', country: 'Argentine' },
+    923718: { name: 'Torneo Federal A', country: 'Argentine' },
+    923719: { name: 'Torneo Federal A', country: 'Argentine' },
+    923720: { name: 'Torneo Federal A', country: 'Argentine' },
+    920319: { name: 'Primera División', country: 'Uruguay' },
+    919710: { name: 'Liga 1',           country: 'Pérou' },
+    917521: { name: 'Liga Betplay',     country: 'Colombie' },
+    920002: { name: 'Primera B',        country: 'Colombie' },
+    9305:   { name: 'Superliga',        country: 'Argentine' },
+    9126:   { name: 'Primera División Gr.', country: 'Chili' },
+    // Costa Rica / Honduras / Panama
+    914695: { name: 'Primera División', country: 'Costa Rica' },
+    918407: { name: 'Liga Nacional',    country: 'Honduras' },
+    918463: { name: 'LPF',             country: 'Panama' },
+    // Asia / Oceania
+    8984:   { name: 'Thai League 1',    country: 'Thaïlande' },
+    9498:   { name: 'Thai League 2',    country: 'Thaïlande' },
+    919356: { name: 'K League 1',       country: 'Corée du Sud' },
+    920066: { name: 'K League 2',       country: 'Corée du Sud' },
+    922584: { name: 'K3 League',        country: 'Corée du Sud' },
+    918259: { name: 'J1 League',        country: 'Japon' },
+    918271: { name: 'J2 League',        country: 'Japon' },
+    918269: { name: 'J3 League',        country: 'Japon' },
+    918273: { name: 'J3 League South',  country: 'Japon' },
+    920186: { name: 'ISL',             country: 'Inde' },
+    9495:   { name: 'A-League',         country: 'Australie' },
+    901954: { name: 'A-League',         country: 'Australie' },
+    9943:   { name: 'Arabian Gulf League', country: 'Émirats Arabes Unis' },
+    902649: { name: 'Premier League',   country: 'Koweït' },
+    905798: { name: 'Iraqi Premier League', country: 'Irak' },
+    921190: { name: 'CAF Champions League', country: 'Afrique' },
+    902634: { name: 'DStv Premiership', country: 'Afrique du Sud' },
+    9066:   { name: 'NBC Premier League', country: 'Tanzanie' },
+    920228: { name: 'NWSL',             country: 'États-Unis' },
+    923536: { name: 'AFC Women\'s Olympic Qual.', country: 'Asie' },
+    1000000881: { name: 'Qualification CAN', country: 'Afrique' },
+    923880: { name: 'Egyptian Premier League', country: 'Égypte' },
+    920266: { name: 'Super League',     country: 'Chine' },
+    920267: { name: 'China League One', country: 'Chine' },
+  };
 
   /** Fallback: derive a proper display name+country from the inferred league code */
   private static readonly LEAGUE_CODE_TO_INFO: Record<string, { name: string; country: string }> = {
@@ -356,21 +578,8 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    */
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
-      // 1. Ensure league map is loaded for name resolution
-      if (this.leagueMap.size === 0) {
-        console.log('[MatchService] Loading league map...');
-        const leaguesData = await cachedFetch<any>('/football-get-all-leagues', {}, 2592000);
-        if (leaguesData?.status === 'success' && Array.isArray(leaguesData.response?.leagues)) {
-          leaguesData.response.leagues.forEach((l: any) => {
-            this.leagueMap.set(Number(l.id), { name: l.name, country: l.ccode ?? l.country ?? '' });
-          });
-          console.log(`[MatchService] Loaded ${this.leagueMap.size} leagues.`);
-        } else {
-          console.warn('[MatchService] League map failed to load. Raw response:', JSON.stringify(leaguesData).substring(0, 300));
-        }
-      }
-
-      // 2. Fetch matches (format YYYYMMDD)
+      // 1. Fetch matches (format YYYYMMDD)
+      // (League names resolved via static LEAGUE_ID_TO_INFO — the /football-get-all-leagues endpoint is unavailable on free plan)
       const apiDate = date.replace(/-/g, '');
       const data = await cachedFetch<any>('/football-get-matches-by-date', { date: apiDate }, 86400);
 
@@ -382,15 +591,16 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       console.log(`[MatchService] API returned ${data.response.matches.length} matches for ${date}`);
 
       const rawMatches = data.response.matches.map((f: any) => {
-        // Try leagueMap first, then API field variants, then infer from code
-        let leagueInfo = this.leagueMap.get(Number(f.leagueId));
-        if (!leagueInfo) {
-          const rawName: string = f.leagueName ?? f.league_name ?? f.league ?? '';
-          const code = rawName ? this.inferLeagueCode(rawName) : 'TOP';
-          leagueInfo = (code !== 'TOP' && MatchService.LEAGUE_CODE_TO_INFO[code])
-            ? MatchService.LEAGUE_CODE_TO_INFO[code]
-            : { name: rawName || 'Unknown League', country: '' };
-        }
+        // Resolve league info: static map by leagueId, then API field variants, then unknown
+        const leagueInfo: { name: string; country: string } =
+          MatchService.LEAGUE_ID_TO_INFO[Number(f.leagueId)]
+          ?? (() => {
+            const rawName: string = f.leagueName ?? f.league_name ?? f.league ?? '';
+            const code = rawName ? this.inferLeagueCode(rawName) : 'TOP';
+            return (code !== 'TOP' && MatchService.LEAGUE_CODE_TO_INFO[code])
+              ? MatchService.LEAGUE_CODE_TO_INFO[code]
+              : { name: rawName || `Unknown (id=${f.leagueId})`, country: '' };
+          })();
 
         // Parse time: "19.03.2026 21:00" -> "21:00"
         let matchTime = '00:00';
