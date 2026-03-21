@@ -398,13 +398,13 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     900529: { name: 'Super League',      country: 'Suisse' },
     900530: { name: 'Challenge League',  country: 'Suisse' },
     // Austria
-    923518: { name: 'Bundesliga',        country: 'Autriche' },
-    900626: { name: '2. Liga',           country: 'Autriche' },
+    923518: { name: 'Bundesliga Autrichienne', country: 'Autriche' },
+    900626: { name: '2. Liga Autrichienne',    country: 'Autriche' },
     // Russia
-    63:    { name: 'Premier League',     country: 'Russie' },
-    901329: { name: 'First League',      country: 'Russie' },
+    63:    { name: 'Premier League Russe', country: 'Russie' },
+    901329: { name: 'First League Russe', country: 'Russie' },
     // Ukraine
-    900627: { name: 'Premier League',    country: 'Ukraine' },
+    900627: { name: 'Premier League Ukrainienne', country: 'Ukraine' },
     // Turkey
     165:    { name: 'TFF 1. Lig',        country: 'Turquie' },
     // Norway
@@ -485,7 +485,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     // Finland
     923292: { name: 'Veikkausliiga',     country: 'Finlande' },
     // Faroe Islands
-    250:    { name: 'Premier League',    country: 'Îles Féroé' },
+    250:    { name: 'Premier League Féroïenne', country: 'Îles Féroé' },
     // Iceland
     923865: { name: 'Úrvalsdeild',       country: 'Islande' },
     // Kazakhstan
@@ -536,7 +536,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     9495:   { name: 'A-League',         country: 'Australie' },
     901954: { name: 'A-League',         country: 'Australie' },
     9943:   { name: 'Arabian Gulf League', country: 'Émirats Arabes Unis' },
-    902649: { name: 'Premier League',   country: 'Koweït' },
+    902649: { name: 'Premier League Koweïtienne', country: 'Koweït' },
     905798: { name: 'Iraqi Premier League', country: 'Irak' },
     921190: { name: 'CAF Champions League', country: 'Afrique' },
     902634: { name: 'DStv Premiership', country: 'Afrique du Sud' },
@@ -547,6 +547,37 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     923880: { name: 'Egyptian Premier League', country: 'Égypte' },
     920266: { name: 'Super League',     country: 'Chine' },
     920267: { name: 'China League One', country: 'Chine' },
+  };
+
+  /**
+   * Maps leagueId → exact league code.
+   * MUST be used instead of inferLeagueCode() to avoid false matches
+   * (e.g. Russian "Premier League" → 'PL', Austrian "Bundesliga" → 'BL').
+   */
+  private static readonly LEAGUE_ID_TO_CODE: Record<number, string> = {
+    // ── Top 5 European leagues ──────────────────────────────────────────────
+    47:  'PL',   // English Premier League
+    53:  'FL',   // Ligue 1
+    54:  'BL',   // Bundesliga
+    55:  'SA',   // Serie A
+    87:  'LA',   // La Liga
+    // ── European 2nd tiers ──────────────────────────────────────────────────
+    900638: 'ENG2', // Championship
+    900639: 'ENG3', // League One
+    900640: 'ENG4', // League Two
+    110:    'FRA2', // Ligue 2
+    146:    'GER2', // 2. Bundesliga
+    208:    'GER3', // 3. Liga
+    902171: 'ITA2', // Serie B
+    901075: 'ESP2', // La Liga 2
+    // ── UEFA ────────────────────────────────────────────────────────────────
+    42:  'CL',   // UEFA Champions League
+    73:  'EL',   // UEFA Europa League
+    480: 'ECL',  // UEFA Conference League
+    // ── Americas ────────────────────────────────────────────────────────────
+    913550: 'US1',  // MLS
+    916051: 'MX1',  // Liga MX
+    // All other leagues → 'TOP' (handled by fallback)
   };
 
   /** Fallback: derive a proper display name+country from the inferred league code */
@@ -657,15 +688,12 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
           odds = geminiOdds[geminiIdx++] ?? this.generateRealisticOdds('football');
         }
 
-        const code = this.inferLeagueCode(m.leagueInfo.name);
-        // If leagueInfo has a generic/unknown name but we inferred a proper code, use the canonical name
+        // Resolve code by ID first (avoids false matches like Russian "Premier League" → 'PL')
+        const code = MatchService.LEAGUE_ID_TO_CODE[Number(m.raw.leagueId)]
+          ?? this.inferLeagueCode(m.leagueInfo.name);
         const knownInfo = code !== 'TOP' ? MatchService.LEAGUE_CODE_TO_INFO[code] : null;
-        const finalLeague = (m.leagueInfo.name === 'Unknown League' && knownInfo)
-          ? knownInfo.name
-          : m.leagueInfo.name;
-        const finalCountry = ((!m.leagueInfo.country || m.leagueInfo.country === '') && knownInfo)
-          ? knownInfo.country
-          : m.leagueInfo.country;
+        const finalLeague = m.leagueInfo.name;
+        const finalCountry = m.leagueInfo.country || (knownInfo?.country ?? '');
 
         return {
           id: `apif-${m.raw.id}`,
