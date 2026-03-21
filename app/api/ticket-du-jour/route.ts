@@ -136,19 +136,29 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type') || 'classic';
+    const force = searchParams.get('force') === 'true';
     const adminSupabase = createAdminClient();
     const today = new Date().toISOString().split('T')[0];
 
     // ── 1. Return cached daily ticket if exists ──────────────────────────────
-    const { data: existing } = await adminSupabase
-      .from('daily_ticket')
-      .select('*')
-      .eq('date', today)
-      .eq('type', type)
-      .single();
+    if (!force) {
+      const { data: existing } = await adminSupabase
+        .from('daily_ticket')
+        .select('*')
+        .eq('date', today)
+        .eq('type', type)
+        .single();
 
-    if (existing) {
-      return NextResponse.json({ ticket: existing, fromCache: true });
+      if (existing) {
+        return NextResponse.json({ ticket: existing, fromCache: true });
+      }
+    } else {
+      // Delete existing ticket to allow regeneration
+      await adminSupabase
+        .from('daily_ticket')
+        .delete()
+        .eq('date', today)
+        .eq('type', type);
     }
 
     // ── 2b. OPTIMUS: logique dédiée — combo 2-4 matchs ciblant cote ~5.00 ───
