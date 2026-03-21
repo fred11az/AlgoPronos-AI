@@ -55,8 +55,7 @@ export async function GET(request: Request) {
     const { error } = await adminSb
       .from('matches_cache')
       .delete()
-      .eq('date', date)
-      .eq('sport', 'football');
+      .eq('date', date);
     purgeResult = error ? `error: ${error.message}` : `matches_cache for ${date} deleted`;
   }
 
