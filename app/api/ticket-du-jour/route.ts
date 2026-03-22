@@ -45,7 +45,7 @@ const MIN_PICK_IMPLIED_PCT = 62;
 function pickForMatch(
   match: MatchInput,
   stats: MatchStats | undefined,
-): { type: string; value: string; odds: number; impliedPct: number; reasoning: string | null } {
+): { type: string; value: string; odds: number; impliedPct: number; modelPct: number | null; valueEdge: number | null; reasoning: string | null } {
   const { home: ho, draw: dr, away: aw } = stats?.realOdds ?? match.odds;
   const dc1X = computeDCOdds(ho, dr);
   const dcX2 = computeDCOdds(dr, aw);
@@ -94,7 +94,9 @@ function pickForMatch(
       value: '1',
       odds: ho || 1.85,
       impliedPct: ho ? Math.round((1/ho)*100) : 54,
-      reasoning: 'Fallback selection due to empty analysis pool'
+      modelPct: stats?.homePct ?? null,
+      valueEdge: null,
+      reasoning: 'Fallback selection due to empty analysis pool',
     };
   }
 
@@ -122,6 +124,8 @@ function pickForMatch(
     value: best.value,
     odds: best.odds || 1.85,
     impliedPct: best.impliedPct || 54,
+    modelPct: best.modelPct ?? null,
+    valueEdge: best.valueEdge ?? null,
     reasoning: reasoningParts.length > 0 ? reasoningParts.join(' | ') : null,
   };
 }
@@ -384,9 +388,12 @@ export async function GET(req: Request) {
 
     const totalOddsRaw = picks.reduce((acc, p) => acc * (p.selection.odds || 1), 1);
     const totalOdds = isNaN(totalOddsRaw) ? 1.00 : Math.round(totalOddsRaw * 100) / 100;
-    // Confiance = moyenne des probabilités implicites par pick (affichage clair, jamais < 55%)
+    // Confiance = moyenne des probabilités modèle (quand dispo) ou probabilités implicites
     const confidencePct = Math.round(
-      picks.reduce((acc, p) => acc + p.selection.impliedPct, 0) / picks.length
+      picks.reduce((acc, p) => {
+        const pct = p.selection.modelPct ?? p.selection.impliedPct;
+        return acc + pct;
+      }, 0) / picks.length
     );
 
     // ── 5. Groq analysis (optional) ──────────────────────────────────────────

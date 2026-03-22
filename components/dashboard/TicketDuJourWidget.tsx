@@ -22,7 +22,7 @@ interface MatchPick {
   awayTeam: string;
   league: string;
   kickoffTime?: string;
-  selection: { type: string; value: string; odds: number; impliedPct: number };
+  selection: { type: string; value: string; odds: number; impliedPct: number; modelPct?: number | null; valueEdge?: number | null };
 }
 
 interface DailyTicket {
@@ -122,30 +122,46 @@ export default function TicketDuJourWidget() {
                 <Target className="h-3.5 w-3.5 text-secondary" />
                 <span className={`font-bold ${confidenceColor}`}>{ticket.confidence_pct}%</span>
               </div>
-              <p className="text-xs text-text-muted">Confiance IA</p>
+              <p className="text-xs text-text-muted">Fiabilité IA</p>
             </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3">
         {/* Picks */}
-        {ticket.matches.map((m, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between p-3 rounded-xl bg-surface-light/60 text-sm"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-white truncate">{m.homeTeam} vs {m.awayTeam}</p>
-              <p className="text-xs text-text-muted">{m.league}</p>
-            </div>
-            <div className="flex items-center gap-3 shrink-0 ml-3">
-              <div className="text-right">
-                <p className="text-xs text-text-muted">{m.selection.type}</p>
-                <p className="font-bold text-white">{m.selection.value}</p>
+        {ticket.matches.map((m, i) => {
+          const modelPct = m.selection.modelPct;
+          const valueEdge = m.selection.valueEdge;
+          return (
+            <div
+              key={i}
+              className="flex items-center justify-between p-3 rounded-xl bg-surface-light/60 text-sm"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-white truncate">{m.homeTeam} vs {m.awayTeam}</p>
+                <p className="text-xs text-text-muted">{m.league}</p>
+                {modelPct !== null && modelPct !== undefined && (
+                  <p className="text-xs text-primary mt-0.5">
+                    Modèle: {Math.round(modelPct)}%
+                    {valueEdge !== null && valueEdge !== undefined && valueEdge > 0 && (
+                      <span className="text-green-400 ml-1">(+{valueEdge}% edge)</span>
+                    )}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-3">
+                <div className="text-right">
+                  <p className="text-xs text-text-muted">{m.selection.type}</p>
+                  <p className="font-bold text-white">{m.selection.value}</p>
+                </div>
+                <div className="px-2 py-1 rounded bg-accent/10 border border-accent/20 min-w-[46px] text-center">
+                  <p className="text-xs text-text-muted">Cote</p>
+                  <p className="font-bold text-accent text-sm">{(m.selection.odds || 0).toFixed(2)}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* AI Summary */}
         {ticket.analysis?.summary && (
@@ -160,9 +176,9 @@ export default function TicketDuJourWidget() {
         {/* Confidence bar */}
         <div>
           <div className="flex justify-between text-xs text-text-muted mb-1">
-            <span>Confiance IA</span>
+            <span>Fiabilité du modèle</span>
             <span className={confidenceColor}>
-              {ticket.confidence_pct >= 55 ? 'Élevée' : ticket.confidence_pct >= 35 ? 'Moyenne' : 'Faible'}
+              {ticket.confidence_pct >= 60 ? 'Élevée' : ticket.confidence_pct >= 45 ? 'Moyenne' : 'Modérée'}
             </span>
           </div>
           <div className="w-full bg-surface-light rounded-full h-1.5">

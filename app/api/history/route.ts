@@ -12,10 +12,11 @@ export async function GET() {
     // ── Stats all-time ───────────────────────────────────────────────────────
     const { data: allForStats, count: totalCount } = await adminSupabase
       .from('daily_ticket')
-      .select('status, total_odds', { count: 'exact' })
-      .lte('date', today);
+      .select('status, total_odds, date', { count: 'exact' })
+      .lte('date', today)
+      .order('date', { ascending: false });
 
-    type StatRow = { status: string; total_odds: number | string | null };
+    type StatRow = { status: string; total_odds: number | string | null; date: string };
     const rows = (allForStats || []) as StatRow[];
 
     const won    = rows.filter(t => t.status === 'won');
@@ -40,15 +41,26 @@ export async function GET() {
     const wonOdds = won.map(t => Number(t.total_odds)).filter(o => o > 0);
     const bestWinOdds = wonOdds.length > 0 ? Math.max(...wonOdds) : null;
 
+    // Current winning streak (consecutive won tickets from most recent resolved, DESC by date)
+    const resolvedRows = rows
+      .filter(t => t.status === 'won' || t.status === 'lost')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    let currentStreak = 0;
+    for (const t of resolvedRows) {
+      if (t.status === 'won') currentStreak++;
+      else break;
+    }
+
     const stats = {
-      total_won:      won.length,
-      total_lost:     lost.length,
-      total_void:     voided.length,
-      total_resolved: resolved,
-      win_rate_pct:   winRate,
-      avg_odds:       avgOdds,
-      best_win_odds:  bestWinOdds,
-      total_tickets:  totalCount ?? 0,
+      total_won:       won.length,
+      total_lost:      lost.length,
+      total_void:      voided.length,
+      total_resolved:  resolved,
+      win_rate_pct:    winRate,
+      avg_odds:        avgOdds,
+      best_win_odds:   bestWinOdds,
+      total_tickets:   totalCount ?? 0,
+      current_streak:  currentStreak,
     };
 
     // ── Tickets pour l'affichage (60 derniers, données complètes) ───────────
