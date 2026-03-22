@@ -243,7 +243,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         time: r.time,
         status: 'scheduled',
         sport: sport as any,
-        odds: (r.odds && r.odds.home > 0) ? r.odds : this.generateRealisticOdds(sport),
+        odds: (r.odds && r.odds.home > 0) ? r.odds : undefined,
       }));
     } catch (err) {
       console.error('[MatchService] OpenClaw segment failed:', err);
@@ -306,25 +306,12 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     return this.filterByLeague(matches, leagueCodes);
   }
 
-  /** Filter matches by league codes, falling back to 'TOP' (unclassified) if no match found */
+  /** Filter matches by league codes */
   private filterByLeague(matches: RealMatch[], leagueCodes?: string[]): RealMatch[] {
     if (!leagueCodes || leagueCodes.length === 0) return matches;
-
-    // Re-infer leagueCode from league name for stale cache entries tagged as 'TOP'
-    const normalized = matches.map((m) => {
-      if (m.leagueCode !== 'TOP') return m;
-      const reInferred = this.inferLeagueCode(m.league);
-      if (reInferred === 'TOP') return m;
-      const info = MatchService.LEAGUE_CODE_TO_INFO[reInferred];
-      return {
-        ...m,
-        leagueCode: reInferred,
-        league: m.league === 'Unknown League' && info ? info.name : m.league,
-        country: (!m.country && info) ? info.country : m.country,
-      };
-    });
-
-    return normalized.filter((m) => leagueCodes.includes(m.leagueCode));
+    // Filtre strict sur leagueCode — pas de ré-inférence pour éviter les faux positifs
+    // (ex : Bundesliga Autrichienne taggée 'TOP' ne doit PAS passer le filtre BL)
+    return matches.filter((m) => leagueCodes.includes(m.leagueCode));
   }
 
   /**
@@ -333,85 +320,66 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    * IDs verified from live API fixtures (2026-03-21).
    */
   private static readonly LEAGUE_ID_TO_INFO: Record<number, { name: string; country: string }> = {
-    // Top 5 leagues
-    47:  { name: 'Premier League',        country: 'Angleterre' },
-    53:  { name: 'Ligue 1',              country: 'France' },
-    54:  { name: 'Bundesliga',            country: 'Allemagne' },
-    55:  { name: 'Serie A',              country: 'Italie' },
-    87:  { name: 'La Liga',              country: 'Espagne' },
+    // ── Top 5 leagues (API-Football v3 IDs) ──────────────────────────────────
+    39:  { name: 'Premier League',        country: 'Angleterre' },
+    61:  { name: 'Ligue 1',              country: 'France' },
+    78:  { name: 'Bundesliga',            country: 'Allemagne' },
+    135: { name: 'Serie A',              country: 'Italie' },
+    140: { name: 'La Liga',              country: 'Espagne' },
+    // UEFA
+    2:   { name: 'UEFA Champions League', country: 'Europe' },
+    3:   { name: 'UEFA Europa League',    country: 'Europe' },
+    848: { name: 'UEFA Conference League', country: 'Europe' },
     // England
-    900638: { name: 'Championship',      country: 'Angleterre' },
-    900639: { name: 'League One',        country: 'Angleterre' },
-    900640: { name: 'League Two',        country: 'Angleterre' },
+    40:  { name: 'Championship',          country: 'Angleterre' },
+    41:  { name: 'League One',            country: 'Angleterre' },
+    42:  { name: 'League Two',            country: 'Angleterre' },
     9084:   { name: 'Premier League U21',country: 'Angleterre' },
     10068:  { name: 'Premier League U18',country: 'Angleterre' },
     9227:   { name: "Women's Super League", country: 'Angleterre' },
-    // France
-    110:  { name: 'Ligue 2',             country: 'France' },
-    8970: { name: 'National',            country: 'France' },
-    901477: { name: 'Division 1 Féminine', country: 'France' },
-    // Germany
-    146:    { name: '2. Bundesliga',     country: 'Allemagne' },
-    208:    { name: '3. Liga',           country: 'Allemagne' },
-    888:    { name: 'DFB-Pokal',         country: 'Allemagne' },
-    9676:   { name: 'Frauen-Bundesliga', country: 'Allemagne' },
-    899888: { name: 'Regionalliga Bayern', country: 'Allemagne' },
-    899890: { name: 'Regionalliga Nord', country: 'Allemagne' },
-    901198: { name: 'Regionalliga Nord 2', country: 'Allemagne' },
-    901354: { name: 'Regionalliga Südwest', country: 'Allemagne' },
-    901355: { name: 'Regionalliga West', country: 'Allemagne' },
-    // Italy
-    902171: { name: 'Serie B',          country: 'Italie' },
-    901979: { name: 'Serie C',          country: 'Italie' },
-    901968: { name: 'Serie C Groupe B', country: 'Italie' },
-    901990: { name: 'Serie C Play-off', country: 'Italie' },
-    901923: { name: 'Serie A Femminile', country: 'Italie' },
-    // Spain
-    901075: { name: 'La Liga 2',        country: 'Espagne' },
-    901481: { name: 'Segunda Federación', country: 'Espagne' },
-    901480: { name: 'Primera Federación', country: 'Espagne' },
-    901483: { name: 'Tercera Federación Gr.8', country: 'Espagne' },
-    901484: { name: 'Tercera Federación Gr.15', country: 'Espagne' },
-    901485: { name: 'Tercera Federación Gr.11', country: 'Espagne' },
-    901486: { name: 'Tercera Federación Gr.10', country: 'Espagne' },
-    901487: { name: 'Tercera Federación Gr.7', country: 'Espagne' },
-    902647: { name: 'Primera Federación Féminine', country: 'Espagne' },
-    // Portugal
-    61:   { name: 'Primeira Liga',       country: 'Portugal' },
-    185:  { name: 'Liga Portugal 2',     country: 'Portugal' },
-    920295: { name: 'Liga 3',            country: 'Portugal' },
-    920297: { name: 'Campeonato de Portugal Gr.B', country: 'Portugal' },
-    920298: { name: 'Campeonato de Portugal Gr.C', country: 'Portugal' },
-    905808: { name: 'Liga BPI Féminine', country: 'Portugal' },
-    // Netherlands
-    900368: { name: 'Eredivisie',        country: 'Pays-Bas' },
-    111:    { name: 'Eerste Divisie',    country: 'Pays-Bas' },
-    9195:   { name: 'Tweede Divisie',   country: 'Pays-Bas' },
-    10289:  { name: 'Vrouwen Eredivisie', country: 'Pays-Bas' },
-    // Scotland
-    900474: { name: 'Scottish Premiership', country: 'Écosse' },
-    900476: { name: 'Scottish Championship', country: 'Écosse' },
-    900477: { name: 'Scottish League One', country: 'Écosse' },
-    900478: { name: 'Scottish League Two', country: 'Écosse' },
-    9545:   { name: 'Scottish Lowland League', country: 'Écosse' },
-    // Belgium
-    264:    { name: 'Pro League',        country: 'Belgique' },
+    // France (v3 IDs)
+    62:   { name: 'Ligue 2',             country: 'France' },
+    63:   { name: 'National',            country: 'France' },
+    // Germany (v3 IDs)
+    79:   { name: '2. Bundesliga',       country: 'Allemagne' },
+    80:   { name: '3. Liga',             country: 'Allemagne' },
+    81:   { name: 'DFB-Pokal',           country: 'Allemagne' },
+    // Italy (v3 IDs)
+    136:  { name: 'Serie B',             country: 'Italie' },
+    137:  { name: 'Serie C',             country: 'Italie' },
+    // Spain (v3 IDs)
+    141:  { name: 'La Liga 2',           country: 'Espagne' },
+    142:  { name: 'Primera Federación',  country: 'Espagne' },
+    // Portugal (v3 IDs)
+    94:   { name: 'Primeira Liga',       country: 'Portugal' },
+    95:   { name: 'Liga Portugal 2',     country: 'Portugal' },
+    // Netherlands (v3 IDs)
+    88:   { name: 'Eredivisie',          country: 'Pays-Bas' },
+    89:   { name: 'Eerste Divisie',      country: 'Pays-Bas' },
+    // Scotland (v3 IDs)
+    207:  { name: 'Scottish Premiership', country: 'Écosse' },
+    208:  { name: 'Scottish Championship', country: 'Écosse' },
+    209:  { name: 'Scottish League One',  country: 'Écosse' },
+    210:  { name: 'Scottish League Two',  country: 'Écosse' },
+    // Belgium (v3 IDs)
+    144:  { name: 'Pro League',           country: 'Belgique' },
     // Switzerland
     900529: { name: 'Super League',      country: 'Suisse' },
     900530: { name: 'Challenge League',  country: 'Suisse' },
-    // Austria
-    923518: { name: 'Bundesliga Autrichienne', country: 'Autriche' },
-    900626: { name: '2. Liga Autrichienne',    country: 'Autriche' },
-    // Russia
-    63:    { name: 'Premier League Russe', country: 'Russie' },
-    901329: { name: 'First League Russe', country: 'Russie' },
-    // Ukraine
-    900627: { name: 'Premier League Ukrainienne', country: 'Ukraine' },
-    // Turkey
-    165:    { name: 'TFF 1. Lig',        country: 'Turquie' },
+    // Austria (v3 IDs)
+    218: { name: 'Bundesliga Autrichienne', country: 'Autriche' },
+    219: { name: '2. Liga Autrichienne',    country: 'Autriche' },
+    // Russia (v3 IDs)
+    235: { name: 'Premier League Russe',    country: 'Russie' },
+    236: { name: 'First League Russe',      country: 'Russie' },
+    // Ukraine (v3 IDs)
+    333: { name: 'Premier League Ukrainienne', country: 'Ukraine' },
+    // Turkey (v3 IDs)
+    197: { name: 'Super Lig',               country: 'Turquie' },
+    198: { name: 'TFF 1. Lig',              country: 'Turquie' },
     // Norway
     59:    { name: 'Eliteserien',        country: 'Norvège' },
-    333:   { name: 'Toppserien (W)',      country: 'Norvège' },
+    // 333 is reserved for Ukrainian Premier League — Toppserien (W) has no confirmed v3 ID yet
     916229:{ name: 'Toppserien Féminin', country: 'Norvège' },
     921414:{ name: 'Toppserien 1 (W)',   country: 'Norvège' },
     // Denmark
@@ -420,7 +388,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     900634: { name: '3. Division',       country: 'Danemark' },
     916899: { name: 'Kvindeligaen (W)',  country: 'Danemark' },
     // Poland
-    197:    { name: '1. Liga',           country: 'Pologne' },
+    // 197 is reserved for Turkey Super Lig — 1. Liga (Poland) has no confirmed v3 ID yet
     899985: { name: 'Ekstraklasa',       country: 'Pologne' },
     8935:   { name: '2. Liga',           country: 'Pologne' },
     // Ireland
@@ -449,7 +417,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     922967: { name: 'Druhá liga',        country: 'Slovaquie' },
     901093: { name: 'Tretia liga',       country: 'Slovaquie' },
     // Czech Republic
-    253:    { name: '2. liga',           country: 'Tchéquie' },
+    346:    { name: '2. liga',           country: 'Tchéquie' },  // Czech 2. liga (API-Football ID 346)
     // Slovenia
     173:    { name: 'Prva liga',         country: 'Slovénie' },
     // Montenegro
@@ -461,7 +429,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     // Albania
     260:    { name: 'Superliga',         country: 'Albanie' },
     // Kosovo
-    262:    { name: 'Superliga',         country: 'Kosovo' },
+    651:    { name: 'Superliga',         country: 'Kosovo' },  // Kosovo Superliga (API-Football ID 651)
     // Cyprus
     924301: { name: 'First Division',    country: 'Chypre' },
     924302: { name: 'Second Division',   country: 'Chypre' },
@@ -503,23 +471,18 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     901530: { name: 'Southern League Central', country: 'Angleterre' },
     901535: { name: 'Northern Premier League', country: 'Angleterre' },
     901537: { name: 'Isthmian League',   country: 'Angleterre' },
-    // Americas
-    913550: { name: 'MLS',              country: 'États-Unis' },
-    916051: { name: 'Liga MX',          country: 'Mexique' },
-    916290: { name: 'Liga de Expansión MX', country: 'Mexique' },
-    916500: { name: 'Liga MX Femenil',  country: 'Mexique' },
-    905256: { name: 'Liga Profesional', country: 'Argentine' },
-    916553: { name: 'Primera Nacional', country: 'Argentine' },
-    916561: { name: 'Primera B Metro.', country: 'Argentine' },
-    923718: { name: 'Torneo Federal A', country: 'Argentine' },
-    923719: { name: 'Torneo Federal A', country: 'Argentine' },
-    923720: { name: 'Torneo Federal A', country: 'Argentine' },
-    920319: { name: 'Primera División', country: 'Uruguay' },
-    919710: { name: 'Liga 1',           country: 'Pérou' },
-    917521: { name: 'Liga Betplay',     country: 'Colombie' },
-    920002: { name: 'Primera B',        country: 'Colombie' },
-    9305:   { name: 'Superliga',        country: 'Argentine' },
-    9126:   { name: 'Primera División Gr.', country: 'Chili' },
+    // Americas (v3 IDs)
+    253: { name: 'MLS',                  country: 'États-Unis' },
+    262: { name: 'Liga MX',              country: 'Mexique' },
+    263: { name: 'Liga de Expansión MX', country: 'Mexique' },
+    71:  { name: 'Brasileirão Serie A',  country: 'Brésil' },
+    72:  { name: 'Brasileirão Serie B',  country: 'Brésil' },
+    128: { name: 'Liga Profesional',     country: 'Argentine' },
+    131: { name: 'Primera Nacional',     country: 'Argentine' },
+    268: { name: 'Primera División',     country: 'Uruguay' },
+    284: { name: 'Liga 1',               country: 'Pérou' },
+    239: { name: 'Liga Betplay',         country: 'Colombie' },
+    265: { name: 'Primera División',     country: 'Chili' },
     // Costa Rica / Honduras / Panama
     914695: { name: 'Primera División', country: 'Costa Rica' },
     918407: { name: 'Liga Nacional',    country: 'Honduras' },
@@ -557,43 +520,48 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    * (e.g. Russian "Premier League" → 'PL', Austrian "Bundesliga" → 'BL').
    */
   private static readonly LEAGUE_ID_TO_CODE: Record<number, string> = {
-    // ── Top 5 European leagues ──────────────────────────────────────────────
-    47:  'PL',   // English Premier League
-    53:  'FL',   // Ligue 1
-    54:  'BL',   // Bundesliga
-    55:  'SA',   // Serie A
-    87:  'LA',   // La Liga
+    // ── Top 5 European leagues (API-Football v3 IDs) ─────────────────────────
+    39:  'PL',   // Premier League (England)
+    61:  'FL',   // Ligue 1 (France)
+    78:  'BL',   // Bundesliga (Germany)
+    135: 'SA',   // Serie A (Italy)
+    140: 'LA',   // La Liga (Spain)
     // ── European 2nd tiers ──────────────────────────────────────────────────
-    900638: 'ENG2', // Championship
-    900639: 'ENG3', // League One
-    900640: 'ENG4', // League Two
-    110:    'FRA2', // Ligue 2
-    146:    'GER2', // 2. Bundesliga
-    208:    'GER3', // 3. Liga
-    902171: 'ITA2', // Serie B
-    901075: 'ESP2', // La Liga 2
+    40:  'ENG2', // Championship
+    41:  'ENG3', // League One
+    42:  'ENG4', // League Two
+    62:  'FRA2', // Ligue 2
+    79:  'GER2', // 2. Bundesliga
+    80:  'GER3', // 3. Liga
+    136: 'ITA2', // Serie B
+    141: 'ESP2', // La Liga 2
     // ── UEFA ────────────────────────────────────────────────────────────────
-    42:  'CL',   // UEFA Champions League
-    73:  'EL',   // UEFA Europa League
-    480: 'ECL',  // UEFA Conference League
-    // ── Americas ────────────────────────────────────────────────────────────
-    913550: 'US1',  // MLS
-    916051: 'MX1',  // Liga MX
-    // ── Explicit 'TOP' for leagues whose names would trigger false positives ─
-    // (e.g. "Premier League" named leagues outside England, "Bundesliga" outside Germany)
-    63:     'TOP',  // Russian Premier League
-    901329: 'TOP',  // Russian First League
-    900627: 'TOP',  // Ukrainian Premier League
-    923518: 'TOP',  // Austrian Bundesliga
-    900626: 'TOP',  // Austrian 2. Liga
-    250:    'TOP',  // Faroe Islands Premier League
-    902649: 'TOP',  // Kuwait Premier League
-    9084:   'TOP',  // EPL U21 (not a first-team competition)
-    10068:  'TOP',  // EPL U18
-    9227:   'TOP',  // Women's Super League (separate competition)
-    9676:   'TOP',  // German Frauen-Bundesliga
-    901923: 'TOP',  // Italian Serie A Femminile
-    // All other leagues → fallback to inferLeagueCode → 'TOP' for unknowns
+    2:   'CL',   // UEFA Champions League
+    3:   'EL',   // UEFA Europa League
+    848: 'ECL',  // UEFA Conference League
+    // ── Other top leagues ───────────────────────────────────────────────────
+    94:  'PT1',  // Primeira Liga (Portugal)
+    88:  'NL1',  // Eredivisie (Netherlands)
+    197: 'TR1',  // Super Lig (Turkey)
+    144: 'BE1',  // Jupiler Pro League (Belgium)
+    207: 'SC1',  // Scottish Premiership
+    71:  'BR1',  // Brasileirão Serie A
+    128: 'AR1',  // Argentine Primera División
+    253: 'US1',  // MLS
+    262: 'MX1',  // Liga MX
+    // ── Explicit 'TOP' for leagues whose names trigger false positives ───────
+    // (e.g. "Premier League" outside England, "Bundesliga" outside Germany)
+    235: 'TOP',  // Russian Premier League
+    333: 'TOP',  // Ukrainian Premier League
+    218: 'TOP',  // Austrian Bundesliga
+    219: 'TOP',  // Austrian 2. Liga
+    683: 'TOP',  // Hong Kong Premier League
+    702: 'TOP',  // Faroe Islands Premier League
+    291: 'TOP',  // Kuwait Premier League
+    // Youth / Women's — excluded from daily ticket
+    528: 'TOP',  // EPL U21
+    529: 'TOP',  // EPL U18
+    // All other leagues → inferLeagueCode with country guard (see fetchFootballFromAPI)
   };
 
   /** Fallback: derive a proper display name+country from the inferred league code */
@@ -672,36 +640,10 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       const oddsSource = oddsMap.size > 0 ? 'TheOddsAPI' : 'none';
       console.log(`[MatchService] Odds source: ${oddsSource} (${oddsMap.size} events with real odds)`);
 
-      // ── Step 2: Assign odds per match (real → Gemini fallback) ───────────
-      const matchedByReal: boolean[] = rawMatches.map((m: { homeTeam: string; awayTeam: string }) => {
-        return oddsMap.has(this.makeOddsKey(m.homeTeam, m.awayTeam)) ||
-          this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap) !== null;
-      });
-
-      // Gemini batch only for matches not covered by The Odds API
-      const needsGemini = rawMatches.filter((_: any, i: number) => !matchedByReal[i]);
-      let geminiOdds: Array<{ home: number; draw: number; away: number }> = [];
-      if (needsGemini.length > 0) {
-        console.log(`[MatchService] ${needsGemini.length} matches need Gemini odds estimation...`);
-        geminiOdds = await this.estimateOddsWithGemini(
-          needsGemini.map((m: { homeTeam: string; awayTeam: string; leagueInfo: { name: string } }) => ({
-            homeTeam: m.homeTeam,
-            awayTeam: m.awayTeam,
-            league: m.leagueInfo.name,
-          }))
-        );
-      }
-
-      let geminiIdx = 0;
-      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; leagueId: number; matchTime: string; homeTeam: string; awayTeam: string }, idx: number) => {
-        let odds: { home: number; draw?: number; away: number };
-
-        if (matchedByReal[idx]) {
-          const realOdds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap);
-          odds = realOdds ?? this.generateRealisticOdds('football');
-        } else {
-          odds = geminiOdds[geminiIdx++] ?? this.generateRealisticOdds('football');
-        }
+      // ── Step 2: Assign real odds from The Odds API — no estimation fallback ─
+      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; leagueId: number; matchTime: string; homeTeam: string; awayTeam: string }) => {
+        // Only real bookmaker odds — undefined if not covered by The Odds API
+        const odds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap) ?? undefined;
 
         // Resolve league code by ID first (avoids false matches like Russian "Premier League" → 'PL')
         const code = MatchService.LEAGUE_ID_TO_CODE[m.leagueId]
@@ -973,104 +915,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     }
   }
 
-  private generateRealisticOdds(sport: string = 'football'): { home: number; draw?: number; away: number } {
-    const homeBase = 1.4 + Math.random() * 2.2;
-    const drawBase = 2.8 + Math.random() * 1.5;
-    const awayBase = 2.0 + Math.random() * 3.0;
-
-    if (sport === 'tennis' || sport === 'basketball') {
-      return {
-        home: Math.round(homeBase * 100) / 100,
-        away: Math.round(awayBase * 100) / 100,
-      };
-    }
-
-    return {
-      home: Math.round(homeBase * 100) / 100,
-      draw: Math.round(drawBase * 100) / 100,
-      away: Math.round(awayBase * 100) / 100,
-    };
-  }
-
-  /**
-   * Use Gemini to estimate realistic 1X2 odds for a batch of matches.
-   * Gemini has training knowledge of team strengths — much better than pure random.
-   * Processes in batches of 40 to stay within token limits.
-   * Falls back to generateRealisticOdds() if Gemini is unavailable.
-   */
-  private async estimateOddsWithGemini(
-    matches: Array<{ homeTeam: string; awayTeam: string; league: string }>
-  ): Promise<Array<{ home: number; draw: number; away: number }>> {
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (!geminiKey || matches.length === 0) {
-      return matches.map(() => this.generateRealisticOdds('football') as { home: number; draw: number; away: number });
-    }
-
-    const BATCH_SIZE = 40;
-    const allOdds: Array<{ home: number; draw: number; away: number }> = [];
-
-    for (let i = 0; i < matches.length; i += BATCH_SIZE) {
-      const batch = matches.slice(i, i + BATCH_SIZE);
-      const batchOdds = await this.fetchOddsBatchFromGemini(batch, geminiKey);
-      allOdds.push(...batchOdds);
-    }
-
-    return allOdds;
-  }
-
-  private async fetchOddsBatchFromGemini(
-    batch: Array<{ homeTeam: string; awayTeam: string; league: string }>,
-    geminiKey: string
-  ): Promise<Array<{ home: number; draw: number; away: number }>> {
-    const fallback = batch.map(() => this.generateRealisticOdds('football') as { home: number; draw: number; away: number });
-
-    const compact = batch.map((m, idx) => `${idx}:${m.homeTeam}|${m.awayTeam}|${m.league}`).join('\n');
-
-    const prompt = `Tu es un expert bookmaker. Estime les cotes 1X2 réalistes pour ces matchs de football.
-Utilise ta connaissance des équipes, du championnat et de l'avantage domicile.
-Réponds UNIQUEMENT avec un tableau JSON de ${batch.length} objets dans le même ordre.
-Format: [{"home":1.85,"draw":3.20,"away":3.40}, ...]
-Règles: cotes entre 1.20 et 8.00, la somme des probabilités implicites doit être ~105-110%.
-
-Matchs (index:domicile|extérieur|championnat):
-${compact}`;
-
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: 1500 },
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        console.warn(`[MatchService] Gemini odds batch error: ${res.status}`);
-        return fallback;
-      }
-
-      const data = await res.json();
-      const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const jsonStr = text.match(/\[[\s\S]*\]/)?.[0];
-      if (!jsonStr) return fallback;
-
-      const parsed: Array<{ home: number; draw: number; away: number }> = JSON.parse(jsonStr);
-      if (!Array.isArray(parsed) || parsed.length !== batch.length) return fallback;
-
-      return parsed.map((o) => ({
-        home: Math.round(Math.max(1.10, Math.min(15.0, Number(o.home) || 1.85)) * 100) / 100,
-        draw: Math.round(Math.max(1.10, Math.min(15.0, Number(o.draw) || 3.20)) * 100) / 100,
-        away: Math.round(Math.max(1.10, Math.min(15.0, Number(o.away) || 3.40)) * 100) / 100,
-      }));
-    } catch (err) {
-      console.warn('[MatchService] Gemini odds batch failed, using fallback:', err);
-      return fallback;
-    }
-  }
 }
+
 
 export const matchService = new MatchService();

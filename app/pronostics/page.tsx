@@ -114,6 +114,9 @@ export default async function PronosticsPage({
   const isOptimised = user?.tier === 'optimised' || user?.tier === 'vip' || user?.role === 'admin';
   const isLocked = activeTicket?.access_tier === 'optimised_only' && !isOptimised;
 
+  // Check access for Montante (requires account)
+  const isMontanteLocked = activeTicket?.type === 'montante' && !user;
+
   // Fetch recent history (last 30 days excluding today)
   const { data: history } = await supabase
     .from('daily_ticket')
@@ -213,6 +216,24 @@ export default async function PronosticsPage({
 
               {/* Match list with Locking Logic */}
               <div className="relative">
+                {isMontanteLocked ? (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-md p-8 text-center">
+                    <div className="max-w-sm">
+                      <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-primary/30">
+                        <Lock className="h-8 w-8 text-primary" />
+                      </div>
+                      <h3 className="text-xl font-black text-white uppercase mb-2">Compte Requis</h3>
+                      <p className="text-text-muted text-sm mb-6 leading-relaxed">
+                        Le ticket <strong>Montante</strong> est réservé aux membres inscrits. L&apos;inscription est <strong>gratuite</strong>.
+                      </p>
+                      <Link href="/register">
+                        <Button variant="gradient" className="w-full h-12">
+                          Créer mon compte (Gratuit)
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ) : null}
                 {isLocked ? (
                   <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-md p-8 text-center">
                     <div className="max-w-sm">
@@ -232,7 +253,7 @@ export default async function PronosticsPage({
                   </div>
                 ) : null}
 
-                <div className={`px-1 py-1 ${isLocked ? 'grayscale opacity-20 pointer-events-none blur-sm' : ''}`}>
+                <div className={`px-1 py-1 ${isLocked || isMontanteLocked ? 'grayscale opacity-20 pointer-events-none blur-sm' : ''}`}>
                   <div className="bg-surface/30 rounded-[1.5rem] overflow-hidden border border-white/5">
                     {(activeTicket.matches as MatchPick[]).map((match, i) => (
                       <div key={i} className="px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">

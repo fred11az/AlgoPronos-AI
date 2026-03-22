@@ -317,7 +317,22 @@ export default async function DashboardPage() {
            <TicketDuJourWidget />
         </div>
         <div className="space-y-6">
-           <TicketMontanteWidget />
+           {isAnonymous ? (
+             <Card className="border-primary/20 bg-primary/5">
+               <CardContent className="p-8 text-center">
+                 <UserPlus className="h-10 w-10 text-primary mx-auto mb-4 opacity-60" />
+                 <h3 className="font-bold text-white mb-2">La Montante IA</h3>
+                 <p className="text-text-secondary text-sm mb-6">
+                   Créez un compte gratuit pour accéder au ticket montante du jour.
+                 </p>
+                 <Button variant="gradient" size="sm" asChild>
+                   <Link href="/register">Créer mon compte</Link>
+                 </Button>
+               </CardContent>
+             </Card>
+           ) : (
+             <TicketMontanteWidget />
+           )}
            <TicketOptimusWidget isVerified={isVerified} />
         </div>
       </div>
