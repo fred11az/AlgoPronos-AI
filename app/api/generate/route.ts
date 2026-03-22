@@ -215,12 +215,26 @@ interface PickCandidate {
   valueEdge: number | null;
 }
 
-// Odds min/max réels selon le niveau de risque — alignés avec les descriptions UI
+// Odds min/max selon le niveau de risque
+// IMPORTANT: balanced.minOdds DOIT être bas (1.20) pour inclure les favoris et doubles chances
 const RISK_ODDS_PROFILE = {
-  safe:     { minOdds: 1.10, maxOdds: 2.10, targetOdds: 1.55 },
-  balanced: { minOdds: 1.80, maxOdds: 4.00, targetOdds: 2.30 },
-  risky:    { minOdds: 3.00, maxOdds: 20.0, targetOdds: 5.00 },
+  safe:     { minOdds: 1.10, maxOdds: 2.10 },
+  balanced: { minOdds: 1.20, maxOdds: 5.00 },
+  risky:    { minOdds: 2.50, maxOdds: 20.0 },
 } as const;
+
+// Cote totale cible selon le niveau de risque et le nombre de matchs
+// → la cote cible PAR MATCH est totalTarget^(1/matchCount)
+const TOTAL_ODDS_TARGET = {
+  safe:     2.5,
+  balanced: 5.0,
+  risky:    20.0,
+};
+
+function computeTargetOddsPerPick(riskLevel: 'safe' | 'balanced' | 'risky', matchCount: number): number {
+  const total = TOTAL_ODDS_TARGET[riskLevel];
+  return Math.pow(total, 1 / Math.max(matchCount, 1));
+}
 
 function isValidOdds(odds: any) {
   return odds && Number(odds.home) > 0 && Number(odds.draw) > 0 && Number(odds.away) > 0;
@@ -242,8 +256,9 @@ function pickForMatch(
   riskLevel: 'safe' | 'balanced' | 'risky',
   stats: MatchStats | undefined,
   oddsRange: { min: number; max: number },
+  targetOddsPerPick: number,
 ): AlgoPick {
-  const finalOdds = isValidOdds(stats?.realOdds) 
+  const finalOdds = isValidOdds(stats?.realOdds)
     ? stats!.realOdds!
     : (isValidOdds(match.odds) ? match.odds : generateRandomOdds());
   const ho = finalOdds.home;
@@ -268,44 +283,56 @@ function pickForMatch(
   // Double Chance
   addCandidate('Double Chance', '1X', dc1X, stats ? stats.homePct + stats.drawPct : null);
   addCandidate('Double Chance', 'X2', dcX2, stats ? stats.drawPct + stats.awayPct : null);
+  // BTTS (probabilité Poisson depuis xG)
+  if (stats?.bttsOdds && stats.bttsProbability !== null) {
+    addCandidate('BTTS', 'Oui', stats.bttsOdds, stats.bttsProbability);
+  }
+  if (stats?.bttsNoOdds && stats.bttsProbability !== null) {
+    addCandidate('BTTS', 'Non', stats.bttsNoOdds, 100 - stats.bttsProbability);
+  }
+  // Over / Under 2.5
+  if (stats?.over25Odds && stats.over25Probability !== null) {
+    addCandidate('Over/Under', 'Over 2.5', stats.over25Odds, stats.over25Probability);
+  }
+  if (stats?.under25Odds && stats.over25Probability !== null) {
+    addCandidate('Over/Under', 'Under 2.5', stats.under25Odds, 100 - stats.over25Probability);
+  }
 
-  // Filtre basé uniquement sur le profil de risque backend (source de vérité)
-  // On n'utilise plus oddsRange du front pour le filtrage afin d'éviter des plages trop restrictives
   const riskProfile = RISK_ODDS_PROFILE[riskLevel];
 
   let pool = candidates.filter(c => c.odds >= riskProfile.minOdds && c.odds <= riskProfile.maxOdds);
-  // Fallback : si aucun candidat dans la plage, on prend tout (le scoring reste fidèle au niveau)
+  // Fallback: si aucun candidat dans la plage, on prend tout
   if (pool.length === 0) pool = candidates;
 
   let best = pool[0];
 
   if (riskLevel === 'safe') {
-    // Sécurisé : préférer les cotes basses (haute prob.), bonus Double Chance
+    // Sécurisé : cotes basses (haute prob.), bonus Double Chance, proche de la cible par match
     best = pool.reduce((a, b) => {
       const score = (c: PickCandidate) =>
-        -c.odds * 2                                     // cotes basses fortement favorisées
-        + (c.type === 'Double Chance' ? 1.0 : 0)        // forte préférence DC
-        + ((c.valueEdge ?? 0) > 0 ? 0.3 : 0)
-        - (c.odds > riskProfile.targetOdds ? 1.0 : 0)
-        + (Math.random() * 0.1); // Add slight variety
+        (c.modelPct ?? c.impliedPct) * 1.5              // haute probabilité en priorité
+        + (c.type === 'Double Chance' ? 2.0 : 0)        // forte préférence DC
+        + ((c.valueEdge ?? 0) > 0 ? 0.5 : 0)
+        - Math.abs(c.odds - targetOddsPerPick) * 1.0;  // proche de la cible par match
       return score(b) > score(a) ? b : a;
     });
   } else if (riskLevel === 'balanced') {
-    // Équilibré : value edge positif + cotes proches de la cible
+    // Équilibré : value edge + cotes proches de la cible par match + probabilité correcte
     best = pool.reduce((a, b) => {
       const score = (c: PickCandidate) =>
-        (c.valueEdge ?? 0) * 3
-        - Math.abs(c.odds - riskProfile.targetOdds) * 1.2
-        + (c.type === '1X2' ? 0.2 : 0);  // léger bonus 1X2 (plus lisible)
+        (c.valueEdge ?? 0) * 2.5                        // value bet prioritaire
+        + (c.modelPct ?? c.impliedPct) * 0.5            // probabilité modèle
+        - Math.abs(c.odds - targetOddsPerPick) * 1.5   // proche de la cible par match
+        + (c.type === '1X2' ? 0.3 : 0);                // léger bonus 1X2 (plus lisible)
       return score(b) > score(a) ? b : a;
     });
   } else {
-    // Risqué : cotes élevées en priorité absolue, value edge secondaire, Double Chance exclue
+    // Risqué : cotes élevées, value edge, Double Chance exclu
     best = pool.reduce((a, b) => {
       const score = (c: PickCandidate) =>
-        c.odds * 2.0                                    // priorité absolue : cotes hautes
-        + (c.valueEdge ?? 0) * 0.4                     // value edge secondaire (poids réduit)
-        - (c.type === 'Double Chance' ? 5.0 : 0);      // exclusion pratique du Double Chance
+        c.odds * 2.0
+        + (c.valueEdge ?? 0) * 0.4
+        - (c.type === 'Double Chance' ? 5.0 : 0);
       return score(b) > score(a) ? b : a;
     });
   }
@@ -352,7 +379,9 @@ function pickBestMarkets(
   statsMap: Map<string, MatchStats>,
   oddsRange: { min: number; max: number },
 ): AlgoPick[] {
-  return matches.map(m => pickForMatch(m, riskLevel, statsMap.get(m.id), oddsRange));
+  // La cote cible par match dépend du nombre de matchs pour atteindre la cote totale visée
+  const targetOddsPerPick = computeTargetOddsPerPick(riskLevel, matches.length);
+  return matches.map(m => pickForMatch(m, riskLevel, statsMap.get(m.id), oddsRange, targetOddsPerPick));
 }
 
 
@@ -365,7 +394,8 @@ function buildVisitorCoupon(picks: AlgoPick[]): {
   analysis: { visitor: true };
 } {
   const totalOdds = Math.round(picks.reduce((acc, p) => acc * p.selection.odds, 1) * 100) / 100;
-  const probability = Math.round(picks.reduce((acc, p) => acc * (p.selection.impliedPct / 100), 1) * 100);
+  // Confiance = moyenne par pick (pas le produit qui donne ~1% pour 4 matchs)
+  const probability = Math.round(picks.reduce((acc, p) => acc + p.selection.impliedPct, 0) / picks.length);
 
   return {
     selectedMatches: picks.map(p => ({
@@ -720,14 +750,17 @@ export async function POST(request: Request) {
         const o = Number(p.selection.odds);
         return acc * (isNaN(o) || o < 1 ? 1 : o);
       }, 1.0);
-      
-      const combinedProb = algorithmPicks.reduce((acc, p) => {
-        const pr = Number(p.selection.impliedPct);
-        return acc * (isNaN(pr) || pr <= 0 ? 0.5 : pr / 100);
-      }, 1.0);
-      
+
+      // Confiance = moyenne des probabilités modèle par sélection (ou implicites si pas de modèle)
+      // On N'utilise PAS le produit (qui donne ~1% pour 4 matchs) mais la MOYENNE par pick
+      const avgProb = algorithmPicks.reduce((acc, p) => {
+        const modelPct = p.selection.modelPct;
+        const pct = (modelPct !== null && modelPct > 0) ? modelPct : Number(p.selection.impliedPct);
+        return acc + (isNaN(pct) || pct <= 0 ? 50 : pct);
+      }, 0) / algorithmPicks.length;
+
       totalOdds = Math.round(totalOdds * 100) / 100;
-      probability = Math.round(combinedProb * 100);
+      probability = Math.round(avgProb);
     }
 
     // Safety final fallback
