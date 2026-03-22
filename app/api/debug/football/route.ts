@@ -1,6 +1,9 @@
 /**
  * GET /api/debug/football?date=YYYY-MM-DD
  * Diagnostic: raw API-Football v3 response to check key + data
+ *
+ * Test en production:
+ * https://algopronos.com/api/debug/football?date=2026-03-22
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { cachedFetch } from '@/lib/services/api/footballApi';
