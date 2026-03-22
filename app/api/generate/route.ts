@@ -195,6 +195,7 @@ interface AlgoPick {
   homeTeam: string;
   awayTeam: string;
   league: string;
+  country: string;
   kickoffTime: string;
   selection: {
     type: string;
@@ -241,7 +242,7 @@ function isValidOdds(odds: any) {
 }
 
 function pickForMatch(
-  match: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds?: { home: number; draw: number; away: number } | null },
+  match: { id: string; homeTeam: string; awayTeam: string; league: string; country: string; date: string; time: string; odds?: { home: number; draw: number; away: number } | null },
   riskLevel: 'safe' | 'balanced' | 'risky',
   stats: MatchStats | undefined,
   oddsRange: { min: number; max: number },
@@ -340,6 +341,7 @@ function pickForMatch(
     homeTeam: match.homeTeam,
     awayTeam: match.awayTeam,
     league: match.league,
+    country: match.country || '',
     kickoffTime: `${match.date} ${match.time}`.trim(),
     selection: {
       type: best.type,
@@ -353,7 +355,7 @@ function pickForMatch(
 }
 
 function pickBestMarkets(
-  matches: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds?: { home: number; draw: number; away: number } | null }[],
+  matches: { id: string; homeTeam: string; awayTeam: string; league: string; country: string; date: string; time: string; odds?: { home: number; draw: number; away: number } | null }[],
   riskLevel: 'safe' | 'balanced' | 'risky',
   statsMap: Map<string, MatchStats>,
   oddsRange: { min: number; max: number },
@@ -426,6 +428,8 @@ RÈGLES ABSOLUES:
 - Cite la forme, le contexte (derby, enjeux, fatigue, avantage terrain), les statistiques fournies.
 - ${isOptimized ? '⚡ Mets en avant les VALUE BETS identifiés (avantage modèle vs bookmaker)' : 'Explique la logique algorithmique de façon accessible.'}
 - INTERDITS: "les statistiques indiquent", "les cotes suggèrent", "il est difficile de prédire".
+- INTERDIT ABSOLU: citer un pourcentage de probabilité dans l'analyse (ex: "probabilité de 60%", "60% de chances"). Utilise des qualificatifs: "favori solide", "large avantage", "légère supériorité", "match ouvert".
+- INTERDIT ABSOLU: mentionner un classement, une position (ex: "1er", "16e", "en bas de tableau") ou un écart de points que tu n'as PAS reçu explicitement dans les données ci-dessous. Si tu n'as pas les données de classement, N'EN PARLE PAS.
 - ${riskContext}
 - Tu réponds EXCLUSIVEMENT en JSON valide. Zéro texte avant ou après.`;
 
@@ -439,7 +443,7 @@ RÈGLES ABSOLUES:
       `Match ${i + 1}: ${p.homeTeam} vs ${p.awayTeam} (${p.league})`,
       `  ► Sélection CONFIRMÉE: "${p.selection.value}" = ${selectedTeam} @ ${p.selection.odds} [${p.selection.type}]`,
       `  ⚠️ Tu dois UNIQUEMENT justifier pourquoi "${selectedTeam}" est la bonne issue. N'explique JAMAIS pourquoi l'autre équipe gagnerait.`,
-      `  Prob. implicite bookmaker: ${p.selection.impliedPct}%`,
+      `  [données internes — NE PAS CITER] Cote implicite bk.: ${p.selection.impliedPct}% | Écart valeur: ${(p.selection.valueEdge ?? 0) > 0 ? '+' + p.selection.valueEdge + '%' : 'nul'}`,
     ];
     if (p.selection.modelPct !== null) {
       lines.push(`  Prob. modèle AlgoPronos: ${p.selection.modelPct}% ${p.selection.modelPct > p.selection.impliedPct ? '(supérieure au marché ✓)' : ''}`);
@@ -496,7 +500,7 @@ RÉPONDS UNIQUEMENT avec ce JSON valide:
   ],
   "summary": "${summaryInstruction}",
   "keyFactors": ["${keyFactorsInstruction[0]}", "${keyFactorsInstruction[1] || 'facteur tactique déterminant'}", "${keyFactorsInstruction[2] || `profil ${riskLabel}`}"],
-  "riskAssessment": "Nomme le match le plus incertain parmi ${picks.map(p => p.homeTeam + ' vs ' + p.awayTeam).join(', ')} et explique le risque en 1 phrase"
+  "riskAssessment": "Le match le plus incertain est celui dont la probabilité implicite est la plus proche de 50% (données: ${picks.map(p => `${p.homeTeam} vs ${p.awayTeam}: ${p.selection.impliedPct}% impl.`).join(' | ')}). Identifie-le et explique son risque en 1 phrase basée UNIQUEMENT sur sa forme et ses cotes fournies. INTERDIT: inventer un classement ou citer un % de probabilité."
 }`;
 
   return { system, user };

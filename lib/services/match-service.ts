@@ -261,8 +261,10 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     const l = leagueName.trim().toUpperCase();
     const c = (country ?? '').trim().toUpperCase();
 
+    // isCountry: requires a non-empty country string matching one of the candidates.
+    // Empty country → always false → ambiguous league names fall through to 'TOP'.
     const isCountry = (...candidates: string[]) =>
-      !c || candidates.some(cand => c.includes(cand.toUpperCase()));
+      c.length > 0 && candidates.some(cand => c.includes(cand.toUpperCase()));
 
     // ── Top-5 with strict country guard ─────────────────────────────────────
     // England / Premier League
@@ -277,9 +279,13 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     // Germany
     if ((l === 'BUNDESLIGA' || l === '1. BUNDESLIGA') && isCountry('Germany', 'Allemagne')) return 'BL';
     if ((l === '2. BUNDESLIGA' || l === '2.BUNDESLIGA') && isCountry('Germany', 'Allemagne')) return 'GER2';
-    // France
+    // France — only if country explicitly says France
     if ((l === 'LIGUE 1' || l === 'LIGUE1') && isCountry('France')) return 'FL';
     if ((l === 'LIGUE 2' || l === 'LIGUE2') && isCountry('France')) return 'FRA2';
+    // African "Ligue 1" — country-based disambiguation
+    if ((l === 'LIGUE 1' || l === 'LIGUE1') && isCountry('Senegal', 'Sénégal')) return 'SN1';
+    if ((l === 'LIGUE 1' || l === 'LIGUE1') && isCountry("Côte d'Ivoire", "Cote d'Ivoire", 'Ivory Coast')) return 'CI1';
+    if ((l === 'LIGUE 1' || l === 'LIGUE1') && isCountry('Benin', 'Bénin')) return 'BJ1';
 
     // ── European competitions (no country guard needed) ──────────────────────
     if (l.includes('CHAMPIONS LEAGUE') || l.includes('UEFA CL') || l === 'UCL') return 'CL';
