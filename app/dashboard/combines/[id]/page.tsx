@@ -109,6 +109,7 @@ interface MatchSelection {
   homeTeam: string;
   awayTeam: string;
   league: string;
+  country?: string;
   kickoffTime?: string;
   selection: {
     type: string;
@@ -380,7 +381,9 @@ export default function CombineDetailPage() {
                     {/* Match info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="outline" className="text-xs">{match.league}</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {match.league}{match.country && !match.league.toLowerCase().includes(match.country.toLowerCase()) ? ` · ${match.country}` : ''}
+                        </Badge>
                         {match.kickoffTime && (
                           <span className="text-xs text-text-muted">{match.kickoffTime}</span>
                         )}
@@ -402,8 +405,8 @@ export default function CombineDetailPage() {
                       {/* Probability data */}
                       {match.selection.impliedPct !== undefined && (
                         <div className="text-center px-2 py-1.5 rounded-lg bg-surface-light min-w-[56px]">
-                          <p className="text-xs text-text-muted">Prob. impl.</p>
-                          <p className="text-sm font-semibold text-text-secondary">{match.selection.impliedPct}%</p>
+                          <p className="text-xs text-text-muted">Cote</p>
+                          <p className="text-sm font-semibold text-text-secondary">{match.selection.odds?.toFixed(2) ?? '—'}</p>
                         </div>
                       )}
                       {match.selection.modelPct !== null && match.selection.modelPct !== undefined && (
