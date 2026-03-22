@@ -306,25 +306,12 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     return this.filterByLeague(matches, leagueCodes);
   }
 
-  /** Filter matches by league codes, falling back to 'TOP' (unclassified) if no match found */
+  /** Filter matches by league codes */
   private filterByLeague(matches: RealMatch[], leagueCodes?: string[]): RealMatch[] {
     if (!leagueCodes || leagueCodes.length === 0) return matches;
-
-    // Re-infer leagueCode from league name for stale cache entries tagged as 'TOP'
-    const normalized = matches.map((m) => {
-      if (m.leagueCode !== 'TOP') return m;
-      const reInferred = this.inferLeagueCode(m.league);
-      if (reInferred === 'TOP') return m;
-      const info = MatchService.LEAGUE_CODE_TO_INFO[reInferred];
-      return {
-        ...m,
-        leagueCode: reInferred,
-        league: m.league === 'Unknown League' && info ? info.name : m.league,
-        country: (!m.country && info) ? info.country : m.country,
-      };
-    });
-
-    return normalized.filter((m) => leagueCodes.includes(m.leagueCode));
+    // Filtre strict sur leagueCode — pas de ré-inférence pour éviter les faux positifs
+    // (ex : Bundesliga Autrichienne taggée 'TOP' ne doit PAS passer le filtre BL)
+    return matches.filter((m) => leagueCodes.includes(m.leagueCode));
   }
 
   /**
@@ -430,7 +417,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     922967: { name: 'Druhá liga',        country: 'Slovaquie' },
     901093: { name: 'Tretia liga',       country: 'Slovaquie' },
     // Czech Republic
-    253:    { name: '2. liga',           country: 'Tchéquie' },
+    346:    { name: '2. liga',           country: 'Tchéquie' },  // Czech 2. liga (API-Football ID 346)
     // Slovenia
     173:    { name: 'Prva liga',         country: 'Slovénie' },
     // Montenegro
@@ -442,7 +429,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     // Albania
     260:    { name: 'Superliga',         country: 'Albanie' },
     // Kosovo
-    262:    { name: 'Superliga',         country: 'Kosovo' },
+    651:    { name: 'Superliga',         country: 'Kosovo' },  // Kosovo Superliga (API-Football ID 651)
     // Cyprus
     924301: { name: 'First Division',    country: 'Chypre' },
     924302: { name: 'Second Division',   country: 'Chypre' },
