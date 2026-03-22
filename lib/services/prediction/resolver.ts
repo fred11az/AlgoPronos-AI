@@ -35,15 +35,15 @@ export async function resolvePendingPredictions() {
   const matchIds = Array.from(new Set(pending.map(p => p.match_id)));
 
   for (const matchId of matchIds) {
-    // API-Football fixture ID is expected to be part of the match_id
-    // Example: "20260318-arsenal-vs-liverpool" might not be the ID we need.
-    // If we use the API ID directly, it's easier.
-    
-    // We expect match_id to be something like "123456" (numeric ID from API)
-    // If it's the slug, we might need a mapping.
-    
-    // Assuming match_id in predictions_log is the API-Football numeric ID.
-    const fixtureData = await cachedFetch<any>(`/fixtures`, { id: matchId });
+    // Extract numeric fixture ID from "apif-12345" format, or use as-is if already numeric
+    const apifMatch = matchId.match(/^apif-(\d+)$/);
+    if (!apifMatch) {
+      console.log(`[resolver] Skipping non-apif match_id: ${matchId}`);
+      continue;
+    }
+    const fixtureId = apifMatch[1];
+
+    const fixtureData = await cachedFetch<any>(`/fixtures`, { id: fixtureId });
 
     if (!fixtureData || !fixtureData.response || fixtureData.response.length === 0) {
       continue;
