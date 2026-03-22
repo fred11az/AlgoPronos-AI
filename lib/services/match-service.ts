@@ -294,9 +294,9 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       return this.filterByLeague(cached, leagueCodes);
     }
 
-    const apiKey = process.env.RAPIDAPI_KEY;
+    const apiKey = process.env.API_FOOTBALL_KEY;
     if (!apiKey) {
-      console.warn('[MatchService] RAPIDAPI_KEY not set and no cache found — returning empty matches.');
+      console.warn('[MatchService] API_FOOTBALL_KEY not set and no cache found — returning empty matches.');
       return [];
     }
 
@@ -619,50 +619,51 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
   };
 
   /**
-   * Fetch fixtures for a specific date from free-api-live-football-data.p.rapidapi.com
-   * Endpoint: GET /football-get-matches-by-date?date=YYYYMMDD
-   * Response: { status: "success", response: { matches: [{ id, leagueId, home, away, time, status }] } }
+   * Fetch fixtures for a specific date from API-Football v3 (api-football.com)
+   * Endpoint: GET /fixtures?date=YYYY-MM-DD
+   * Response: { response: [{ fixture: { id, date, status: { short } }, league: { id, name, country }, teams: { home, away } }] }
    */
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
-      // 1. Fetch matches (format YYYYMMDD)
-      // (League names resolved via static LEAGUE_ID_TO_INFO — the /football-get-all-leagues endpoint is unavailable on free plan)
-      const apiDate = date.replace(/-/g, '');
-      const data = await cachedFetch<any>('/football-get-matches-by-date', { date: apiDate }, 86400);
+      // 1. Fetch fixtures — API-Football v3 uses YYYY-MM-DD format natively
+      const data = await cachedFetch<any>('/fixtures', { date }, 86400);
 
-      if (data?.status !== 'success' || !Array.isArray(data.response?.matches)) {
-        console.warn(`[MatchService] No matches from API for ${date}. Response:`, JSON.stringify(data).substring(0, 300));
+      if (!Array.isArray(data?.response)) {
+        console.warn(`[MatchService] No fixtures from API-Football for ${date}. Response:`, JSON.stringify(data).substring(0, 300));
         return [];
       }
 
-      console.log(`[MatchService] API returned ${data.response.matches.length} matches for ${date}`);
+      console.log(`[MatchService] API-Football returned ${data.response.length} fixtures for ${date}`);
 
-      const rawMatches = data.response.matches.map((f: any) => {
-        // Resolve league info: static map by leagueId, then API field variants, then unknown
+      const rawMatches = data.response.map((f: any) => {
+        const leagueId = Number(f.league?.id);
+        const leagueName: string = f.league?.name ?? '';
+        const leagueCountry: string = f.league?.country ?? '';
+
+        // Resolve league info: static map by leagueId first, then from API fields
         const leagueInfo: { name: string; country: string } =
-          MatchService.LEAGUE_ID_TO_INFO[Number(f.leagueId)]
+          MatchService.LEAGUE_ID_TO_INFO[leagueId]
           ?? (() => {
-            const rawName: string = f.leagueName ?? f.league_name ?? f.league ?? '';
-            const code = rawName ? this.inferLeagueCode(rawName) : 'TOP';
+            const code = leagueName ? this.inferLeagueCode(leagueName) : 'TOP';
             return (code !== 'TOP' && MatchService.LEAGUE_CODE_TO_INFO[code])
               ? MatchService.LEAGUE_CODE_TO_INFO[code]
-              : { name: rawName || `Unknown (id=${f.leagueId})`, country: '' };
+              : { name: leagueName || `Unknown (id=${leagueId})`, country: leagueCountry };
           })();
 
-        // Parse time: "19.03.2026 21:00" -> "21:00"
+        // Parse time from ISO date: "2026-03-22T21:00:00+00:00" -> "21:00"
         let matchTime = '00:00';
-        if (f.time && f.time.includes(' ')) {
-          matchTime = f.time.split(' ')[1];
-        } else if (f.time) {
-          matchTime = f.time;
+        if (f.fixture?.date) {
+          const d = new Date(f.fixture.date);
+          matchTime = d.toISOString().substring(11, 16);
         }
 
         return {
           raw: f,
           leagueInfo,
+          leagueId,
           matchTime,
-          homeTeam: f.home?.name ?? f.homeName ?? 'Unknown',
-          awayTeam: f.away?.name ?? f.awayName ?? 'Unknown',
+          homeTeam: f.teams?.home?.name ?? 'Unknown',
+          awayTeam: f.teams?.away?.name ?? 'Unknown',
         };
       });
 
@@ -692,35 +693,35 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       }
 
       let geminiIdx = 0;
-      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; matchTime: string; homeTeam: string; awayTeam: string }, idx: number) => {
+      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; leagueId: number; matchTime: string; homeTeam: string; awayTeam: string }, idx: number) => {
         let odds: { home: number; draw?: number; away: number };
 
         if (matchedByReal[idx]) {
-          // Real bookmaker odds from The Odds API
           const realOdds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap);
           odds = realOdds ?? this.generateRealisticOdds('football');
         } else {
-          // Gemini-estimated odds
           odds = geminiOdds[geminiIdx++] ?? this.generateRealisticOdds('football');
         }
 
-        // Resolve code by ID first (avoids false matches like Russian "Premier League" → 'PL')
-        const code = MatchService.LEAGUE_ID_TO_CODE[Number(m.raw.leagueId)]
+        // Resolve league code by ID first (avoids false matches like Russian "Premier League" → 'PL')
+        const code = MatchService.LEAGUE_ID_TO_CODE[m.leagueId]
           ?? this.inferLeagueCode(m.leagueInfo.name);
         const knownInfo = code !== 'TOP' ? MatchService.LEAGUE_CODE_TO_INFO[code] : null;
-        const finalLeague = m.leagueInfo.name;
         const finalCountry = m.leagueInfo.country || (knownInfo?.country ?? '');
 
+        // Map API-Football v3 status short codes
+        const statusShort: string = m.raw.fixture?.status?.short ?? 'NS';
+
         return {
-          id: `apif-${m.raw.id}`,
+          id: `apif-${m.raw.fixture?.id ?? Math.random()}`,
           homeTeam: m.homeTeam,
           awayTeam: m.awayTeam,
-          league: finalLeague,
+          league: m.leagueInfo.name,
           leagueCode: code,
           country: finalCountry,
           date,
           time: m.matchTime,
-          status: m.raw.status?.finished ? 'finished' : (m.raw.status?.started ? 'live' : 'scheduled'),
+          status: this.mapStatus(statusShort),
           sport: 'football',
           odds,
         };

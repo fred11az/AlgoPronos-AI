@@ -91,8 +91,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (!process.env.RAPIDAPI_KEY) {
-    return NextResponse.json({ error: 'RAPIDAPI_KEY not set' }, { status: 500 });
+  if (!process.env.API_FOOTBALL_KEY) {
+    return NextResponse.json({ error: 'API_FOOTBALL_KEY not set' }, { status: 500 });
   }
 
   const adminSupabase = createAdminClient();

@@ -291,7 +291,7 @@ export async function GET(req: Request) {
     if (!hasRealApiMatches) {
       return NextResponse.json(
         {
-          error: 'Données insuffisantes: impossible de générer un ticket fiable. Les matchs proviennent d\'une source IA non vérifiée (pas de données API réelles). Réessayez dans quelques minutes ou vérifiez la clé RAPIDAPI_KEY.',
+          error: 'Données insuffisantes: impossible de générer un ticket fiable. Les matchs proviennent d\'une source IA non vérifiée (pas de données API réelles). Réessayez dans quelques minutes ou vérifiez la clé API_FOOTBALL_KEY.',
           dataSource: 'ai-fallback',
         },
         { status: 503 }
@@ -302,7 +302,7 @@ export async function GET(req: Request) {
     const selected = available.slice(0, DAILY_MATCH_COUNT);
 
     // ── 3. Fetch real stats ──────────────────────────────────────────────────
-    const footballApiKey = process.env.RAPIDAPI_KEY;
+    const footballApiKey = process.env.API_FOOTBALL_KEY;
     const statsMap = await fetchStatsForMatches(
       selected.map(m => ({ 
         ...m, 

@@ -1,4 +1,4 @@
-// Debug endpoint — vérifie que l'API-Football (RapidAPI) répond correctement
+// Debug endpoint — vérifie que l'API-Football v3 répond correctement
 // Usage: GET /api/debug-stats?fixture=1035071
 // Retire ce fichier en production une fois validé
 
@@ -10,29 +10,29 @@ export async function GET(request: NextRequest) {
   const date = request.nextUrl.searchParams.get('date') || new Date().toISOString().split('T')[0];
 
   const result: Record<string, unknown> = {
-    apiKeyPresent: !!process.env.RAPIDAPI_KEY,
-    apiKeyPrefix: process.env.RAPIDAPI_KEY ? process.env.RAPIDAPI_KEY.substring(0, 6) + '...' : null,
+    apiKeyPresent: !!process.env.API_FOOTBALL_KEY,
+    apiKeyPrefix: process.env.API_FOOTBALL_KEY ? process.env.API_FOOTBALL_KEY.substring(0, 6) + '...' : null,
     fixtureId,
     date,
   };
 
-  if (!process.env.RAPIDAPI_KEY) {
-    return NextResponse.json({ ...result, error: 'RAPIDAPI_KEY manquante dans les variables d\'environnement' }, { status: 500 });
+  if (!process.env.API_FOOTBALL_KEY) {
+    return NextResponse.json({ ...result, error: 'API_FOOTBALL_KEY manquante dans les variables d\'environnement' }, { status: 500 });
   }
 
-  // ── Test 1: /football-get-matches-by-date ─────────────────────────────────
+  // ── Test 1: /fixtures ─────────────────────────────────────────────────────
   try {
-    const apiDate = date.replace(/-/g, '');
-    const fixturesData = await cachedFetch<any>('/football-get-matches-by-date', { date: apiDate }, 3600);
+    const fixturesData = await cachedFetch<any>('/fixtures', { date }, 3600);
     result.fixtures = {
-      status: fixturesData?.status,
-      totalResults: fixturesData?.response?.matches?.length ?? 0,
-      sample: (fixturesData?.response?.matches ?? []).slice(0, 5).map((f: any) => ({
-        id: f.id,
-        time: f.time,
-        home: f.home?.name,
-        away: f.away?.name,
-        leagueId: f.leagueId,
+      totalResults: fixturesData?.response?.length ?? 0,
+      sample: (fixturesData?.response ?? []).slice(0, 5).map((f: any) => ({
+        id: f.fixture?.id,
+        date: f.fixture?.date,
+        status: f.fixture?.status?.short,
+        home: f.teams?.home?.name,
+        away: f.teams?.away?.name,
+        league: f.league?.name,
+        country: f.league?.country,
       })),
     };
   } catch (e) {

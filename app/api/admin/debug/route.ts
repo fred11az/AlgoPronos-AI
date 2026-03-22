@@ -1,9 +1,11 @@
 import { createClient, checkIsAdmin } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+const API_BASE = 'https://v3.football.api-sports.io';
+
 /**
  * GET /api/admin/debug?date=2026-03-21
- * Shows raw api_cache entries for leagues + today's matches to diagnose leagueMap issues.
+ * Shows raw api_cache entries for today's matches to diagnose issues.
  */
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -13,11 +15,8 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const date = searchParams.get('date') ?? new Date().toISOString().split('T')[0];
-  const apiDate = date.replace(/-/g, '');
 
-  const host = process.env.RAPIDAPI_HOST || 'free-api-live-football-data.p.rapidapi.com';
-  const leaguesKey = `https://${host}/football-get-all-leagues`;
-  const matchesKey = `https://${host}/football-get-matches-by-date?date=${apiDate}`;
+  const matchesKey = `${API_BASE}/fixtures?date=${date}`;
 
   const { createClient: createAdmin } = await import('@supabase/supabase-js');
   const adminSb = createAdmin(
@@ -25,17 +24,17 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // ?refetch=true → call RapidAPI directly and store result in api_cache
+  // ?refetch=true → call API-Football directly and store result in api_cache
   const refetch = searchParams.get('refetch') === 'true';
   let refetchResult: any = null;
   if (refetch) {
-    const rapidKey = process.env.RAPIDAPI_KEY;
-    if (!rapidKey) {
-      refetchResult = { error: 'RAPIDAPI_KEY not set' };
+    const apiKey = process.env.API_FOOTBALL_KEY;
+    if (!apiKey) {
+      refetchResult = { error: 'API_FOOTBALL_KEY not set' };
     } else {
       try {
         const res = await fetch(matchesKey, {
-          headers: { 'x-rapidapi-key': rapidKey, 'x-rapidapi-host': host },
+          headers: { 'x-apisports-key': apiKey },
         });
         const status = res.status;
         const contentType = res.headers.get('content-type') ?? 'unknown';
@@ -49,7 +48,7 @@ export async function GET(request: Request) {
             data: json,
             fetched_at: new Date().toISOString(),
           });
-          refetchResult = { status, contentType, matches: json?.response?.matches?.length ?? 0, apiStatus: json?.status };
+          refetchResult = { status, contentType, fixtures: json?.response?.length ?? 0 };
         } else {
           refetchResult = { status, contentType, body: text.substring(0, 500) };
         }
@@ -59,30 +58,26 @@ export async function GET(request: Request) {
     }
   }
 
-  const [leaguesRes, matchesRes] = await Promise.all([
-    adminSb.from('api_cache').select('data, fetched_at').eq('cache_key', leaguesKey).single(),
-    adminSb.from('api_cache').select('data, fetched_at').eq('cache_key', matchesKey).single(),
-  ]);
+  const matchesRes = await adminSb
+    .from('api_cache')
+    .select('data, fetched_at')
+    .eq('cache_key', matchesKey)
+    .single();
 
-  const leaguesData = leaguesRes.data?.data;
   const matchesData = matchesRes.data?.data;
-
-  // All unique leagueIds with match count and sample teams
-  const allFixtures: any[] = Array.isArray(matchesData?.response?.matches)
-    ? matchesData.response.matches
-    : [];
+  const allFixtures: any[] = Array.isArray(matchesData?.response) ? matchesData.response : [];
 
   const leagueIdMap: Record<number, { count: number; teams: string[] }> = {};
   for (const f of allFixtures) {
-    const lid = f.leagueId;
+    const lid = f.league?.id;
     if (!leagueIdMap[lid]) leagueIdMap[lid] = { count: 0, teams: [] };
     leagueIdMap[lid].count++;
     if (leagueIdMap[lid].teams.length < 4) {
-      leagueIdMap[lid].teams.push(`${f.home?.longName ?? f.home?.name} vs ${f.away?.longName ?? f.away?.name}`);
+      leagueIdMap[lid].teams.push(`${f.teams?.home?.name} vs ${f.teams?.away?.name}`);
     }
   }
 
-  // ?purge=true → delete matches_cache + api_cache for this date so next request re-fetches with correct encoding
+  // ?purge=true → delete matches_cache + api_cache for this date
   const purge = searchParams.get('purge') === 'true';
   let purgeResult: string | null = null;
   if (purge) {
@@ -101,8 +96,7 @@ export async function GET(request: Request) {
     api_cache_key: matchesKey,
     api_cache_hit: !!matchesRes.data,
     api_cache_fetched_at: matchesRes.data?.fetched_at ?? null,
-    leagues_api_status: leaguesData?.status,
-    matches_count: allFixtures.length,
+    fixtures_count: allFixtures.length,
     league_ids: leagueIdMap,
     ...(purge ? { purge: purgeResult } : {}),
     ...(refetch ? { refetch: refetchResult } : {}),

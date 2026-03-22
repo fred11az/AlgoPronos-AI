@@ -1,5 +1,6 @@
 /**
  * Football API Service with Supabase Caching
+ * Provider: API-Football v3 (api-football.com / v3.football.api-sports.io)
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -10,17 +11,16 @@ function getSupabase() {
   );
 }
 
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
-const RAPIDAPI_HOST = process.env.RAPIDAPI_HOST || 'free-api-live-football-data.p.rapidapi.com';
-const API_BASE = `https://${RAPIDAPI_HOST}`;
+const API_FOOTBALL_KEY = process.env.API_FOOTBALL_KEY;
+const API_BASE = 'https://v3.football.api-sports.io';
 
 /**
- * Robust fetcher with caching
+ * Robust fetcher with caching — API-Football v3
  */
 export async function cachedFetch<T>(endpoint: string, params: Record<string, string> = {}, ttlSeconds: number = 3600): Promise<T | null> {
   const url = new URL(`${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`);
   Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
-  
+
   const cacheKey = url.toString();
 
   try {
@@ -35,7 +35,7 @@ export async function cachedFetch<T>(endpoint: string, params: Record<string, st
     if (cacheEntry && !cacheError) {
       const fetchedAt = new Date(cacheEntry.fetched_at).getTime();
       const age = (Date.now() - fetchedAt) / 1000;
-      
+
       if (age < ttlSeconds) {
         console.log(`[api-cache] HIT: ${endpoint}`);
         return cacheEntry.data as T;
@@ -43,16 +43,15 @@ export async function cachedFetch<T>(endpoint: string, params: Record<string, st
     }
 
     // 2. Fallback to API call
-    if (!RAPIDAPI_KEY) {
-      console.warn('[api-cache] MISS, but missing RAPIDAPI_KEY');
+    if (!API_FOOTBALL_KEY) {
+      console.warn('[api-cache] MISS, but missing API_FOOTBALL_KEY');
       return null;
     }
 
     console.log(`[api-cache] MISS (or EXPIRED): ${url.toString()}`);
     const res = await fetch(url.toString(), {
       headers: {
-        'x-rapidapi-key': RAPIDAPI_KEY,
-        'x-rapidapi-host': RAPIDAPI_HOST,
+        'x-apisports-key': API_FOOTBALL_KEY,
       },
     });
 

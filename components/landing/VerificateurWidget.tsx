@@ -19,6 +19,7 @@ const BOOKMAKERS = [
   { id: 'melbet',     name: 'Melbet',      logo: '🔴', color: '#d0021b' },
   { id: 'premierbet', name: 'PremierBet',  logo: '🔵', color: '#1a56db' },
   { id: 'paripesa',   name: 'Paripesa',    logo: '⚪', color: '#6b7280' },
+  { id: 'afropari',   name: 'AfroPari',    logo: '🟠', color: '#FF6B00' },
   { id: 'other',      name: 'Autre',       logo: '🎯', color: '#7c3aed' },
 ];
 

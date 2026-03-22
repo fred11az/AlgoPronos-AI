@@ -57,7 +57,7 @@ export async function GET(
     const currentOdds = { home: oddsHome, draw: oddsDraw, away: oddsAway };
 
     // ── Fetch match stats from API-Football (uses own cache in stats-service)
-    const footballApiKey = process.env.RAPIDAPI_KEY;
+    const footballApiKey = process.env.API_FOOTBALL_KEY;
     const stats = await fetchMatchStats(
       matchId, homeTeam, awayTeam, currentOdds, footballApiKey,
     ).catch(err => {

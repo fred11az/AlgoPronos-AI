@@ -26,6 +26,7 @@ const BOOKMAKERS = [
   { id: 'premierbet', name: 'PremierBet'},
   { id: 'paripesa',   name: 'Paripesa'  },
   { id: 'bet365',     name: 'Bet365'    },
+  { id: 'afropari',   name: 'AfroPari'  },
   { id: 'other',      name: 'Autre'     },
 ];
 

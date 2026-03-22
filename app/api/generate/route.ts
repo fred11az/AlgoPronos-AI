@@ -693,7 +693,7 @@ export async function POST(request: Request) {
 
     // ── Fetch real stats for selected matches (API-Football predictions) ───────
     // Only fetches for apif-* fixture IDs, falls back gracefully if no API key
-    const footballApiKey = process.env.RAPIDAPI_KEY;
+    const footballApiKey = process.env.API_FOOTBALL_KEY;
     const statsMap = await fetchStatsForMatches(matchesForAnalysis, footballApiKey)
       .catch(err => {
         console.error('[stats-service] Error fetching stats:', err);
