@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import TicketDuJourWidget from '@/components/dashboard/TicketDuJourWidget';
 import TicketMontanteWidget from '@/components/dashboard/TicketMontanteWidget';
 import TicketOptimusWidget from '@/components/dashboard/TicketOptimusWidget';
+import StreakBanner from '@/components/dashboard/StreakBanner';
 import {
   Sparkles,
   TrendingUp,
@@ -310,6 +311,9 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Streak / performance banner */}
+      <StreakBanner />
 
       {/* Ticket IA du Jour & Advanced Strategies */}
       <div className="grid lg:grid-cols-3 gap-6">

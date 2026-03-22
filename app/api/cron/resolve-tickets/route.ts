@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { notifyTicketResult, TicketMatch } from '@/lib/services/notification-service';
+import { broadcastPush, PushSubscription } from '@/lib/services/push';
 import { cachedFetch } from '@/lib/services/api/footballApi';
 
 export const dynamic = 'force-dynamic';
@@ -203,7 +204,7 @@ export async function GET(req: NextRequest) {
       resolved.push({ id: ticket.id, date: ticket.date, status: newStatus });
       console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}) → ${newStatus}`);
 
-      // Notify users
+      // Notify users (email + WhatsApp + push)
       await notifyUsers(adminSupabase, ticket, newStatus);
     } catch (err) {
       console.error(`[resolve-tickets] Error processing ticket ${ticket.id}:`, err);
@@ -244,6 +245,7 @@ async function notifyUsers(
       odds: m.selection.odds,
     }));
 
+    // Email + WhatsApp notifications
     const batches: typeof eligible[] = [];
     for (let i = 0; i < eligible.length; i += 10) {
       batches.push(eligible.slice(i, i + 10));
@@ -263,6 +265,26 @@ async function notifyUsers(
           })
         )
       );
+    }
+
+    // Web push notifications
+    const allPushSubs: PushSubscription[] = [];
+    for (const p of profiles) {
+      const meta = p.metadata as Record<string, unknown> | null;
+      const subs = meta?.push_subscriptions as PushSubscription[] | undefined;
+      if (subs?.length) allPushSubs.push(...subs);
+    }
+
+    if (allPushSubs.length > 0) {
+      const statusEmoji = status === 'won' ? '✅' : status === 'lost' ? '❌' : '⚪';
+      const statusLabel = status === 'won' ? 'GAGNÉ' : status === 'lost' ? 'PERDU' : 'ANNULÉ';
+      await broadcastPush(allPushSubs, {
+        title: `${statusEmoji} Ticket IA du Jour — ${statusLabel}`,
+        body: `Cote totale × ${ticket.total_odds.toFixed(2)} · Voir les détails`,
+        url: '/dashboard/history',
+        tag: `ticket-result-${ticket.date}`,
+        requireInteraction: status === 'won',
+      });
     }
   } catch (err) {
     console.error('[resolve-tickets] Notify error:', err);

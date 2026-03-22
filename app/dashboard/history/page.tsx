@@ -18,6 +18,7 @@ import {
   Share2,
   ExternalLink,
   Calendar,
+  Flame,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ interface PerformanceStats {
   avg_odds: number | null;
   best_win_odds: number | null;
   total_tickets: number;
+  current_streak: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -183,6 +185,19 @@ export default function HistoryPage() {
       </div>
 
       {/* Stats globales */}
+      {/* Streak banner */}
+      {(stats?.current_streak ?? 0) >= 2 && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-orange-500/15 to-yellow-500/10 border border-orange-500/30">
+          <Flame className="h-6 w-6 text-orange-400 shrink-0" />
+          <div>
+            <p className="font-bold text-white text-sm">
+              {stats!.current_streak} tickets gagnants consécutifs 🔥
+            </p>
+            <p className="text-xs text-text-muted">Série en cours — continuez sur votre lancée !</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
           <CardContent className="p-5">
@@ -228,15 +243,25 @@ export default function HistoryPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20">
+        <Card className={`bg-gradient-to-br ${(stats?.current_streak ?? 0) >= 1 ? 'from-orange-500/10 to-yellow-500/5 border-orange-500/20' : 'from-red-500/10 to-red-600/5 border-red-500/20'}`}>
           <CardContent className="p-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-                <XCircle className="h-5 w-5 text-red-400" />
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${(stats?.current_streak ?? 0) >= 1 ? 'bg-orange-500/20' : 'bg-red-500/20'}`}>
+                {(stats?.current_streak ?? 0) >= 1
+                  ? <Flame className="h-5 w-5 text-orange-400" />
+                  : <XCircle className="h-5 w-5 text-red-400" />
+                }
               </div>
               <div>
-                <p className="text-text-muted text-xs">Perdus</p>
-                <p className="text-2xl font-bold text-red-400">{stats?.total_lost ?? 0}</p>
+                <p className="text-text-muted text-xs">
+                  {(stats?.current_streak ?? 0) >= 1 ? 'Série en cours' : 'Perdus'}
+                </p>
+                <p className={`text-2xl font-bold ${(stats?.current_streak ?? 0) >= 1 ? 'text-orange-400' : 'text-red-400'}`}>
+                  {(stats?.current_streak ?? 0) >= 1
+                    ? `${stats!.current_streak} 🔥`
+                    : stats?.total_lost ?? 0
+                  }
+                </p>
               </div>
             </div>
           </CardContent>
@@ -279,11 +304,17 @@ export default function HistoryPage() {
       )}
 
       {/* CTA */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <Button variant="gradient" asChild>
           <Link href="/dashboard/generate">
             <Zap className="mr-2 h-4 w-4" />
             Générer mon combiné
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/track-record">
+            <TrendingUp className="mr-2 h-4 w-4" />
+            Page publique track record
           </Link>
         </Button>
         <Button variant="outline" asChild>
