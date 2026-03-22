@@ -55,7 +55,7 @@ function isNewDay(lastDate: string | null | undefined): boolean {
 // ─── Cache key ────────────────────────────────────────────────────────────────
 
 // Increment this when prompts change significantly — forces cache invalidation
-const PROMPT_VERSION = 5;
+const PROMPT_VERSION = 6; // 2026-03-22: fix balanced odds filter + adaptive target + confidence
 
 function generateCacheKey(params: CombineParameters): string {
   const normalized = {
