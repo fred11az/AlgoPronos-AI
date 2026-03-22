@@ -240,27 +240,21 @@ function isValidOdds(odds: any) {
   return odds && Number(odds.home) > 0 && Number(odds.draw) > 0 && Number(odds.away) > 0;
 }
 
-function generateRandomOdds(): { home: number; draw: number; away: number } {
-  const home = 1.4 + Math.random() * 2.5;
-  const draw = 2.8 + Math.random() * 1.8;
-  const away = 2.0 + Math.random() * 4.0;
-  return {
-    home: Math.round(home * 100) / 100,
-    draw: Math.round(draw * 100) / 100,
-    away: Math.round(away * 100) / 100,
-  };
-}
-
 function pickForMatch(
-  match: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds: { home: number; draw: number; away: number } },
+  match: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds?: { home: number; draw: number; away: number } | null },
   riskLevel: 'safe' | 'balanced' | 'risky',
   stats: MatchStats | undefined,
   oddsRange: { min: number; max: number },
   targetOddsPerPick: number,
-): AlgoPick {
+): AlgoPick | null {
+  // Utilise uniquement les cotes réelles — The Odds API (via match.odds) ou API-Football (stats.realOdds)
+  // Aucune estimation ni génération aléatoire
   const finalOdds = isValidOdds(stats?.realOdds)
     ? stats!.realOdds!
-    : (isValidOdds(match.odds) ? match.odds : generateRandomOdds());
+    : isValidOdds(match.odds) ? match.odds! : null;
+
+  // Pas de cotes disponibles → pas de sélection possible
+  if (!finalOdds) return null;
   const ho = finalOdds.home;
   const dr = finalOdds.draw;
   const aw = finalOdds.away;
@@ -337,23 +331,8 @@ function pickForMatch(
     });
   }
 
-  if (pool.length === 0) {
-    return {
-      matchId: match.id,
-      homeTeam: match.homeTeam,
-      awayTeam: match.awayTeam,
-      league: match.league,
-      kickoffTime: `${match.date} ${match.time}`.trim(),
-      selection: {
-        type: 'Double Chance',
-        value: '1X',
-        odds: computeDCOdds(ho, dr) || 1.25,
-        impliedPct: 80,
-        modelPct: null,
-        valueEdge: null,
-      },
-    };
-  }
+  // Aucun candidat dans la plage de risque → prend le plus proche de la cible parmi tous
+  if (pool.length === 0) pool = candidates;
 
   // Already assigned in the risk blocks above
   return {
@@ -374,14 +353,16 @@ function pickForMatch(
 }
 
 function pickBestMarkets(
-  matches: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds: { home: number; draw: number; away: number } }[],
+  matches: { id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds?: { home: number; draw: number; away: number } | null }[],
   riskLevel: 'safe' | 'balanced' | 'risky',
   statsMap: Map<string, MatchStats>,
   oddsRange: { min: number; max: number },
 ): AlgoPick[] {
   // La cote cible par match dépend du nombre de matchs pour atteindre la cote totale visée
   const targetOddsPerPick = computeTargetOddsPerPick(riskLevel, matches.length);
-  return matches.map(m => pickForMatch(m, riskLevel, statsMap.get(m.id), oddsRange, targetOddsPerPick));
+  return matches
+    .map(m => pickForMatch(m, riskLevel, statsMap.get(m.id), oddsRange, targetOddsPerPick))
+    .filter((p): p is AlgoPick => p !== null); // exclut les matchs sans cotes réelles
 }
 
 
@@ -707,19 +688,17 @@ export async function POST(request: Request) {
     }
 
     // ── Prepare match data ─────────────────────────────────────────────────────
-    const matchesForAnalysis = params.selectedMatches.map(m => {
-      const o = isValidOdds(m.odds) ? m.odds! : generateRandomOdds();
-      return {
-        id: m.id,
-        homeTeam: m.homeTeam,
-        awayTeam: m.awayTeam,
-        league: m.league,
-        country: m.country,
-        date: m.date,
-        time: m.time,
-        odds: o as { home: number; draw: number; away: number },
-      };
-    });
+    const matchesForAnalysis = params.selectedMatches.map(m => ({
+      id: m.id,
+      homeTeam: m.homeTeam,
+      awayTeam: m.awayTeam,
+      league: m.league,
+      country: m.country,
+      date: m.date,
+      time: m.time,
+      // Cotes réelles du frontend (The Odds API) — null si indisponibles
+      odds: isValidOdds(m.odds) ? m.odds! : null,
+    }));
 
     // ── Fetch real stats for selected matches (API-Football predictions) ───────
     // Only fetches for apif-* fixture IDs, falls back gracefully if no API key

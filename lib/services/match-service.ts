@@ -243,7 +243,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         time: r.time,
         status: 'scheduled',
         sport: sport as any,
-        odds: (r.odds && r.odds.home > 0) ? r.odds : this.generateRealisticOdds(sport),
+        odds: (r.odds && r.odds.home > 0) ? r.odds : undefined,
       }));
     } catch (err) {
       console.error('[MatchService] OpenClaw segment failed:', err);
@@ -640,36 +640,10 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       const oddsSource = oddsMap.size > 0 ? 'TheOddsAPI' : 'none';
       console.log(`[MatchService] Odds source: ${oddsSource} (${oddsMap.size} events with real odds)`);
 
-      // ── Step 2: Assign odds per match (real → Gemini fallback) ───────────
-      const matchedByReal: boolean[] = rawMatches.map((m: { homeTeam: string; awayTeam: string }) => {
-        return oddsMap.has(this.makeOddsKey(m.homeTeam, m.awayTeam)) ||
-          this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap) !== null;
-      });
-
-      // Gemini batch only for matches not covered by The Odds API
-      const needsGemini = rawMatches.filter((_: any, i: number) => !matchedByReal[i]);
-      let geminiOdds: Array<{ home: number; draw: number; away: number }> = [];
-      if (needsGemini.length > 0) {
-        console.log(`[MatchService] ${needsGemini.length} matches need Gemini odds estimation...`);
-        geminiOdds = await this.estimateOddsWithGemini(
-          needsGemini.map((m: { homeTeam: string; awayTeam: string; leagueInfo: { name: string } }) => ({
-            homeTeam: m.homeTeam,
-            awayTeam: m.awayTeam,
-            league: m.leagueInfo.name,
-          }))
-        );
-      }
-
-      let geminiIdx = 0;
-      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; leagueId: number; matchTime: string; homeTeam: string; awayTeam: string }, idx: number) => {
-        let odds: { home: number; draw?: number; away: number };
-
-        if (matchedByReal[idx]) {
-          const realOdds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap);
-          odds = realOdds ?? this.generateRealisticOdds('football');
-        } else {
-          odds = geminiOdds[geminiIdx++] ?? this.generateRealisticOdds('football');
-        }
+      // ── Step 2: Assign real odds from The Odds API — no estimation fallback ─
+      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; leagueId: number; matchTime: string; homeTeam: string; awayTeam: string }) => {
+        // Only real bookmaker odds — undefined if not covered by The Odds API
+        const odds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap) ?? undefined;
 
         // Resolve league code by ID first (avoids false matches like Russian "Premier League" → 'PL')
         const code = MatchService.LEAGUE_ID_TO_CODE[m.leagueId]
@@ -941,104 +915,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     }
   }
 
-  private generateRealisticOdds(sport: string = 'football'): { home: number; draw?: number; away: number } {
-    const homeBase = 1.4 + Math.random() * 2.2;
-    const drawBase = 2.8 + Math.random() * 1.5;
-    const awayBase = 2.0 + Math.random() * 3.0;
-
-    if (sport === 'tennis' || sport === 'basketball') {
-      return {
-        home: Math.round(homeBase * 100) / 100,
-        away: Math.round(awayBase * 100) / 100,
-      };
-    }
-
-    return {
-      home: Math.round(homeBase * 100) / 100,
-      draw: Math.round(drawBase * 100) / 100,
-      away: Math.round(awayBase * 100) / 100,
-    };
-  }
-
-  /**
-   * Use Gemini to estimate realistic 1X2 odds for a batch of matches.
-   * Gemini has training knowledge of team strengths — much better than pure random.
-   * Processes in batches of 40 to stay within token limits.
-   * Falls back to generateRealisticOdds() if Gemini is unavailable.
-   */
-  private async estimateOddsWithGemini(
-    matches: Array<{ homeTeam: string; awayTeam: string; league: string }>
-  ): Promise<Array<{ home: number; draw: number; away: number }>> {
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (!geminiKey || matches.length === 0) {
-      return matches.map(() => this.generateRealisticOdds('football') as { home: number; draw: number; away: number });
-    }
-
-    const BATCH_SIZE = 40;
-    const allOdds: Array<{ home: number; draw: number; away: number }> = [];
-
-    for (let i = 0; i < matches.length; i += BATCH_SIZE) {
-      const batch = matches.slice(i, i + BATCH_SIZE);
-      const batchOdds = await this.fetchOddsBatchFromGemini(batch, geminiKey);
-      allOdds.push(...batchOdds);
-    }
-
-    return allOdds;
-  }
-
-  private async fetchOddsBatchFromGemini(
-    batch: Array<{ homeTeam: string; awayTeam: string; league: string }>,
-    geminiKey: string
-  ): Promise<Array<{ home: number; draw: number; away: number }>> {
-    const fallback = batch.map(() => this.generateRealisticOdds('football') as { home: number; draw: number; away: number });
-
-    const compact = batch.map((m, idx) => `${idx}:${m.homeTeam}|${m.awayTeam}|${m.league}`).join('\n');
-
-    const prompt = `Tu es un expert bookmaker. Estime les cotes 1X2 réalistes pour ces matchs de football.
-Utilise ta connaissance des équipes, du championnat et de l'avantage domicile.
-Réponds UNIQUEMENT avec un tableau JSON de ${batch.length} objets dans le même ordre.
-Format: [{"home":1.85,"draw":3.20,"away":3.40}, ...]
-Règles: cotes entre 1.20 et 8.00, la somme des probabilités implicites doit être ~105-110%.
-
-Matchs (index:domicile|extérieur|championnat):
-${compact}`;
-
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: 1500 },
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        console.warn(`[MatchService] Gemini odds batch error: ${res.status}`);
-        return fallback;
-      }
-
-      const data = await res.json();
-      const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const jsonStr = text.match(/\[[\s\S]*\]/)?.[0];
-      if (!jsonStr) return fallback;
-
-      const parsed: Array<{ home: number; draw: number; away: number }> = JSON.parse(jsonStr);
-      if (!Array.isArray(parsed) || parsed.length !== batch.length) return fallback;
-
-      return parsed.map((o) => ({
-        home: Math.round(Math.max(1.10, Math.min(15.0, Number(o.home) || 1.85)) * 100) / 100,
-        draw: Math.round(Math.max(1.10, Math.min(15.0, Number(o.draw) || 3.20)) * 100) / 100,
-        away: Math.round(Math.max(1.10, Math.min(15.0, Number(o.away) || 3.40)) * 100) / 100,
-      }));
-    } catch (err) {
-      console.warn('[MatchService] Gemini odds batch failed, using fallback:', err);
-      return fallback;
-    }
-  }
 }
+
 
 export const matchService = new MatchService();
