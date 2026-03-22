@@ -123,7 +123,9 @@ async function callGroq(prompt: string): Promise<string> {
     });
 
     if (!response.ok) return '';
-    const data = await response.json();
+    const buffer = await response.arrayBuffer();
+    const text = new TextDecoder('utf-8').decode(buffer);
+    const data = JSON.parse(text);
     return data.choices?.[0]?.message?.content || '';
   } catch {
     return '';

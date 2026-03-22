@@ -333,82 +333,63 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    * IDs verified from live API fixtures (2026-03-21).
    */
   private static readonly LEAGUE_ID_TO_INFO: Record<number, { name: string; country: string }> = {
-    // Top 5 leagues
-    47:  { name: 'Premier League',        country: 'Angleterre' },
-    53:  { name: 'Ligue 1',              country: 'France' },
-    54:  { name: 'Bundesliga',            country: 'Allemagne' },
-    55:  { name: 'Serie A',              country: 'Italie' },
-    87:  { name: 'La Liga',              country: 'Espagne' },
+    // ── Top 5 leagues (API-Football v3 IDs) ──────────────────────────────────
+    39:  { name: 'Premier League',        country: 'Angleterre' },
+    61:  { name: 'Ligue 1',              country: 'France' },
+    78:  { name: 'Bundesliga',            country: 'Allemagne' },
+    135: { name: 'Serie A',              country: 'Italie' },
+    140: { name: 'La Liga',              country: 'Espagne' },
+    // UEFA
+    2:   { name: 'UEFA Champions League', country: 'Europe' },
+    3:   { name: 'UEFA Europa League',    country: 'Europe' },
+    848: { name: 'UEFA Conference League', country: 'Europe' },
     // England
-    900638: { name: 'Championship',      country: 'Angleterre' },
-    900639: { name: 'League One',        country: 'Angleterre' },
-    900640: { name: 'League Two',        country: 'Angleterre' },
+    40:  { name: 'Championship',          country: 'Angleterre' },
+    41:  { name: 'League One',            country: 'Angleterre' },
+    42:  { name: 'League Two',            country: 'Angleterre' },
     9084:   { name: 'Premier League U21',country: 'Angleterre' },
     10068:  { name: 'Premier League U18',country: 'Angleterre' },
     9227:   { name: "Women's Super League", country: 'Angleterre' },
-    // France
-    110:  { name: 'Ligue 2',             country: 'France' },
-    8970: { name: 'National',            country: 'France' },
-    901477: { name: 'Division 1 Féminine', country: 'France' },
-    // Germany
-    146:    { name: '2. Bundesliga',     country: 'Allemagne' },
-    208:    { name: '3. Liga',           country: 'Allemagne' },
-    888:    { name: 'DFB-Pokal',         country: 'Allemagne' },
-    9676:   { name: 'Frauen-Bundesliga', country: 'Allemagne' },
-    899888: { name: 'Regionalliga Bayern', country: 'Allemagne' },
-    899890: { name: 'Regionalliga Nord', country: 'Allemagne' },
-    901198: { name: 'Regionalliga Nord 2', country: 'Allemagne' },
-    901354: { name: 'Regionalliga Südwest', country: 'Allemagne' },
-    901355: { name: 'Regionalliga West', country: 'Allemagne' },
-    // Italy
-    902171: { name: 'Serie B',          country: 'Italie' },
-    901979: { name: 'Serie C',          country: 'Italie' },
-    901968: { name: 'Serie C Groupe B', country: 'Italie' },
-    901990: { name: 'Serie C Play-off', country: 'Italie' },
-    901923: { name: 'Serie A Femminile', country: 'Italie' },
-    // Spain
-    901075: { name: 'La Liga 2',        country: 'Espagne' },
-    901481: { name: 'Segunda Federación', country: 'Espagne' },
-    901480: { name: 'Primera Federación', country: 'Espagne' },
-    901483: { name: 'Tercera Federación Gr.8', country: 'Espagne' },
-    901484: { name: 'Tercera Federación Gr.15', country: 'Espagne' },
-    901485: { name: 'Tercera Federación Gr.11', country: 'Espagne' },
-    901486: { name: 'Tercera Federación Gr.10', country: 'Espagne' },
-    901487: { name: 'Tercera Federación Gr.7', country: 'Espagne' },
-    902647: { name: 'Primera Federación Féminine', country: 'Espagne' },
-    // Portugal
-    61:   { name: 'Primeira Liga',       country: 'Portugal' },
-    185:  { name: 'Liga Portugal 2',     country: 'Portugal' },
-    920295: { name: 'Liga 3',            country: 'Portugal' },
-    920297: { name: 'Campeonato de Portugal Gr.B', country: 'Portugal' },
-    920298: { name: 'Campeonato de Portugal Gr.C', country: 'Portugal' },
-    905808: { name: 'Liga BPI Féminine', country: 'Portugal' },
-    // Netherlands
-    900368: { name: 'Eredivisie',        country: 'Pays-Bas' },
-    111:    { name: 'Eerste Divisie',    country: 'Pays-Bas' },
-    9195:   { name: 'Tweede Divisie',   country: 'Pays-Bas' },
-    10289:  { name: 'Vrouwen Eredivisie', country: 'Pays-Bas' },
-    // Scotland
-    900474: { name: 'Scottish Premiership', country: 'Écosse' },
-    900476: { name: 'Scottish Championship', country: 'Écosse' },
-    900477: { name: 'Scottish League One', country: 'Écosse' },
-    900478: { name: 'Scottish League Two', country: 'Écosse' },
-    9545:   { name: 'Scottish Lowland League', country: 'Écosse' },
-    // Belgium
-    264:    { name: 'Pro League',        country: 'Belgique' },
+    // France (v3 IDs)
+    62:   { name: 'Ligue 2',             country: 'France' },
+    63:   { name: 'National',            country: 'France' },
+    // Germany (v3 IDs)
+    79:   { name: '2. Bundesliga',       country: 'Allemagne' },
+    80:   { name: '3. Liga',             country: 'Allemagne' },
+    81:   { name: 'DFB-Pokal',           country: 'Allemagne' },
+    // Italy (v3 IDs)
+    136:  { name: 'Serie B',             country: 'Italie' },
+    137:  { name: 'Serie C',             country: 'Italie' },
+    // Spain (v3 IDs)
+    141:  { name: 'La Liga 2',           country: 'Espagne' },
+    142:  { name: 'Primera Federación',  country: 'Espagne' },
+    // Portugal (v3 IDs)
+    94:   { name: 'Primeira Liga',       country: 'Portugal' },
+    95:   { name: 'Liga Portugal 2',     country: 'Portugal' },
+    // Netherlands (v3 IDs)
+    88:   { name: 'Eredivisie',          country: 'Pays-Bas' },
+    89:   { name: 'Eerste Divisie',      country: 'Pays-Bas' },
+    // Scotland (v3 IDs)
+    207:  { name: 'Scottish Premiership', country: 'Écosse' },
+    208:  { name: 'Scottish Championship', country: 'Écosse' },
+    209:  { name: 'Scottish League One',  country: 'Écosse' },
+    210:  { name: 'Scottish League Two',  country: 'Écosse' },
+    // Belgium (v3 IDs)
+    144:  { name: 'Pro League',           country: 'Belgique' },
     // Switzerland
     900529: { name: 'Super League',      country: 'Suisse' },
     900530: { name: 'Challenge League',  country: 'Suisse' },
-    // Austria
-    923518: { name: 'Bundesliga Autrichienne', country: 'Autriche' },
-    900626: { name: '2. Liga Autrichienne',    country: 'Autriche' },
-    // Russia
-    63:    { name: 'Premier League Russe', country: 'Russie' },
-    901329: { name: 'First League Russe', country: 'Russie' },
-    // Ukraine
-    900627: { name: 'Premier League Ukrainienne', country: 'Ukraine' },
-    // Turkey
-    165:    { name: 'TFF 1. Lig',        country: 'Turquie' },
+    // Austria (v3 IDs)
+    218: { name: 'Bundesliga Autrichienne', country: 'Autriche' },
+    219: { name: '2. Liga Autrichienne',    country: 'Autriche' },
+    // Russia (v3 IDs)
+    235: { name: 'Premier League Russe',    country: 'Russie' },
+    236: { name: 'First League Russe',      country: 'Russie' },
+    // Ukraine (v3 IDs)
+    333: { name: 'Premier League Ukrainienne', country: 'Ukraine' },
+    // Turkey (v3 IDs)
+    197: { name: 'Super Lig',               country: 'Turquie' },
+    198: { name: 'TFF 1. Lig',              country: 'Turquie' },
     // Norway
     59:    { name: 'Eliteserien',        country: 'Norvège' },
     333:   { name: 'Toppserien (W)',      country: 'Norvège' },
@@ -503,23 +484,18 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     901530: { name: 'Southern League Central', country: 'Angleterre' },
     901535: { name: 'Northern Premier League', country: 'Angleterre' },
     901537: { name: 'Isthmian League',   country: 'Angleterre' },
-    // Americas
-    913550: { name: 'MLS',              country: 'États-Unis' },
-    916051: { name: 'Liga MX',          country: 'Mexique' },
-    916290: { name: 'Liga de Expansión MX', country: 'Mexique' },
-    916500: { name: 'Liga MX Femenil',  country: 'Mexique' },
-    905256: { name: 'Liga Profesional', country: 'Argentine' },
-    916553: { name: 'Primera Nacional', country: 'Argentine' },
-    916561: { name: 'Primera B Metro.', country: 'Argentine' },
-    923718: { name: 'Torneo Federal A', country: 'Argentine' },
-    923719: { name: 'Torneo Federal A', country: 'Argentine' },
-    923720: { name: 'Torneo Federal A', country: 'Argentine' },
-    920319: { name: 'Primera División', country: 'Uruguay' },
-    919710: { name: 'Liga 1',           country: 'Pérou' },
-    917521: { name: 'Liga Betplay',     country: 'Colombie' },
-    920002: { name: 'Primera B',        country: 'Colombie' },
-    9305:   { name: 'Superliga',        country: 'Argentine' },
-    9126:   { name: 'Primera División Gr.', country: 'Chili' },
+    // Americas (v3 IDs)
+    253: { name: 'MLS',                  country: 'États-Unis' },
+    262: { name: 'Liga MX',              country: 'Mexique' },
+    263: { name: 'Liga de Expansión MX', country: 'Mexique' },
+    71:  { name: 'Brasileirão Serie A',  country: 'Brésil' },
+    72:  { name: 'Brasileirão Serie B',  country: 'Brésil' },
+    128: { name: 'Liga Profesional',     country: 'Argentine' },
+    131: { name: 'Primera Nacional',     country: 'Argentine' },
+    268: { name: 'Primera División',     country: 'Uruguay' },
+    284: { name: 'Liga 1',               country: 'Pérou' },
+    239: { name: 'Liga Betplay',         country: 'Colombie' },
+    265: { name: 'Primera División',     country: 'Chili' },
     // Costa Rica / Honduras / Panama
     914695: { name: 'Primera División', country: 'Costa Rica' },
     918407: { name: 'Liga Nacional',    country: 'Honduras' },
@@ -557,43 +533,48 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    * (e.g. Russian "Premier League" → 'PL', Austrian "Bundesliga" → 'BL').
    */
   private static readonly LEAGUE_ID_TO_CODE: Record<number, string> = {
-    // ── Top 5 European leagues ──────────────────────────────────────────────
-    47:  'PL',   // English Premier League
-    53:  'FL',   // Ligue 1
-    54:  'BL',   // Bundesliga
-    55:  'SA',   // Serie A
-    87:  'LA',   // La Liga
+    // ── Top 5 European leagues (API-Football v3 IDs) ─────────────────────────
+    39:  'PL',   // Premier League (England)
+    61:  'FL',   // Ligue 1 (France)
+    78:  'BL',   // Bundesliga (Germany)
+    135: 'SA',   // Serie A (Italy)
+    140: 'LA',   // La Liga (Spain)
     // ── European 2nd tiers ──────────────────────────────────────────────────
-    900638: 'ENG2', // Championship
-    900639: 'ENG3', // League One
-    900640: 'ENG4', // League Two
-    110:    'FRA2', // Ligue 2
-    146:    'GER2', // 2. Bundesliga
-    208:    'GER3', // 3. Liga
-    902171: 'ITA2', // Serie B
-    901075: 'ESP2', // La Liga 2
+    40:  'ENG2', // Championship
+    41:  'ENG3', // League One
+    42:  'ENG4', // League Two
+    62:  'FRA2', // Ligue 2
+    79:  'GER2', // 2. Bundesliga
+    80:  'GER3', // 3. Liga
+    136: 'ITA2', // Serie B
+    141: 'ESP2', // La Liga 2
     // ── UEFA ────────────────────────────────────────────────────────────────
-    42:  'CL',   // UEFA Champions League
-    73:  'EL',   // UEFA Europa League
-    480: 'ECL',  // UEFA Conference League
-    // ── Americas ────────────────────────────────────────────────────────────
-    913550: 'US1',  // MLS
-    916051: 'MX1',  // Liga MX
-    // ── Explicit 'TOP' for leagues whose names would trigger false positives ─
-    // (e.g. "Premier League" named leagues outside England, "Bundesliga" outside Germany)
-    63:     'TOP',  // Russian Premier League
-    901329: 'TOP',  // Russian First League
-    900627: 'TOP',  // Ukrainian Premier League
-    923518: 'TOP',  // Austrian Bundesliga
-    900626: 'TOP',  // Austrian 2. Liga
-    250:    'TOP',  // Faroe Islands Premier League
-    902649: 'TOP',  // Kuwait Premier League
-    9084:   'TOP',  // EPL U21 (not a first-team competition)
-    10068:  'TOP',  // EPL U18
-    9227:   'TOP',  // Women's Super League (separate competition)
-    9676:   'TOP',  // German Frauen-Bundesliga
-    901923: 'TOP',  // Italian Serie A Femminile
-    // All other leagues → fallback to inferLeagueCode → 'TOP' for unknowns
+    2:   'CL',   // UEFA Champions League
+    3:   'EL',   // UEFA Europa League
+    848: 'ECL',  // UEFA Conference League
+    // ── Other top leagues ───────────────────────────────────────────────────
+    94:  'PT1',  // Primeira Liga (Portugal)
+    88:  'NL1',  // Eredivisie (Netherlands)
+    197: 'TR1',  // Super Lig (Turkey)
+    144: 'BE1',  // Jupiler Pro League (Belgium)
+    207: 'SC1',  // Scottish Premiership
+    71:  'BR1',  // Brasileirão Serie A
+    128: 'AR1',  // Argentine Primera División
+    253: 'US1',  // MLS
+    262: 'MX1',  // Liga MX
+    // ── Explicit 'TOP' for leagues whose names trigger false positives ───────
+    // (e.g. "Premier League" outside England, "Bundesliga" outside Germany)
+    235: 'TOP',  // Russian Premier League
+    333: 'TOP',  // Ukrainian Premier League
+    218: 'TOP',  // Austrian Bundesliga
+    219: 'TOP',  // Austrian 2. Liga
+    683: 'TOP',  // Hong Kong Premier League
+    702: 'TOP',  // Faroe Islands Premier League
+    291: 'TOP',  // Kuwait Premier League
+    // Youth / Women's — excluded from daily ticket
+    528: 'TOP',  // EPL U21
+    529: 'TOP',  // EPL U18
+    // All other leagues → inferLeagueCode with country guard (see fetchFootballFromAPI)
   };
 
   /** Fallback: derive a proper display name+country from the inferred league code */
