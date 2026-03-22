@@ -40,6 +40,12 @@ export async function GET() {
     const wonOdds = won.map(t => Number(t.total_odds)).filter(o => o > 0);
     const bestWinOdds = wonOdds.length > 0 ? Math.max(...wonOdds) : null;
 
+    // ROI: for each won ticket, gain = total_odds (return on 1 unit stake); each lost = -1
+    const totalGains = wonOdds.reduce((acc, o) => acc + o, 0);
+    const roi = resolved > 0
+      ? Math.round(((totalGains - resolved) / resolved) * 1000) / 10
+      : null;
+
     const stats = {
       total_won:      won.length,
       total_lost:     lost.length,
@@ -48,6 +54,7 @@ export async function GET() {
       win_rate_pct:   winRate,
       avg_odds:       avgOdds,
       best_win_odds:  bestWinOdds,
+      roi_pct:        roi,
       total_tickets:  totalCount ?? 0,
     };
 

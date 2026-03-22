@@ -214,9 +214,69 @@ export async function GET(req: Request) {
         .order('probability', { ascending: false })
         .limit(20);
 
+      // If no pre-generated predictions exist, fall back to live matches + quick prediction
       if (!pool || pool.length < 2) {
+        console.warn('[ticket-du-jour] No match_predictions found for Optimus — falling back to live matches');
+        let liveMatches = await matchService.getMatchesForDate(today, 'football', DAILY_TICKET_LEAGUES);
+        if (liveMatches.length < 2) {
+          const extra = await matchService.getMatchesForDate(today, 'football', FALLBACK_LEAGUES);
+          liveMatches = [...liveMatches, ...extra];
+        }
+        if (liveMatches.length < 2) {
+          const all = await matchService.getMatchesForDate(today, 'football');
+          liveMatches = [...liveMatches, ...all];
+        }
+        const seen = new Set<string>();
+        const avail = liveMatches.filter(m => {
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
+          return m.status === 'scheduled' && m.odds;
+        }).slice(0, 10);
+
+        if (avail.length >= 2) {
+          // Build synthetic pool from live matches
+          const syntheticPool = avail.map(m => {
+            const ho = m.odds!.home, dr = m.odds!.draw || 3.3, aw = m.odds!.away;
+            const total = 1/ho + 1/dr + 1/aw;
+            const best = ho <= aw ? { odds: ho, type: 'home', prob: Math.round((1/ho/total)*100) }
+                                  : { odds: aw, type: 'away', prob: Math.round((1/aw/total)*100) };
+            return {
+              slug: m.id, home_team: m.homeTeam, away_team: m.awayTeam,
+              league: m.league, match_date: m.date, match_time: m.time,
+              recommended_odds: best.odds, prediction_type: best.type, probability: best.prob,
+            };
+          });
+          // Replace pool with synthetic
+          const OPTIMUS_TARGET = 5.0;
+          const candidates = syntheticPool;
+          let optimusMatches: typeof candidates = candidates.slice(0, 3);
+          let bestDiff = Infinity;
+          for (let i = 0; i < candidates.length; i++) {
+            for (let j = i + 1; j < candidates.length; j++) {
+              const combo2 = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1);
+              const diff2 = Math.abs(combo2 - OPTIMUS_TARGET);
+              if (diff2 < bestDiff) { bestDiff = diff2; optimusMatches = [candidates[i], candidates[j]]; }
+              for (let k = j + 1; k < candidates.length; k++) {
+                const combo3 = combo2 * (candidates[k].recommended_odds || 1);
+                const diff3 = Math.abs(combo3 - OPTIMUS_TARGET);
+                if (diff3 < bestDiff) { bestDiff = diff3; optimusMatches = [candidates[i], candidates[j], candidates[k]]; }
+              }
+            }
+          }
+          const totalOdds = Math.round(optimusMatches.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+          const confidencePct = Math.round(optimusMatches.reduce((acc, m) => acc + (m.probability || 60), 0) / optimusMatches.length);
+          const optimusPicks = optimusMatches.map(m => ({
+            matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team,
+            league: m.league, kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
+            selection: { type: m.prediction_type, value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X', odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
+          }));
+          const optimusTicket = { date: today, type: 'optimus', matches: optimusPicks, total_odds: totalOdds, confidence_pct: confidencePct, risk_level: 'balanced', analysis: {}, status: 'pending' };
+          const { data: savedOptimus, error: optimusError } = await adminSupabase.from('daily_ticket').upsert(optimusTicket, { onConflict: 'date,type' }).select().single();
+          return NextResponse.json({ ticket: optimusError ? { ...optimusTicket, id: 'temp', created_at: new Date().toISOString() } : savedOptimus, fromCache: false });
+        }
+
         return NextResponse.json(
-          { error: 'Pas assez de pronostics disponibles pour générer le ticket Optimus aujourd\'hui.' },
+          { error: 'Pas assez de matchs disponibles pour générer le ticket Optimus aujourd\'hui.' },
           { status: 503 }
         );
       }
@@ -328,17 +388,11 @@ export async function GET(req: Request) {
       );
     }
 
-    // Guard: block ticket generation if no real API data (all matches from AI fallback)
-    // Real matches have id starting with "apif-"; AI-generated have "openclaw-"
+    // Detect data source: real API matches have id starting with "apif-"; AI-generated have "openclaw-"
     const hasRealApiMatches = available.some(m => m.id.startsWith('apif-'));
+    const dataSource = hasRealApiMatches ? 'api-football' : 'ai-fallback';
     if (!hasRealApiMatches) {
-      return NextResponse.json(
-        {
-          error: 'Données insuffisantes: impossible de générer un ticket fiable. Les matchs proviennent d\'une source IA non vérifiée (pas de données API réelles). Réessayez dans quelques minutes ou vérifiez la clé API_FOOTBALL_KEY.',
-          dataSource: 'ai-fallback',
-        },
-        { status: 503 }
-      );
+      console.warn('[ticket-du-jour] No real API matches found — generating from AI fallback data');
     }
 
     // Select the top DAILY_MATCH_COUNT matches
@@ -430,7 +484,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ticket: { ...ticket, id: 'temp', created_at: new Date().toISOString() }, fromCache: false });
     }
 
-    return NextResponse.json({ ticket: saved, fromCache: false });
+    return NextResponse.json({ ticket: saved, fromCache: false, dataSource });
   } catch (error) {
     console.error('[ticket-du-jour] Error:', error);
     return NextResponse.json({ error: 'Erreur lors de la génération du ticket du jour' }, { status: 500 });
