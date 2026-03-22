@@ -422,6 +422,7 @@ async function generateAIReasoning(
   signals: SignalResult[],
   recommendation: BettingRecommendation,
   riskLevel: RiskLevel,
+  allRecommendations: BettingRecommendation[],
 ): Promise<{ reasoning: string; summary: string; riskAssessment: string }> {
   const riskCtx = {
     safe:     'COUPON PRUDENT — insiste sur la solidité du favori et la sécurité de la sélection.',
@@ -433,22 +434,71 @@ async function generateAIReasoning(
     `• ${s.signal.toUpperCase()} [${s.confidence}]: ${s.label}\n  ${s.detail}`
   ).join('\n');
 
+  // Extract full 1X2 model probabilities for honest 3-way display
+  const homeRec = allRecommendations.find(r => r.type === '1X2' && r.value === '1');
+  const drawRec = allRecommendations.find(r => r.type === '1X2' && r.value === 'X');
+  const awayRec = allRecommendations.find(r => r.type === '1X2' && r.value === '2');
+
+  const homePct    = homeRec?.modelPct ?? homeRec?.impliedPct ?? null;
+  const drawPct    = drawRec?.modelPct ?? drawRec?.impliedPct ?? null;
+  const awayPct    = awayRec?.modelPct ?? awayRec?.impliedPct ?? null;
+  const homeImplied = homeRec?.impliedPct ?? null;
+  const drawImplied = drawRec?.impliedPct ?? null;
+  const awayImplied = awayRec?.impliedPct ?? null;
+  const homeOdds    = homeRec?.odds ?? null;
+  const drawOdds    = drawRec?.odds ?? null;
+  const awayOdds    = awayRec?.odds ?? null;
+
+  // Determine actual favorite from model
+  const probs = [
+    { team: homeTeam, pct: homePct ?? 0, side: '1' },
+    { team: 'Nul', pct: drawPct ?? 0, side: 'X' },
+    { team: awayTeam, pct: awayPct ?? 0, side: '2' },
+  ];
+  const favoriteLine = probs.reduce((a, b) => b.pct > a.pct ? b : a);
+  const favoriteLabel = favoriteLine.side === '1'
+    ? `${homeTeam} (domicile)`
+    : favoriteLine.side === '2'
+    ? `${awayTeam} (extérieur)`
+    : 'match équilibré — nul possible';
+
+  const probsBlock = [
+    homePct !== null ? `- Victoire ${homeTeam}: ${homePct}% (cote bookmaker ${homeOdds ?? '?'}, impliqué ${homeImplied ?? '?'}%)` : null,
+    drawPct !== null ? `- Match nul: ${drawPct}% (cote ${drawOdds ?? '?'}, impliqué ${drawImplied ?? '?'}%)` : null,
+    awayPct !== null ? `- Victoire ${awayTeam}: ${awayPct}% (cote ${awayOdds ?? '?'}, impliqué ${awayImplied ?? '?'}%)` : null,
+  ].filter(Boolean).join('\n');
+
   const valueNote = recommendation.valueEdge !== null && recommendation.valueEdge > 0
-    ? `⚡ VALUE BET DÉTECTÉ: modèle ${recommendation.modelPct}% vs bookmaker ${recommendation.impliedPct}% → +${recommendation.valueEdge}% d'avantage`
-    : `Probabilité implicite bookmaker: ${recommendation.impliedPct}%${recommendation.modelPct !== null ? ` | Modèle: ${recommendation.modelPct}%` : ''}`;
+    ? `⚡ VALUE BET: modèle ${recommendation.modelPct}% vs bookmaker ${recommendation.impliedPct}% → +${recommendation.valueEdge}% d'avantage`
+    : recommendation.modelPct !== null
+      ? `Modèle: ${recommendation.modelPct}% | Bookmaker: ${recommendation.impliedPct}%`
+      : `Probabilité implicite bookmaker: ${recommendation.impliedPct}%`;
 
   const systemPrompt =
-    `Tu es AlgoPronos AI, analyste sportif expert en paris sportifs. ${riskCtx}
-RÈGLES:
-- reasoning: 3-4 phrases percutantes, journalistiques, spécifiques à CE match — cite forme, xG, value
-- summary: 1-2 phrases résumant la logique du pari
-- riskAssessment: 1 phrase nommant le risque principal
-- INTERDITS: "les statistiques indiquent", "il est difficile de prédire", formules génériques
+    `Tu es AlgoPronos AI, analyste sportif expert en value betting. ${riskCtx}
+
+STRUCTURE OBLIGATOIRE du champ "reasoning" (3-4 phrases percutantes):
+1. Qui domine ce match selon le modèle AlgoPronos (cite les vrais %)
+2. Lecture comparative honnête des deux équipes (forme, avantage terrain, stats)
+3. Logique de la sélection: comment les probabilités modèle justifient CE pari spécifiquement
+4. Value betting si pertinent: l'écart modèle vs bookmaker qui crée l'opportunité
+
+RÈGLES ABSOLUES:
+- Les données DICTENT l'analyse, jamais l'inverse (ne jamais justifier une sélection avec des stats qui la contredisent logiquement)
+- Si une équipe est en mauvaise forme, ne pas utiliser ça pour justifier un pari SUR elle — sauf si c'est pour expliquer la value de la cote élevée
+- Citer les vrais % modèle (home/draw/away) dans l'analyse — c'est la crédibilité AlgoPronos
+- INTERDITS: "les statistiques indiquent", "il est difficile de prédire", formules génériques, contradictions logiques
 - Réponds UNIQUEMENT en JSON valide, zéro texte avant/après`;
 
   const userPrompt =
     `MATCH: ${homeTeam} vs ${awayTeam} (${league})
-SÉLECTION CONFIRMÉE: "${recommendation.value}" @ ${recommendation.odds} [${recommendation.type}]
+
+PROBABILITÉS MODÈLE AlgoPronos (vérité terrain):
+${probsBlock}
+
+ÉQUIPE FAVORITE selon modèle: ${favoriteLabel}
+
+SÉLECTION CHOISIE: "${recommendation.value}" @ ${recommendation.odds} [${recommendation.type}]
 ${valueNote}
 
 SIGNAUX ANALYSÉS:
@@ -456,7 +506,7 @@ ${signalsBlock}
 
 RÉPONDS avec ce JSON exact:
 {
-  "reasoning": "3-4 phrases percutantes justifiant cette sélection",
+  "reasoning": "3-4 phrases percutantes — DOIT citer les % modèle et être logiquement cohérent avec les données",
   "summary": "1-2 phrases résumant la logique du pari",
   "riskAssessment": "1 phrase évaluant le risque principal"
 }`;
@@ -704,9 +754,9 @@ export async function analyzeMatch(
   const formBonus   = formSignal.direction === favSide ? 3 : formSignal.direction === 'neutral' ? 0 : -2;
   const estimatedProbability = Math.min(95, Math.max(5, Math.round(modelPct + formBonus)));
 
-  // ── AI reasoning (OpenClaw ▸ Gemini Flash) ───────────────────────────────────
+  // ── AI reasoning (OpenClaw ▸ Groq) ───────────────────────────────────────
   const { reasoning, summary, riskAssessment } = await generateAIReasoning(
-    homeTeam, awayTeam, league, signals, recommendation, riskLevel,
+    homeTeam, awayTeam, league, signals, recommendation, riskLevel, allRecommendations,
   );
 
   const result: MatchAnalysisResult = {
