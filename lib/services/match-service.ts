@@ -252,38 +252,48 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
   }
 
   /**
-   * Simple helper to map common league names to codes for filtering
+   * Map league name → code. Country is REQUIRED for top-5 leagues to prevent
+   * false positives (e.g. Brazilian "Serie A" → 'SA', Argentine "Liga" → 'LA').
+   * Only leagues whose country matches the expected country get the top-5 code.
+   * All others fall through to 'TOP'.
    */
-  private inferLeagueCode(leagueName: string): string {
+  private inferLeagueCode(leagueName: string, country?: string): string {
     const l = leagueName.trim().toUpperCase();
-    // Exact or anchor matches only — avoids "Premier League Russe" / "Bundesliga Autrichienne" false positives
-    // England
-    if (l === 'PREMIER LEAGUE' || l.includes('ENGLISH PREMIER')) return 'PL';
-    if (l === 'CHAMPIONSHIP' || l === 'EFL CHAMPIONSHIP') return 'ENG2';
+    const c = (country ?? '').trim().toUpperCase();
+
+    const isCountry = (...candidates: string[]) =>
+      !c || candidates.some(cand => c.includes(cand.toUpperCase()));
+
+    // ── Top-5 with strict country guard ─────────────────────────────────────
+    // England / Premier League
+    if ((l === 'PREMIER LEAGUE' || l.includes('ENGLISH PREMIER')) && isCountry('England', 'Angleterre')) return 'PL';
+    if ((l === 'CHAMPIONSHIP' || l === 'EFL CHAMPIONSHIP') && isCountry('England', 'Angleterre')) return 'ENG2';
     // Spain
-    if (l === 'LA LIGA' || l === 'LALIGA' || l === 'PRIMERA DIVISIÓN' || l === 'PRIMERA DIVISION') return 'LA';
-    if (l === 'LA LIGA 2' || l === 'LALIGA 2' || l === 'SEGUNDA DIVISIÓN' || l === 'SEGUNDA DIVISION') return 'ESP2';
+    if ((l === 'LA LIGA' || l === 'LALIGA') && isCountry('Spain', 'Espagne')) return 'LA';
+    if ((l === 'LA LIGA 2' || l === 'LALIGA 2' || l === 'SEGUNDA DIVISIÓN' || l === 'SEGUNDA DIVISION') && isCountry('Spain', 'Espagne')) return 'ESP2';
     // Italy
-    if (l === 'SERIE A') return 'SA';
-    if (l === 'SERIE B') return 'ITA2';
+    if (l === 'SERIE A' && isCountry('Italy', 'Italie')) return 'SA';
+    if (l === 'SERIE B' && isCountry('Italy', 'Italie')) return 'ITA2';
     // Germany
-    if (l === 'BUNDESLIGA' || l === '1. BUNDESLIGA') return 'BL';
-    if (l === '2. BUNDESLIGA' || l === '2.BUNDESLIGA') return 'GER2';
+    if ((l === 'BUNDESLIGA' || l === '1. BUNDESLIGA') && isCountry('Germany', 'Allemagne')) return 'BL';
+    if ((l === '2. BUNDESLIGA' || l === '2.BUNDESLIGA') && isCountry('Germany', 'Allemagne')) return 'GER2';
     // France
-    if (l === 'LIGUE 1' || l === 'LIGUE1') return 'FL';
-    if (l === 'LIGUE 2' || l === 'LIGUE2') return 'FRA2';
-    // Europe
+    if ((l === 'LIGUE 1' || l === 'LIGUE1') && isCountry('France')) return 'FL';
+    if ((l === 'LIGUE 2' || l === 'LIGUE2') && isCountry('France')) return 'FRA2';
+
+    // ── European competitions (no country guard needed) ──────────────────────
     if (l.includes('CHAMPIONS LEAGUE') || l.includes('UEFA CL') || l === 'UCL') return 'CL';
     if (l.includes('EUROPA LEAGUE') || l.includes('UEFA EL') || l === 'UEL') return 'EL';
     if (l.includes('CONFERENCE LEAGUE') || l === 'UECL') return 'ECL';
-    // Americas
+
+    // ── Other known leagues (unambiguous names) ──────────────────────────────
     if (l === 'MLS' || l.includes('MAJOR LEAGUE SOCCER')) return 'US1';
     if (l === 'LIGA MX') return 'MX1';
     if (l.includes('BRASILEIRAO') || l.includes('CAMPEONATO BRASILEIRO')) return 'BR1';
-    // Africa
     if (l.includes('SÉNÉGAL') || l.includes('SENEGAL')) return 'SN1';
     if (l.includes("CÔTE D'IVOIRE") || l.includes("COTE D'IVOIRE") || l.includes('IVORY COAST')) return 'CI1';
     if (l.includes('BÉNIN') || l.includes('BENIN')) return 'BJ1';
+
     return 'TOP';
   }
 
@@ -646,8 +656,9 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         const odds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap) ?? undefined;
 
         // Resolve league code by ID first (avoids false matches like Russian "Premier League" → 'PL')
+        // Pass country so inferLeagueCode can guard top-5 names (e.g. Brazilian "Serie A" ≠ Italian Serie A)
         const code = MatchService.LEAGUE_ID_TO_CODE[m.leagueId]
-          ?? this.inferLeagueCode(m.leagueInfo.name);
+          ?? this.inferLeagueCode(m.leagueInfo.name, m.leagueInfo.country);
         const knownInfo = code !== 'TOP' ? MatchService.LEAGUE_CODE_TO_INFO[code] : null;
         const finalCountry = m.leagueInfo.country || (knownInfo?.country ?? '');
 

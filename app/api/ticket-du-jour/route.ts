@@ -297,20 +297,21 @@ export async function GET(req: Request) {
     }
 
     // ── 2. Fetch today's matches ─────────────────────────────────────────────
-    let matches = await matchService.getMatchesForDate(today, 'football', DAILY_TICKET_LEAGUES);
+    // Priority 1: Top 5 European leagues + CL/PT1/NL1
+    const topMatches = await matchService.getMatchesForDate(today, 'football', DAILY_TICKET_LEAGUES);
 
+    // Priority 2: Secondary leagues (only used to fill remaining slots)
+    let matches = topMatches;
     if (matches.length < DAILY_MATCH_COUNT) {
       const extra = await matchService.getMatchesForDate(today, 'football', FALLBACK_LEAGUES);
-      matches = [...matches, ...extra];
+      // Add fallback matches only to fill remaining slots; keep top matches first
+      matches = [...topMatches, ...extra];
     }
 
-    // Last resort: fetch all leagues (no filter) if still not enough
-    if (matches.length < DAILY_MATCH_COUNT) {
-      const all = await matchService.getMatchesForDate(today, 'football');
-      matches = [...matches, ...all];
-    }
+    // NO "all leagues" fallback — prefer returning an error over bizarre matches
 
     // Filter to scheduled matches with odds (deduplicate by id)
+    // Top-league matches are sorted first naturally (topMatches come first in array)
     const seen = new Set<string>();
     const available = matches
       .filter(m => {

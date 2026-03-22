@@ -9,55 +9,46 @@ export async function GET() {
     const adminSupabase = createAdminClient();
     const today = new Date().toISOString().split('T')[0];
 
-    // ── Stats all-time (pas de limite) ──────────────────────────────────────
-    // On récupère seulement status + total_odds pour ne pas surcharger la requête
+    // ── Stats all-time ───────────────────────────────────────────────────────
     const { data: allForStats, count: totalCount } = await adminSupabase
       .from('daily_ticket')
       .select('status, total_odds', { count: 'exact' })
       .lte('date', today);
 
-    type StatRow = { status: string; total_odds: number | string };
-    const resolved = (allForStats || [] as StatRow[]).filter((t: StatRow) => t.status === 'won' || t.status === 'lost');
-    const won      = resolved.filter((t: StatRow) => t.status === 'won');
-    const lost     = resolved.filter((t: StatRow) => t.status === 'lost');
-    const voided   = (allForStats || [] as StatRow[]).filter((t: StatRow) => t.status === 'void');
+    type StatRow = { status: string; total_odds: number | string | null };
+    const rows = (allForStats || []) as StatRow[];
 
-    // ── Stats Predictions Log (Dixon-Coles) ──────────────────────────────────
-    const { data: predStats } = await adminSupabase
-      .from('predictions_log')
-      .select('result, bookmaker_odds');
+    const won    = rows.filter(t => t.status === 'won');
+    const lost   = rows.filter(t => t.status === 'lost');
+    const voided = rows.filter(t => t.status === 'void');
+    // Only won + lost count toward win rate (void excluded)
+    const resolved = won.length + lost.length;
 
-    const predResolved = (predStats || []).filter(p => p.result === 'WIN' || p.result === 'LOSS');
-    const predWon      = predResolved.filter(p => p.result === 'WIN');
-    
-    // Aggregate global stats
-    const totalWon      = won.length + predWon.length;
-    const totalResolved = resolved.length + predResolved.length;
-    
-    // Win Rate (Global)
-    const winRate = totalResolved > 0
-      ? Math.round((totalWon / totalResolved) * 1000) / 10
+    const winRate = resolved > 0
+      ? Math.round((won.length / resolved) * 1000) / 10
       : null;
 
-    // ROI Calculation: ((Gains - Mises) / Mises) * 100
-    // On assume une mise de 1 unité par prédiction résolue
-    const totalGains = predWon.reduce((acc, p) => acc + Number(p.bookmaker_odds), 0) + won.length; // legacy counts Won as 1.0 odds? No, let's just use prediction_log for ROI
-    const totalMises = totalResolved;
-    const roi = totalResolved > 0 
-      ? Math.round(((totalGains - totalMises) / totalMises) * 1000) / 10
+    // Average odds based on all resolved tickets (won + lost)
+    const resolvedOdds = [...won, ...lost]
+      .map(t => Number(t.total_odds))
+      .filter(o => o > 0);
+    const avgOdds = resolvedOdds.length > 0
+      ? Math.round((resolvedOdds.reduce((a, b) => a + b, 0) / resolvedOdds.length) * 100) / 100
       : null;
 
-    const avgOdds = predResolved.length > 0
-      ? Math.round((predResolved.reduce((acc, p) => acc + Number(p.bookmaker_odds || 0), 0) / predResolved.length) * 100) / 100
-      : 1.85;
+    // Best win odds
+    const wonOdds = won.map(t => Number(t.total_odds)).filter(o => o > 0);
+    const bestWinOdds = wonOdds.length > 0 ? Math.max(...wonOdds) : null;
 
     const stats = {
-      total_won:      totalWon,
-      total_resolved: totalResolved,
+      total_won:      won.length,
+      total_lost:     lost.length,
+      total_void:     voided.length,
+      total_resolved: resolved,
       win_rate_pct:   winRate,
-      roi_pct:        roi,
-      avg_odds:       avgOdds, // keep legacy avg odds for now
-      total_tickets:  (totalCount ?? 0) + (predStats?.length ?? 0),
+      avg_odds:       avgOdds,
+      best_win_odds:  bestWinOdds,
+      total_tickets:  totalCount ?? 0,
     };
 
     // ── Tickets pour l'affichage (60 derniers, données complètes) ───────────
