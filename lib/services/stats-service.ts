@@ -97,16 +97,16 @@ export async function fetchMatchStats(
   matchId: string,
   homeTeam: string,
   awayTeam: string,
-  currentOdds: { home: number; draw: number; away: number },
+  currentOdds: { home: number; draw: number; away: number } | null,
   apiKey: string | undefined,
 ): Promise<MatchStats> {
   const base: MatchStats = {
     fixtureId: matchId,
     homeTeam,
     awayTeam,
-    homePct: Math.round((1 / currentOdds.home) * 100),
-    drawPct: Math.round((1 / currentOdds.draw) * 100),
-    awayPct: Math.round((1 / currentOdds.away) * 100),
+    homePct: currentOdds ? Math.round((1 / currentOdds.home) * 100) : 33,
+    drawPct: currentOdds ? Math.round((1 / currentOdds.draw) * 100) : 33,
+    awayPct: currentOdds ? Math.round((1 / currentOdds.away) * 100) : 33,
     goalsHomeExpected: 0,
     goalsAwayExpected: 0,
     advice: '',
@@ -275,7 +275,7 @@ export async function fetchStatsForMatches(
     id: string;
     homeTeam: string;
     awayTeam: string;
-    odds: { home: number; draw: number; away: number };
+    odds: { home: number; draw: number; away: number } | null;
   }[],
   apiKey: string | undefined,
 ): Promise<Map<string, MatchStats>> {
