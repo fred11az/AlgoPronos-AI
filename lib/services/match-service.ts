@@ -286,10 +286,20 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     if (l.includes('EUROPA LEAGUE') || l.includes('UEFA EL') || l === 'UEL') return 'EL';
     if (l.includes('CONFERENCE LEAGUE') || l === 'UECL') return 'ECL';
 
-    // ── Other known leagues (unambiguous names) ──────────────────────────────
+    // ── Other European leagues (unambiguous names) ───────────────────────────
+    if (l === 'PRIMEIRA LIGA' || l === 'LIGA NOS' || l === 'LIGA PORTUGAL') return 'PT1';
+    if (l === 'LIGA PORTUGAL 2' || l === 'SEGUNDA LIGA') return 'PT2';
+    if (l === 'EREDIVISIE' || l === 'DUTCH EREDIVISIE') return 'NL1';
+    if (l === 'EERSTE DIVISIE') return 'NL2';
+    if (l === 'SCOTTISH PREMIERSHIP') return 'SC1';
+    if (l === 'JUPILER PRO LEAGUE' || l === 'FIRST DIVISION A') return 'BE1';
+    if (l === 'SUPER LIG' || l === 'SÜPER LIG') return 'TR1';
+    // ── Americas ─────────────────────────────────────────────────────────────
     if (l === 'MLS' || l.includes('MAJOR LEAGUE SOCCER')) return 'US1';
     if (l === 'LIGA MX') return 'MX1';
-    if (l.includes('BRASILEIRAO') || l.includes('CAMPEONATO BRASILEIRO')) return 'BR1';
+    if (l.includes('BRASILEIRAO') || l.includes('CAMPEONATO BRASILEIRO') || l === 'SÉRIE A' || l === 'SERIE A BRASIL') return 'BR1';
+    if (l === 'LIGA PROFESIONAL' || l.includes('PRIMERA DIVISIÓN ARGENTINA')) return 'AR1';
+    // ── Africa ───────────────────────────────────────────────────────────────
     if (l.includes('SÉNÉGAL') || l.includes('SENEGAL')) return 'SN1';
     if (l.includes("CÔTE D'IVOIRE") || l.includes("COTE D'IVOIRE") || l.includes('IVORY COAST')) return 'CI1';
     if (l.includes('BÉNIN') || l.includes('BENIN')) return 'BJ1';
@@ -576,24 +586,36 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
   /** Fallback: derive a proper display name+country from the inferred league code */
   private static readonly LEAGUE_CODE_TO_INFO: Record<string, { name: string; country: string }> = {
-    PL:  { name: 'Premier League',            country: 'Angleterre' },
-    LA:  { name: 'La Liga',                   country: 'Espagne' },
-    SA:  { name: 'Serie A',                   country: 'Italie' },
-    BL:  { name: 'Bundesliga',                country: 'Allemagne' },
-    FL:  { name: 'Ligue 1',                   country: 'France' },
-    CL:  { name: 'UEFA Champions League',     country: 'Europe' },
-    EL:  { name: 'UEFA Europa League',        country: 'Europe' },
-    ECL: { name: 'UEFA Conference League',    country: 'Europe' },
-    ENG2: { name: 'Championship',             country: 'Angleterre' },
-    ITA2: { name: 'Serie B',                  country: 'Italie' },
-    GER2: { name: '2. Bundesliga',            country: 'Allemagne' },
-    FRA2: { name: 'Ligue 2',                  country: 'France' },
-    US1:  { name: 'MLS',                      country: 'États-Unis' },
-    BR1:  { name: 'Brasileirão',              country: 'Brésil' },
-    MX1:  { name: 'Liga MX',                  country: 'Mexique' },
-    SN1:  { name: 'Ligue 1 Sénégal',         country: 'Sénégal' },
-    CI1:  { name: "Ligue 1 Côte d'Ivoire",   country: "Côte d'Ivoire" },
-    BJ1:  { name: 'Championnat Bénin',        country: 'Bénin' },
+    PL:   { name: 'Premier League',            country: 'Angleterre' },
+    LA:   { name: 'La Liga',                   country: 'Espagne' },
+    SA:   { name: 'Serie A',                   country: 'Italie' },
+    BL:   { name: 'Bundesliga',                country: 'Allemagne' },
+    FL:   { name: 'Ligue 1',                   country: 'France' },
+    CL:   { name: 'UEFA Champions League',     country: 'Europe' },
+    EL:   { name: 'UEFA Europa League',        country: 'Europe' },
+    ECL:  { name: 'UEFA Conference League',    country: 'Europe' },
+    ENG2: { name: 'Championship',              country: 'Angleterre' },
+    ENG3: { name: 'League One',               country: 'Angleterre' },
+    ENG4: { name: 'League Two',               country: 'Angleterre' },
+    ITA2: { name: 'Serie B',                   country: 'Italie' },
+    GER2: { name: '2. Bundesliga',             country: 'Allemagne' },
+    GER3: { name: '3. Liga',                   country: 'Allemagne' },
+    FRA2: { name: 'Ligue 2',                   country: 'France' },
+    ESP2: { name: 'La Liga 2',                 country: 'Espagne' },
+    PT1:  { name: 'Primeira Liga',             country: 'Portugal' },
+    PT2:  { name: 'Liga Portugal 2',           country: 'Portugal' },
+    NL1:  { name: 'Eredivisie',                country: 'Pays-Bas' },
+    NL2:  { name: 'Eerste Divisie',            country: 'Pays-Bas' },
+    SC1:  { name: 'Scottish Premiership',      country: 'Écosse' },
+    BE1:  { name: 'Pro League',                country: 'Belgique' },
+    TR1:  { name: 'Süper Lig',                 country: 'Turquie' },
+    US1:  { name: 'MLS',                       country: 'États-Unis' },
+    BR1:  { name: 'Brasileirão',               country: 'Brésil' },
+    MX1:  { name: 'Liga MX',                   country: 'Mexique' },
+    AR1:  { name: 'Primera División',          country: 'Argentine' },
+    SN1:  { name: 'Ligue 1 Sénégal',          country: 'Sénégal' },
+    CI1:  { name: "Ligue 1 Côte d'Ivoire",    country: "Côte d'Ivoire" },
+    BJ1:  { name: 'Championnat Bénin',         country: 'Bénin' },
   };
 
   /**

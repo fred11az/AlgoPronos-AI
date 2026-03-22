@@ -31,9 +31,15 @@ export function StatsBar() {
       .catch(() => {});
   }, []);
 
-  const winRate = stats?.win_rate_pct ?? PLACEHOLDER.winRate;
-  const totalTickets = stats?.total_tickets ?? PLACEHOLDER.totalTickets;
-  const avgOdds = stats?.avg_odds ?? PLACEHOLDER.avgOdds;
+  const winRate = (stats?.win_rate_pct !== null && stats?.win_rate_pct !== undefined && stats.win_rate_pct > 0)
+    ? stats.win_rate_pct
+    : PLACEHOLDER.winRate;
+  const totalTickets = (stats?.total_tickets !== null && stats?.total_tickets !== undefined && stats.total_tickets > 0)
+    ? stats.total_tickets
+    : PLACEHOLDER.totalTickets;
+  const avgOdds = (stats?.avg_odds !== null && stats?.avg_odds !== undefined && stats.avg_odds > 1)
+    ? stats.avg_odds
+    : PLACEHOLDER.avgOdds;
 
   const ITEMS = [
     {

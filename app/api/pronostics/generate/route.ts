@@ -370,11 +370,14 @@ export async function POST(req: NextRequest) {
   });
 }
 
-// Support GET with secret param for browser testing
+// GET handler for Vercel cron (crons send Authorization: Bearer {CRON_SECRET})
+// and for browser testing with ?secret= query param
 export async function GET(req: NextRequest) {
-  const secret = new URL(req.url).searchParams.get('secret');
+  const bearerSecret = req.headers.get('authorization')?.replace('Bearer ', '');
+  const querySecret = new URL(req.url).searchParams.get('secret');
+  const secret = bearerSecret || querySecret;
   if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized — add ?secret=YOUR_CRON_SECRET' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized — use Authorization: Bearer header or ?secret=YOUR_CRON_SECRET' }, { status: 401 });
   }
   return POST(req);
 }
