@@ -59,14 +59,32 @@ function pickForMatch(
     candidates.push({ type, value, odds, impliedPct, modelPct, valueEdge });
   };
 
+  // ── 1X2 & Double Chance ─────────────────────────────────────────────────────
   addCandidate('1X2', '1', ho, stats?.homePct ?? null);
   addCandidate('1X2', 'X', dr, stats?.drawPct ?? null);
   addCandidate('1X2', '2', aw, stats?.awayPct ?? null);
   addCandidate('Double Chance', '1X', dc1X, stats ? stats.homePct + stats.drawPct : null);
   addCandidate('Double Chance', 'X2', dcX2, stats ? stats.drawPct + stats.awayPct : null);
 
-  // Priorité aux picks de qualité supérieure (impliedPct ≥ MIN_PICK_IMPLIED_PCT)
-  // Score : favorise la probabilité implicite élevée + edge positif, cibles cotes 1.40–1.80
+  // ── BTTS (Les deux équipes marquent) ────────────────────────────────────────
+  // Utilise les cotes bookmaker + probabilité Poisson calculée depuis xG
+  if (stats?.bttsOdds && stats.bttsProbability !== null) {
+    addCandidate('BTTS', 'Oui', stats.bttsOdds, stats.bttsProbability);
+  }
+  if (stats?.bttsNoOdds && stats.bttsProbability !== null) {
+    addCandidate('BTTS', 'Non', stats.bttsNoOdds, 100 - stats.bttsProbability);
+  }
+
+  // ── Over / Under 2.5 ────────────────────────────────────────────────────────
+  if (stats?.over25Odds && stats.over25Probability !== null) {
+    addCandidate('Over/Under', 'Over 2.5', stats.over25Odds, stats.over25Probability);
+  }
+  if (stats?.under25Odds && stats.over25Probability !== null) {
+    addCandidate('Over/Under', 'Under 2.5', stats.under25Odds, 100 - stats.over25Probability);
+  }
+
+  // ── Sélection du meilleur pick ───────────────────────────────────────────────
+  // Priorité aux picks sûrs (impliedPct ≥ MIN_PICK_IMPLIED_PCT)
   const safePool = candidates.filter(c => c.impliedPct >= MIN_PICK_IMPLIED_PCT);
   const pool = safePool.length >= 1 ? safePool : candidates;
 
@@ -80,20 +98,31 @@ function pickForMatch(
     };
   }
 
+  // Score: favorise probabilité implicite élevée + edge positif + cotes raisonnables (1.40–2.10)
+  // La cible est 1.75 (centre entre sécurité et rendement) pour accepter Over/BTTS
   const best = pool.reduce((a, b) => {
     const score = (c: PickCandidate) =>
       c.impliedPct * 2
       + (c.valueEdge ?? 0) * 1.5
-      - Math.abs(c.odds - 1.60) * 0.5;
+      - Math.abs(c.odds - 1.75) * 0.4;
     return score(b) > score(a) ? b : a;
   }, pool[0]);
+
+  // Build reasoning string with all available context
+  const reasoningParts: string[] = [];
+  if (stats?.advice) reasoningParts.push(`Conseil IA: "${stats.advice}"`);
+  if (stats?.h2h && stats.h2h.totalMatches > 0) {
+    const h = stats.h2h;
+    reasoningParts.push(`H2H: ${h.homeWins}V-${h.draws}N-${h.awayWins}V`);
+  }
+  if (stats?.underOverAdvice) reasoningParts.push(`Over/Under: ${stats.underOverAdvice}`);
 
   return {
     type: best.type,
     value: best.value,
     odds: best.odds || 1.85,
     impliedPct: best.impliedPct || 54,
-    reasoning: stats?.advice ? `Conseil API-Football: "${stats.advice}"` : null,
+    reasoning: reasoningParts.length > 0 ? reasoningParts.join(' | ') : null,
   };
 }
 

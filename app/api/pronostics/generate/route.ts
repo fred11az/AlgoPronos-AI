@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { matchService, type RealMatch } from '@/lib/services/match-service';
+import { fetchMatchStats } from '@/lib/services/stats-service';
 import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/slugify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -47,11 +48,6 @@ interface PredictionRow {
 
 function impliedPct(odds: number): number {
   return Math.round((1 / odds) * 100);
-}
-
-function generateForm(): string {
-  const outcomes = ['W', 'D', 'L'];
-  return Array.from({ length: 5 }, () => outcomes[Math.floor(Math.random() * outcomes.length)]).join('');
 }
 
 /**
@@ -255,15 +251,33 @@ export async function POST(req: NextRequest) {
         }
 
         const pred = computePrediction(match.odds.home, match.odds.draw || 0, match.odds.away);
-        const homeForm = generateForm();
-        const awayForm = generateForm();
+
+        // Fetch real team stats for football (cached — no extra quota on repeat calls)
+        // For other sports or non-API-Football matches, stats returns odds-implied estimates
+        const footballApiKey = sport === 'football' ? process.env.API_FOOTBALL_KEY : undefined;
+        const stats = await fetchMatchStats(
+          match.id,
+          match.homeTeam,
+          match.awayTeam,
+          { home: match.odds.home, draw: match.odds.draw || 3.3, away: match.odds.away },
+          footballApiKey
+        );
+
+        // Use real form if available from API-Football, otherwise 'N/A'
+        const homeForm = stats.homeForm?.form ?? 'N/A';
+        const awayForm = stats.awayForm?.form ?? 'N/A';
+
+        // Use real probabilities if available (override odds-only model)
+        const finalPred = stats.dataSource === 'api-football'
+          ? { ...pred, probability: Math.max(pred.probability, stats.homePct) }
+          : pred;
 
         const aiAnalysis = await callAIAnalysis(
           match.homeTeam,
           match.awayTeam,
           match.league,
           pred.prediction,
-          pred.probability,
+          finalPred.probability,
           homeForm,
           awayForm,
           sport
@@ -289,7 +303,7 @@ export async function POST(req: NextRequest) {
           odds_away: match.odds.away,
           prediction: pred.prediction,
           prediction_type: pred.predictionType,
-          probability: pred.probability,
+          probability: finalPred.probability,
           implied_probability: pred.impliedPct,
           value_edge: pred.valueEdge,
           recommended_odds: pred.recommendedOdds,
