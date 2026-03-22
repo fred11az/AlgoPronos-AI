@@ -392,7 +392,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     198: { name: 'TFF 1. Lig',              country: 'Turquie' },
     // Norway
     59:    { name: 'Eliteserien',        country: 'Norvège' },
-    333:   { name: 'Toppserien (W)',      country: 'Norvège' },
+    // 333 is reserved for Ukrainian Premier League — Toppserien (W) has no confirmed v3 ID yet
     916229:{ name: 'Toppserien Féminin', country: 'Norvège' },
     921414:{ name: 'Toppserien 1 (W)',   country: 'Norvège' },
     // Denmark
@@ -401,7 +401,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     900634: { name: '3. Division',       country: 'Danemark' },
     916899: { name: 'Kvindeligaen (W)',  country: 'Danemark' },
     // Poland
-    197:    { name: '1. Liga',           country: 'Pologne' },
+    // 197 is reserved for Turkey Super Lig — 1. Liga (Poland) has no confirmed v3 ID yet
     899985: { name: 'Ekstraklasa',       country: 'Pologne' },
     8935:   { name: '2. Liga',           country: 'Pologne' },
     // Ireland
