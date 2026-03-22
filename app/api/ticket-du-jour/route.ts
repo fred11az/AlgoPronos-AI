@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
 import { matchService } from '@/lib/services/match-service';
 import { fetchStatsForMatches, type MatchStats } from '@/lib/services/stats-service';
 
@@ -138,7 +138,18 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type') || 'classic';
-    const force = searchParams.get('force') === 'true';
+    const forceRequested = searchParams.get('force') === 'true';
+
+    // force=true bypasses cache and re-consumes API quota — admin only
+    let force = false;
+    if (forceRequested) {
+      const user = await getCurrentUser();
+      const isAdmin = user ? await checkIsAdmin(user.id) : false;
+      if (!isAdmin) {
+        return NextResponse.json({ error: 'Accès refusé — force réservé à l\'admin' }, { status: 403 });
+      }
+      force = true;
+    }
     const adminSupabase = createAdminClient();
     const today = new Date().toISOString().split('T')[0];
 
