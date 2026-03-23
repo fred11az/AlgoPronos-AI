@@ -30,7 +30,7 @@ export async function GET(request: Request) {
         away_team:      m.awayTeam  || m.away_team  || '–',
         market:         m.selection?.type  || m.prediction_type || 'unknown',
         bookmaker_odds: m.selection?.odds  || m.recommended_odds || 1,
-        value_edge:     0,
+        value_edge:     m.selection?.valueEdge ?? m.value_edge ?? 0,
         result:
           m.result === 'won'  ? 'WIN'
           : m.result === 'lost' ? 'LOSS'

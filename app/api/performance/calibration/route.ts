@@ -17,7 +17,7 @@ export async function GET() {
     const buckets: Record<number, { total: number; wins: number }> = {};
     for (let i = 0; i < 10; i++) buckets[i * 10] = { total: 0, wins: 0 };
 
-    (tickets || []).forEach((ticket: any) => {
+    (tickets || []).filter((ticket: any) => ticket.confidence_pct != null && !isNaN(Number(ticket.confidence_pct))).forEach((ticket: any) => {
       const prob   = Number(ticket.confidence_pct);
       const bucket = Math.min(Math.floor(prob / 10) * 10, 90);
       buckets[bucket].total += 1;

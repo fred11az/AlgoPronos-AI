@@ -3,8 +3,11 @@ import { resolvePendingPredictions } from '@/lib/services/prediction/resolver';
 
 export async function GET(request: Request) {
   // 1. Verify Vercel Cron Secret (Security)
+  // Pattern: if CRON_SECRET is set, validate it; if not set, allow through (dev mode)
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const secret = authHeader?.replace('Bearer ', '');
+  const expected = process.env.CRON_SECRET;
+  if (expected && secret !== expected) {
     return new Response('Unauthorized', { status: 401 });
   }
 

@@ -250,7 +250,7 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        const pred = computePrediction(match.odds.home, match.odds.draw || 0, match.odds.away);
+        const pred = computePrediction(match.odds.home, match.odds.draw || 3.3, match.odds.away);
 
         // Fetch real team stats for football (cached — no extra quota on repeat calls)
         // For other sports or non-API-Football matches, stats returns odds-implied estimates
