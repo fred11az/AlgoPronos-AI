@@ -220,8 +220,7 @@ export async function GET(req: Request) {
         .delete()
         .eq('date', today)
         .eq('type', type)
-        .then(() => {})
-        .catch(() => {});
+        .then(() => {}, () => {});
     }
 
     // ── 2b. OPTIMUS: logique dédiée — combo 2-4 matchs ciblant cote ~5.00 ───
