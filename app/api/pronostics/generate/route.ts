@@ -268,8 +268,14 @@ export async function POST(req: NextRequest) {
         const awayForm = stats.awayForm?.form ?? 'N/A';
 
         // Use real probabilities if available (override odds-only model)
+        // Pick the stat that matches the actual prediction type — not always homePct
+        const realPct =
+          pred.predictionType === 'home' ? stats.homePct :
+          pred.predictionType === 'away' ? stats.awayPct :
+          pred.predictionType === 'draw' ? stats.drawPct :
+          pred.probability;
         const finalPred = stats.dataSource === 'api-football'
-          ? { ...pred, probability: Math.max(pred.probability, stats.homePct) }
+          ? { ...pred, probability: Math.max(pred.probability, realPct) }
           : pred;
 
         const aiAnalysis = await callAIAnalysis(

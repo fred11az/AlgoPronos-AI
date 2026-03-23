@@ -19,7 +19,7 @@ export async function GET() {
 
     (tickets || []).filter((ticket: any) => ticket.confidence_pct != null && !isNaN(Number(ticket.confidence_pct))).forEach((ticket: any) => {
       const prob   = Number(ticket.confidence_pct);
-      const bucket = Math.min(Math.floor(prob / 10) * 10, 90);
+      const bucket = Math.min(Math.max(Math.floor(prob / 10) * 10, 0), 90);
       buckets[bucket].total += 1;
       if (ticket.status === 'won') buckets[bucket].wins += 1;
     });

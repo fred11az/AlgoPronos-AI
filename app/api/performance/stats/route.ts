@@ -32,7 +32,8 @@ export async function GET() {
       winRate:    Math.round(winRate  * 10)  / 10,
       roi:        Math.round(roi      * 10)  / 10,
       avgOdds:    Math.round(avgOdds  * 100) / 100,
-      totalPicks: tickets?.length ?? 0,
+      totalPicks: tickets?.length ?? 0,   // all resolved (won+lost+void)
+      totalResolved: resolved,             // won+lost only (used in win rate)
     });
   } catch (err: any) {
     console.error('[api/performance/stats] Error:', err);

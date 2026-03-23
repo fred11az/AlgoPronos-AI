@@ -20,7 +20,7 @@ export async function GET() {
     const curve = (tickets || []).map((ticket) => {
       cumulativeStakes += 1;
       if (ticket.status === 'won') {
-        cumulativeGains += Number(ticket.total_odds);
+        cumulativeGains += Number(ticket.total_odds) || 0;
       }
       const pnl = cumulativeGains - cumulativeStakes;
       const roi = cumulativeStakes > 0 ? (pnl / cumulativeStakes) * 100 : 0;
