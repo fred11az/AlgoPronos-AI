@@ -1,37 +1,36 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = createAdminClient();
   try {
-    const { data: picks, error } = await supabase
-      .from('predictions_log')
-      .select('result, model_prob')
-      .neq('result', 'PENDING');
+    const { data: tickets, error } = await supabase
+      .from('daily_ticket')
+      .select('confidence_pct, status')
+      .neq('status', 'pending');
 
     if (error) throw error;
 
-    // Group by 10% buckets (0-10, 10-20, ..., 90-100)
+    // Group by 10% buckets based on confidence_pct
     const buckets: Record<number, { total: number; wins: number }> = {};
     for (let i = 0; i < 10; i++) buckets[i * 10] = { total: 0, wins: 0 };
 
-    (picks || []).forEach(pick => {
-      const prob = Number(pick.model_prob) * 100;
+    (tickets || []).forEach((ticket: any) => {
+      const prob   = Number(ticket.confidence_pct);
       const bucket = Math.min(Math.floor(prob / 10) * 10, 90);
       buckets[bucket].total += 1;
-      if (pick.result === 'WIN') buckets[bucket].wins += 1;
+      if (ticket.status === 'won') buckets[bucket].wins += 1;
     });
 
-    const calibration = Object.entries(buckets).map(([bucket, stats]) => ({
-      prob: parseInt(bucket) + 5, // Center of bucket
-      actual: stats.total > 0 ? (stats.wins / stats.total) * 100 : null,
-      count: stats.total
-    })).filter(b => b.actual !== null);
+    const calibration = Object.entries(buckets)
+      .map(([bucket, stats]) => ({
+        prob:   parseInt(bucket) + 5,
+        actual: stats.total > 0 ? (stats.wins / stats.total) * 100 : null,
+        count:  stats.total,
+      }))
+      .filter(b => b.actual !== null);
 
     return NextResponse.json({ calibration });
   } catch (err: any) {

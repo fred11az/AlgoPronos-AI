@@ -188,23 +188,40 @@ export async function GET(req: Request) {
 
     // ── 1. Return cached daily ticket if exists ──────────────────────────────
     if (!force) {
-      const { data: existing } = await adminSupabase
+      // Try with type filter first; if column doesn't exist, fall back to date-only
+      let existingQuery = adminSupabase
         .from('daily_ticket')
         .select('*')
         .eq('date', today)
         .eq('type', type)
         .single();
+      const { data: existing, error: existErr } = await existingQuery;
 
       if (existing) {
         return NextResponse.json({ ticket: existing, fromCache: true });
       }
+
+      // If type column doesn't exist, try without it (date-only lookup)
+      if (existErr && (existErr.code === 'PGRST204' || existErr.message?.includes('type'))) {
+        const { data: existingNoType } = await adminSupabase
+          .from('daily_ticket')
+          .select('*')
+          .eq('date', today)
+          .single();
+        if (existingNoType) {
+          return NextResponse.json({ ticket: existingNoType, fromCache: true });
+        }
+      }
     } else {
       // Delete existing ticket to allow regeneration
+      // Ignore errors (column might not exist)
       await adminSupabase
         .from('daily_ticket')
         .delete()
         .eq('date', today)
-        .eq('type', type);
+        .eq('type', type)
+        .then(() => {})
+        .catch(() => {});
     }
 
     // ── 2b. OPTIMUS: logique dédiée — combo 2-4 matchs ciblant cote ~5.00 ───
@@ -275,8 +292,13 @@ export async function GET(req: Request) {
             selection: { type: m.prediction_type, value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X', odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
           }));
           const optimusTicket = { date: today, type: 'optimus', matches: optimusPicks, total_odds: totalOdds, confidence_pct: confidencePct, risk_level: 'balanced', analysis: {}, status: 'pending' };
-          const { data: savedOptimus, error: optimusError } = await adminSupabase.from('daily_ticket').upsert(optimusTicket, { onConflict: 'date,type' }).select().single();
-          return NextResponse.json({ ticket: optimusError ? { ...optimusTicket, id: 'temp', created_at: new Date().toISOString() } : savedOptimus, fromCache: false });
+          let { data: savedOptimusF, error: optimusErrorF } = await adminSupabase.from('daily_ticket').upsert(optimusTicket, { onConflict: 'date,type' }).select().single();
+          if (optimusErrorF && (optimusErrorF.code === 'PGRST204' || optimusErrorF.message?.includes('type'))) {
+            const { type: _t, ...noType } = optimusTicket;
+            const fb = await adminSupabase.from('daily_ticket').insert(noType).select().single();
+            savedOptimusF = fb.data; optimusErrorF = fb.error;
+          }
+          return NextResponse.json({ ticket: optimusErrorF ? { ...optimusTicket, id: 'temp', created_at: new Date().toISOString() } : savedOptimusF, fromCache: false });
         }
 
         return NextResponse.json(
@@ -344,11 +366,20 @@ export async function GET(req: Request) {
         status: 'pending',
       };
 
-      const { data: savedOptimus, error: optimusError } = await adminSupabase
+      let { data: savedOptimus, error: optimusError } = await adminSupabase
         .from('daily_ticket')
         .upsert(optimusTicket, { onConflict: 'date,type' })
         .select()
         .single();
+
+      // Fallback: if `type` column or unique constraint doesn't exist, try plain insert
+      if (optimusError && (optimusError.code === 'PGRST204' || optimusError.message?.includes('type'))) {
+        console.warn('[ticket-du-jour] Optimus: type column not found, trying insert without it');
+        const { type: _t, ...optimusNoType } = optimusTicket;
+        const fallback = await adminSupabase.from('daily_ticket').insert(optimusNoType).select().single();
+        savedOptimus  = fallback.data;
+        optimusError  = fallback.error;
+      }
 
       if (optimusError) {
         console.error('[ticket-du-jour] Optimus DB error:', optimusError);
@@ -479,11 +510,24 @@ export async function GET(req: Request) {
       status: 'pending',
     };
 
-    const { data: saved, error } = await adminSupabase
+    let { data: saved, error } = await adminSupabase
       .from('daily_ticket')
       .insert(ticket)
       .select()
       .single();
+
+    // Fallback: if `type` column doesn't exist in the table yet, retry without it
+    if (error && (error.code === 'PGRST204' || error.message?.includes('type'))) {
+      console.warn('[ticket-du-jour] type column not found, retrying without it');
+      const { type: _t, ...ticketNoType } = ticket;
+      const fallback = await adminSupabase
+        .from('daily_ticket')
+        .insert(ticketNoType)
+        .select()
+        .single();
+      saved = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
       console.error('[ticket-du-jour] DB insert error:', error);

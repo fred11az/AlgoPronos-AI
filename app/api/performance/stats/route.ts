@@ -1,41 +1,38 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = createAdminClient();
   try {
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-    const { data: picks, error } = await supabase
-      .from('predictions_log')
-      .select('result, bookmaker_odds, value_edge')
-      .neq('result', 'PENDING')
-      .gte('created_at', sixMonthsAgo.toISOString());
+    const { data: tickets, error } = await supabase
+      .from('daily_ticket')
+      .select('status, total_odds, created_at')
+      .in('status', ['won', 'lost', 'void']);
 
     if (error) throw error;
 
-    const total = picks.length;
-    const wins = picks.filter(p => p.result === 'WIN').length;
-    const winRate = total > 0 ? (wins / total) * 100 : 0;
-    
-    // ROI: ((Total Gains - Total Stakes) / Total Stakes) * 100
-    // Stake = 1 unit per pick
-    const totalGains = picks.filter(p => p.result === 'WIN').reduce((acc, p) => acc + Number(p.bookmaker_odds), 0);
-    const roi = total > 0 ? ((totalGains - total) / total) * 100 : 0;
-    
-    const avgOdds = total > 0 ? picks.reduce((acc, p) => acc + Number(p.bookmaker_odds), 0) / total : 0;
+    const won  = (tickets || []).filter(t => t.status === 'won');
+    const lost = (tickets || []).filter(t => t.status === 'lost');
+    const resolved = won.length + lost.length;
+
+    const winRate = resolved > 0 ? (won.length / resolved) * 100 : 0;
+
+    const wonOdds = won.map(t => Number(t.total_odds)).filter(o => o > 0);
+    const totalGains = wonOdds.reduce((acc, o) => acc + o, 0);
+    const roi = resolved > 0 ? ((totalGains - resolved) / resolved) * 100 : 0;
+
+    const allOdds = [...won, ...lost].map(t => Number(t.total_odds)).filter(o => o > 0);
+    const avgOdds = allOdds.length > 0
+      ? allOdds.reduce((a, b) => a + b, 0) / allOdds.length
+      : 0;
 
     return NextResponse.json({
-      winRate: Math.round(winRate * 10) / 10,
-      roi: Math.round(roi * 10) / 10,
-      avgOdds: Math.round(avgOdds * 100) / 100,
-      totalPicks: total
+      winRate:    Math.round(winRate  * 10)  / 10,
+      roi:        Math.round(roi      * 10)  / 10,
+      avgOdds:    Math.round(avgOdds  * 100) / 100,
+      totalPicks: tickets?.length ?? 0,
     });
   } catch (err: any) {
     console.error('[api/performance/stats] Error:', err);
