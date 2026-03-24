@@ -64,8 +64,14 @@ export default function MatchsClient({ matches, today }: Props) {
   const byLeague = useMemo(() => {
     const acc: Record<string, MatchRow[]> = {};
     for (const m of filtered) {
-      if (!acc[m.league]) acc[m.league] = [];
-      acc[m.league].push(m);
+      const leagueKey =
+        !m.league ||
+        m.league.toLowerCase().startsWith('unknown') ||
+        m.league.trim() === ''
+          ? 'Autre'
+          : m.league;
+      if (!acc[leagueKey]) acc[leagueKey] = [];
+      acc[leagueKey].push(m);
     }
     return acc;
   }, [filtered]);

@@ -424,10 +424,14 @@ export async function GET(req: Request) {
 
     // Detect data source: real API matches have id starting with "apif-"; AI-generated have "openclaw-"
     const hasRealApiMatches = available.some(m => m.id.startsWith('apif-'));
-    const dataSource = hasRealApiMatches ? 'api-football' : 'ai-fallback';
     if (!hasRealApiMatches) {
-      console.warn('[ticket-du-jour] No real API matches found — generating from AI fallback data');
+      console.warn('[ticket-du-jour] No real API matches found — refusing to generate ticket with AI fallback data');
+      return NextResponse.json(
+        { error: 'Aucun match réel disponible depuis l\'API aujourd\'hui. Le ticket sera généré une fois les données disponibles.' },
+        { status: 503 }
+      );
     }
+    const dataSource = 'api-football';
 
     // Select the top DAILY_MATCH_COUNT matches
     const selected = available.slice(0, DAILY_MATCH_COUNT);
