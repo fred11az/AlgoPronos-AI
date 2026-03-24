@@ -87,10 +87,13 @@ export default function TicketDuJourWidget() {
     return (
       <Card className="border-accent/20 bg-gradient-to-br from-accent/5 to-primary/5">
         <CardContent className="p-6 text-center">
-          <Zap className="h-10 w-10 text-accent mx-auto mb-3" />
+          <Zap className="h-10 w-10 text-accent mx-auto mb-3 opacity-40" />
           <h3 className="font-bold text-white mb-1">Ticket IA du Jour</h3>
-          <p className="text-text-secondary text-sm mb-4">
-            Le ticket du jour n&apos;est pas encore disponible. Pas assez de matchs programmés ou API indisponible.
+          <p className="text-text-secondary text-sm mb-1">
+            Pas d&apos;analyse actuellement.
+          </p>
+          <p className="text-text-muted text-xs mb-4">
+            Le ticket sera généré automatiquement dès que les données de matchs seront disponibles.
           </p>
           <Button variant="outline" size="sm" asChild>
             <Link href="/dashboard/generate">Générer mon propre combiné</Link>

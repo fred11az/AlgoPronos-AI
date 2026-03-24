@@ -25,8 +25,9 @@ export default function TicketMontanteWidget() {
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="p-8 text-center">
           <Layers className="h-10 w-10 text-primary mx-auto mb-4 opacity-40" />
-          <h3 className="font-bold text-white mb-2 italic">La Montante du Jour</h3>
-          <p className="text-text-secondary text-sm mb-6">L'événement ultra-safe pour votre montante n'est pas encore prêt.</p>
+          <h3 className="font-bold text-white mb-2 italic">La Montante IA</h3>
+          <p className="text-text-secondary text-sm mb-1">Pas d&apos;analyse actuellement.</p>
+          <p className="text-text-muted text-xs mb-6">Le ticket sera généré automatiquement dès que les données de matchs seront disponibles.</p>
           <Button variant="outline" size="sm" asChild>
             <Link href="/concept-montante">Voir le concept</Link>
           </Button>

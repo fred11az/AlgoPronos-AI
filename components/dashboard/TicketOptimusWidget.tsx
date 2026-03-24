@@ -69,7 +69,8 @@ export default function TicketOptimusWidget({ isVerified = false }) {
         ) : !ticket ? (
           <div className="py-8 text-center bg-surface/30 rounded-2xl border border-dashed border-white/10">
             <Target className="h-10 w-10 text-secondary mx-auto mb-3 opacity-30" />
-            <p className="text-text-muted text-xs px-6">L'algorithme analyse les flux pour le ticket Optimus...</p>
+            <p className="text-white text-sm font-semibold mb-1">Pas d&apos;analyse actuellement.</p>
+            <p className="text-text-muted text-xs px-6">Le ticket Optimus sera généré dès que les données de matchs seront disponibles.</p>
           </div>
         ) : (
           <>
