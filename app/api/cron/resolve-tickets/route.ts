@@ -79,6 +79,19 @@ function evaluatePick(
     if (value === 'X2') return awayGoals >= homeGoals;
     if (value === '12') return homeGoals !== awayGoals;
   }
+  if (type === 'BTTS') {
+    const btts = homeGoals > 0 && awayGoals > 0;
+    if (value === 'Oui' || value === 'Yes') return btts;
+    if (value === 'Non' || value === 'No') return !btts;
+  }
+  if (type === 'Over/Under') {
+    const total = homeGoals + awayGoals;
+    const m = value.match(/^(Over|Under)\s+([\d.]+)$/);
+    if (m) {
+      const threshold = parseFloat(m[2]);
+      return m[1] === 'Over' ? total > threshold : total <= threshold;
+    }
+  }
   return false;
 }
 

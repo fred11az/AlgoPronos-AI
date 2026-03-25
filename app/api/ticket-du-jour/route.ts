@@ -254,16 +254,24 @@ export async function GET(req: Request) {
         }).slice(0, 10);
 
         if (avail.length >= 2) {
-          // Build synthetic pool from live matches
+          // Build synthetic pool using real pickForMatch() + stats (no random picks)
+          const fallbackStatsMap = await fetchStatsForMatches(
+            avail.map(m => ({ ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away }, country: m.country })),
+            process.env.API_FOOTBALL_KEY
+          ).catch(() => new Map<string, MatchStats>());
+
           const syntheticPool = avail.map(m => {
-            const ho = m.odds!.home, dr = m.odds!.draw || 3.3, aw = m.odds!.away;
-            const total = 1/ho + 1/dr + 1/aw;
-            const best = ho <= aw ? { odds: ho, type: 'home', prob: Math.round((1/ho/total)*100) }
-                                  : { odds: aw, type: 'away', prob: Math.round((1/aw/total)*100) };
+            const pick = pickForMatch(
+              { ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } },
+              fallbackStatsMap.get(m.id)
+            );
             return {
               slug: m.id, home_team: m.homeTeam, away_team: m.awayTeam,
               league: m.league, match_date: m.date, match_time: m.time,
-              recommended_odds: best.odds, prediction_type: best.type, probability: best.prob,
+              recommended_odds: pick.odds,
+              prediction_type: pick.type,
+              prediction_value: pick.value,
+              probability: pick.modelPct ?? pick.impliedPct,
             };
           });
           // Replace pool with synthetic
@@ -288,7 +296,7 @@ export async function GET(req: Request) {
           const optimusPicks = optimusMatches.map(m => ({
             matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team,
             league: m.league, kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
-            selection: { type: m.prediction_type, value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X', odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
+            selection: { type: m.prediction_type, value: m.prediction_value, odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
           }));
           const optimusTicket = { date: today, type: 'optimus', matches: optimusPicks, total_odds: totalOdds, confidence_pct: confidencePct, risk_level: 'balanced', analysis: {}, status: 'pending' };
           let { data: savedOptimusF, error: optimusErrorF } = await adminSupabase.from('daily_ticket').upsert(optimusTicket, { onConflict: 'date,type' }).select().single();
@@ -347,7 +355,7 @@ export async function GET(req: Request) {
         league: m.league,
         kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
         selection: {
-          type: m.prediction_type,
+          type: '1X2',
           value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X',
           odds: m.recommended_odds,
           impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100),
@@ -386,6 +394,85 @@ export async function GET(req: Request) {
 
       return NextResponse.json({
         ticket: optimusError ? { ...optimusTicket, id: 'temp', created_at: new Date().toISOString() } : savedOptimus,
+        fromCache: false,
+      });
+    }
+
+    // ── 2b. MONTANTE: single ultra-safe Double Chance pick ───────────────────
+    if (type === 'montante') {
+      let montMatches = await matchService.getMatchesForDate(today, 'football', DAILY_TICKET_LEAGUES);
+      if (montMatches.length < 1) {
+        const extra = await matchService.getMatchesForDate(today, 'football', FALLBACK_LEAGUES);
+        montMatches = [...montMatches, ...extra];
+      }
+      const montAvail = montMatches
+        .filter(m => m.status === 'scheduled' && m.odds)
+        .slice(0, 10);
+
+      if (montAvail.length < 1) {
+        return NextResponse.json({ error: 'Pas de matchs disponibles pour la Montante aujourd\'hui.' }, { status: 503 });
+      }
+
+      const montStatsMap = await fetchStatsForMatches(
+        montAvail.map(m => ({ ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away }, country: m.country })),
+        process.env.API_FOOTBALL_KEY
+      ).catch(() => new Map<string, MatchStats>());
+
+      // Find the safest Double Chance pick across all available matches
+      let safestMatch = montAvail[0];
+      let safestPick = pickForMatch(
+        { ...montAvail[0], odds: { home: montAvail[0].odds!.home, draw: montAvail[0].odds!.draw || 3.3, away: montAvail[0].odds!.away } },
+        montStatsMap.get(montAvail[0].id)
+      );
+
+      for (const m of montAvail.slice(1)) {
+        const stats = montStatsMap.get(m.id);
+        const ho = m.odds!.home, dr = m.odds!.draw || 3.3, aw = m.odds!.away;
+        // For montante, always compute the best Double Chance pick (1X or X2)
+        const dc1X = computeDCOdds(ho, dr);
+        const dcX2 = computeDCOdds(dr, aw);
+        // Pick the safer DC (higher implied probability = lower odds)
+        const dcOdds = dc1X <= dcX2 ? dc1X : dcX2;
+        const dcValue = dc1X <= dcX2 ? '1X' : 'X2';
+        const dcImplied = Math.round((1 / dcOdds) * 100);
+        const dcModelPct = stats
+          ? (dcValue === '1X' ? stats.homePct + stats.drawPct : stats.drawPct + stats.awayPct)
+          : null;
+
+        if (dcImplied > safestPick.impliedPct) {
+          safestMatch = m;
+          safestPick = { type: 'Double Chance', value: dcValue, odds: dcOdds, impliedPct: dcImplied, modelPct: dcModelPct, valueEdge: null, reasoning: null };
+        }
+      }
+
+      const montTicket = {
+        date: today,
+        type: 'montante',
+        matches: [{
+          matchId: safestMatch.id,
+          homeTeam: safestMatch.homeTeam,
+          awayTeam: safestMatch.awayTeam,
+          league: safestMatch.league,
+          kickoffTime: `${safestMatch.date} ${safestMatch.time}`.trim(),
+          selection: safestPick,
+        }],
+        total_odds: safestPick.odds,
+        confidence_pct: safestPick.modelPct ?? safestPick.impliedPct,
+        risk_level: 'low',
+        analysis: {},
+        status: 'pending',
+      };
+
+      let { data: savedMont, error: montError } = await adminSupabase
+        .from('daily_ticket').upsert(montTicket, { onConflict: 'date,type' }).select().single();
+      if (montError && (montError.code === 'PGRST204' || montError.message?.includes('type'))) {
+        const { type: _t, ...noType } = montTicket;
+        const fb = await adminSupabase.from('daily_ticket').insert(noType).select().single();
+        savedMont = fb.data; montError = fb.error;
+      }
+
+      return NextResponse.json({
+        ticket: montError ? { ...montTicket, id: 'temp', created_at: new Date().toISOString() } : savedMont,
         fromCache: false,
       });
     }

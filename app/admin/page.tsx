@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, CheckCircle, Zap, TrendingUp, AlertCircle } from 'lucide-react';
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { SyncButton } from './SyncButton';
 
 async function getAdminStats() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Get total users
   const { count: totalUsers } = await supabase

@@ -62,7 +62,7 @@ export default function TicketMontanteWidget() {
         <div className="bg-background/40 backdrop-blur-md border border-white/5 p-4 rounded-2xl">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">{match.league}</span>
-            <span className="text-xs font-bold text-primary">Confiance 92%</span>
+            <span className="text-xs font-bold text-primary">Confiance {ticket.confidence_pct ?? match.selection?.impliedPct ?? 92}%</span>
           </div>
           <div className="text-white font-black text-lg mb-3">
             {match.homeTeam} vs {match.awayTeam}
