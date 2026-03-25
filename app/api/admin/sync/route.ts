@@ -168,9 +168,9 @@ export async function POST() {
             await adminSupabase.from('daily_ticket').upsert({
               date: today,
               type: 'montante',
-              matches: [{ matchId: safe.slug, homeTeam: safe.home_team, awayTeam: safe.away_team, league: safe.league, selection: { type: safe.prediction_type, value: safe.prediction_type === 'home' ? '1' : safe.prediction_type === 'away' ? '2' : 'X', odds: safe.recommended_odds } }],
+              matches: [{ matchId: safe.slug, homeTeam: safe.home_team, awayTeam: safe.away_team, league: safe.league, selection: { type: '1X2', value: safe.prediction_type === 'home' ? '1' : safe.prediction_type === 'away' ? '2' : 'X', odds: safe.recommended_odds } }],
               total_odds: safe.recommended_odds,
-              confidence_pct: 90,
+              confidence_pct: Math.round((1 / (safe.recommended_odds || 2)) * 100),
               status: 'pending',
             }, { onConflict: 'date,type' });
           }
@@ -211,8 +211,7 @@ export async function POST() {
           await adminSupabase.from('daily_ticket').upsert({
             date: today,
             type: 'optimus',
-            access_tier: 'optimised_only',
-            matches: optimusMatches.map((m: any) => ({ matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team, league: m.league, selection: { type: m.prediction_type, value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X', odds: m.recommended_odds } })),
+            matches: optimusMatches.map((m: any) => ({ matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team, league: m.league, selection: { type: '1X2', value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X', odds: m.recommended_odds } })),
             total_odds: totalOdds,
             confidence_pct: 75,
             status: 'pending',

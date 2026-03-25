@@ -8,7 +8,7 @@
  * Protected by CRON_SECRET header.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient, checkIsAdmin } from '@/lib/supabase/server';
 import { matchService, type RealMatch } from '@/lib/services/match-service';
 import { fetchMatchStats } from '@/lib/services/stats-service';
 import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/slugify';
@@ -186,12 +186,8 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const { data: profile } = await supabaseUser
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-    if (profile?.role !== 'admin') {
+    const isAdmin = await checkIsAdmin(session.user.id);
+    if (!isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }
