@@ -398,7 +398,7 @@ export async function GET(req: Request) {
         );
       }
 
-      const optimusSelected = buildOptimusCombo(candidates.map(m => ({
+      const optimusSelected = buildOptimusCombo((pool ?? []).map(m => ({
         ...m,
         league_code: m.league_code || 'TOP',
         value_edge: m.value_edge ?? 0,
