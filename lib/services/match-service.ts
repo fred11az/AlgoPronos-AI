@@ -1,5 +1,4 @@
 import { createAdminClient } from '../supabase/server';
-import { cachedFetch } from './api/footballApi';
 
 export interface RealMatch {
   id: string;
@@ -13,8 +12,12 @@ export interface RealMatch {
   status: 'scheduled' | 'live' | 'finished';
   odds?: {
     home: number;
-    draw?: number; // Optional for sports without draws like Tennis
+    draw?: number;
     away: number;
+    over25?: number;   // Over 2.5 goals
+    under25?: number;  // Under 2.5 goals
+    btts?: number;     // Both Teams To Score: Yes
+    bttsNo?: number;   // Both Teams To Score: No
   };
   sport: 'football' | 'tennis' | 'basketball' | 'mma' | 'other';
 }
@@ -627,90 +630,24 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
   };
 
   /**
-   * Fetch fixtures for a specific date from API-Football v3 (api-football.com)
-   * Endpoint: GET /fixtures?date=YYYY-MM-DD
-   * Response: { response: [{ fixture: { id, date, status: { short } }, league: { id, name, country }, teams: { home, away } }] }
+   * Fetch football fixtures for a specific date.
+   * Primary source: The Odds API (h2h + totals + btts in one call).
+   * API-Football is no longer used (account suspended).
    */
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
-      // 1. Fetch fixtures — API-Football v3 uses YYYY-MM-DD format natively
-      const data = await cachedFetch<any>('/fixtures', { date }, 43200);
+      const { events, oddsMap } = await this.fetchOddsFromTheOddsAPI(date);
 
-      if (!Array.isArray(data?.response)) {
-        console.warn(`[MatchService] No fixtures from API-Football for ${date}. Response:`, JSON.stringify(data).substring(0, 300));
+      if (events.length === 0) {
+        console.warn(`[MatchService] The Odds API returned 0 events for ${date} — check THE_ODDS_API_KEY and credit balance.`);
         return [];
       }
 
-      console.log(`[MatchService] API-Football returned ${data.response.length} fixtures for ${date}`);
-
-      const rawMatches = data.response.map((f: any) => {
-        const leagueId = Number(f.league?.id);
-        const leagueName: string = f.league?.name ?? '';
-        const leagueCountry: string = f.league?.country ?? '';
-
-        // Resolve league info: static map by leagueId first, then from API fields
-        const leagueInfo: { name: string; country: string } =
-          MatchService.LEAGUE_ID_TO_INFO[leagueId]
-          ?? (() => {
-            const code = leagueName ? this.inferLeagueCode(leagueName) : 'TOP';
-            return (code !== 'TOP' && MatchService.LEAGUE_CODE_TO_INFO[code])
-              ? MatchService.LEAGUE_CODE_TO_INFO[code]
-              : { name: leagueName || `Unknown (id=${leagueId})`, country: leagueCountry };
-          })();
-
-        // Parse time from ISO date: "2026-03-22T21:00:00+00:00" -> "21:00"
-        let matchTime = '00:00';
-        if (f.fixture?.date) {
-          const d = new Date(f.fixture.date);
-          matchTime = d.toISOString().substring(11, 16);
-        }
-
-        return {
-          raw: f,
-          leagueInfo,
-          leagueId,
-          matchTime,
-          homeTeam: f.teams?.home?.name ?? 'Unknown',
-          awayTeam: f.teams?.away?.name ?? 'Unknown',
-        };
-      });
-
-      // ── Step 1: Fetch real bookmaker odds from The Odds API ──────────────
-      const oddsMap = await this.fetchOddsFromTheOddsAPI(date);
-      const oddsSource = oddsMap.size > 0 ? 'TheOddsAPI' : 'none';
-      console.log(`[MatchService] Odds source: ${oddsSource} (${oddsMap.size} events with real odds)`);
-
-      // ── Step 2: Assign real odds from The Odds API — no estimation fallback ─
-      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; leagueId: number; matchTime: string; homeTeam: string; awayTeam: string }) => {
-        // Only real bookmaker odds — undefined if not covered by The Odds API
-        const odds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap) ?? undefined;
-
-        // Resolve league code by ID first (avoids false matches like Russian "Premier League" → 'PL')
-        // Pass country so inferLeagueCode can guard top-5 names (e.g. Brazilian "Serie A" ≠ Italian Serie A)
-        const code = MatchService.LEAGUE_ID_TO_CODE[m.leagueId]
-          ?? this.inferLeagueCode(m.leagueInfo.name, m.leagueInfo.country);
-        const knownInfo = code !== 'TOP' ? MatchService.LEAGUE_CODE_TO_INFO[code] : null;
-        const finalCountry = m.leagueInfo.country || (knownInfo?.country ?? '');
-
-        // Map API-Football v3 status short codes
-        const statusShort: string = m.raw.fixture?.status?.short ?? 'NS';
-
-        return {
-          id: `apif-${m.raw.fixture?.id ?? Math.random()}`,
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          league: m.leagueInfo.name,
-          leagueCode: code,
-          country: finalCountry,
-          date,
-          time: m.matchTime,
-          status: this.mapStatus(statusShort),
-          sport: 'football',
-          odds,
-        };
-      });
+      const matches = this.buildMatchesFromOddsEvents(events, oddsMap);
+      console.log(`[MatchService] Built ${matches.length} fixtures from The Odds API for ${date}`);
+      return matches;
     } catch (err) {
-      console.error('[MatchService] API fetch failed:', err);
+      console.error('[MatchService] fetchFootballFromAPI failed:', err);
       return [];
     }
   }
@@ -723,37 +660,51 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
   // ── The Odds API integration ───────────────────────────────────────────────
 
-  /** Major soccer sport keys covered by The Odds API (EU bookmakers, h2h market) */
-  private readonly ODDS_SPORT_KEYS = [
-    'soccer_epl',
-    'soccer_spain_la_liga',
-    'soccer_italy_serie_a',
-    'soccer_germany_bundesliga',
-    'soccer_france_ligue_one',
-    'soccer_uefa_champs_league',
-    'soccer_europa_league',
-  ];
+  /** sport_key → league display info (used to build fixtures from API events) */
+  private static readonly ODDS_SPORT_KEY_TO_LEAGUE: Record<string, { name: string; code: string; country: string }> = {
+    'soccer_epl':                        { name: 'Premier League',         code: 'PL',  country: 'Angleterre' },
+    'soccer_spain_la_liga':              { name: 'La Liga',                code: 'LA',  country: 'Espagne' },
+    'soccer_italy_serie_a':              { name: 'Serie A',                code: 'SA',  country: 'Italie' },
+    'soccer_germany_bundesliga':         { name: 'Bundesliga',             code: 'BL',  country: 'Allemagne' },
+    'soccer_france_ligue_one':           { name: 'Ligue 1',                code: 'FL',  country: 'France' },
+    'soccer_uefa_champs_league':         { name: 'UEFA Champions League',  code: 'CL',  country: 'Europe' },
+    'soccer_europa_league':              { name: 'UEFA Europa League',     code: 'EL',  country: 'Europe' },
+    'soccer_uefa_conference_league':     { name: 'UEFA Conference League', code: 'ECL', country: 'Europe' },
+    'soccer_portugal_primeira_liga':     { name: 'Primeira Liga',          code: 'PT1', country: 'Portugal' },
+    'soccer_netherlands_eredivisie':     { name: 'Eredivisie',             code: 'NL1', country: 'Pays-Bas' },
+    'soccer_turkey_super_ligi':          { name: 'Süper Lig',              code: 'TR1', country: 'Turquie' },
+    'soccer_belgium_first_div':          { name: 'Pro League',             code: 'BE1', country: 'Belgique' },
+    'soccer_scotland_premiership':       { name: 'Scottish Premiership',   code: 'SC1', country: 'Écosse' },
+    'soccer_brazil_campeonato':          { name: 'Brasileirão',            code: 'BR1', country: 'Brésil' },
+    'soccer_mexico_ligamx':              { name: 'Liga MX',                code: 'MX1', country: 'Mexique' },
+    'soccer_usa_mls':                    { name: 'MLS',                    code: 'US1', country: 'États-Unis' },
+    'soccer_argentina_primera_division': { name: 'Primera División',       code: 'AR1', country: 'Argentine' },
+  };
+
+  /** All soccer sport keys to fetch (top-5 + UEFA + 10 autres compétitions) */
+  private readonly ODDS_SPORT_KEYS = Object.keys(MatchService.ODDS_SPORT_KEY_TO_LEAGUE);
 
   /**
-   * Fetch real 1X2 bookmaker odds from The Odds API for a given date.
-   * Results are cached in api_cache for 6 hours to save credits.
-   * Returns a Map keyed by "home::away" (normalized) → { home, draw, away }.
+   * Fetch fixtures + full odds (h2h + Over/Under 2.5 + BTTS) from The Odds API.
+   * Single call per sport_key — no extra credits vs h2h-only.
+   * Returns raw events (for fixture building) + the extended odds map.
+   * Cached in api_cache for 6 hours.
    */
-  private async fetchOddsFromTheOddsAPI(
-    date: string
-  ): Promise<Map<string, { home: number; draw: number; away: number }>> {
+  private async fetchOddsFromTheOddsAPI(date: string): Promise<{
+    events: any[];
+    oddsMap: Map<string, NonNullable<RealMatch['odds']>>;
+  }> {
     const apiKey = process.env.THE_ODDS_API_KEY;
-    const oddsMap = new Map<string, { home: number; draw: number; away: number }>();
+    const oddsMap = new Map<string, NonNullable<RealMatch['odds']>>();
 
     if (!apiKey) {
       console.warn('[OddsAPI] THE_ODDS_API_KEY not set — skipping real odds fetch.');
-      return oddsMap;
+      return { events: [], oddsMap };
     }
 
     const supabase = createAdminClient();
-    const cacheKey = `the-odds-api:soccer:${date}`;
+    const cacheKey = `the-odds-api:soccer:full:${date}`;
 
-    // Try Supabase cache first (6h TTL)
     try {
       const { data: cached } = await supabase
         .from('api_cache')
@@ -764,27 +715,27 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       if (cached) {
         const ageSeconds = (Date.now() - new Date(cached.fetched_at).getTime()) / 1000;
         if (ageSeconds < 21600) {
-          console.log(`[OddsAPI] Cache HIT for ${date}`);
-          this.hydrateOddsMap(cached.data as any[], oddsMap);
-          return oddsMap;
+          const events = cached.data as any[];
+          console.log(`[OddsAPI] Cache HIT for ${date} (${events.length} events)`);
+          this.hydrateOddsMap(events, oddsMap);
+          return { events, oddsMap };
         }
       }
-    } catch { /* cache miss, continue */ }
+    } catch { /* cache miss */ }
 
-    // Fetch from all sport keys in parallel
-    const [nextDay] = [new Date(date)];
+    const nextDay = new Date(date);
     nextDay.setDate(nextDay.getDate() + 1);
     const commenceTimeFrom = `${date}T00:00:00Z`;
     const commenceTimeTo = nextDay.toISOString().split('T')[0] + 'T00:00:00Z';
 
-    console.log(`[OddsAPI] Fetching real odds for ${date} (${this.ODDS_SPORT_KEYS.length} competitions)...`);
+    console.log(`[OddsAPI] Fetching fixtures+odds for ${date} (${this.ODDS_SPORT_KEYS.length} competitions, markets: h2h+totals+btts)...`);
 
     const results = await Promise.allSettled(
       this.ODDS_SPORT_KEYS.map(async (sportKey) => {
         const url = new URL(`https://api.the-odds-api.com/v4/sports/${sportKey}/odds/`);
         url.searchParams.set('apiKey', apiKey);
         url.searchParams.set('regions', 'eu');
-        url.searchParams.set('markets', 'h2h');
+        url.searchParams.set('markets', 'h2h,totals,btts');
         url.searchParams.set('oddsFormat', 'decimal');
         url.searchParams.set('dateFormat', 'iso');
         url.searchParams.set('commenceTimeFrom', commenceTimeFrom);
@@ -792,7 +743,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
         const res = await fetch(url.toString());
         if (!res.ok) {
-          console.warn(`[OddsAPI] ${sportKey}: ${res.status}`);
+          if (res.status !== 422) console.warn(`[OddsAPI] ${sportKey}: HTTP ${res.status}`);
           return [] as any[];
         }
         const remaining = res.headers.get('x-requests-remaining');
@@ -801,56 +752,128 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       })
     );
 
-    const allEvents: any[] = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+    const allEvents: any[] = results.flatMap((r) => r.status === 'fulfilled' ? r.value : []);
 
-    // Persist to cache
     if (allEvents.length > 0) {
       await supabase.from('api_cache').upsert({
         cache_key: cacheKey,
         data: allEvents,
         fetched_at: new Date().toISOString(),
-      });
+      }, { onConflict: 'cache_key' });
     }
 
     this.hydrateOddsMap(allEvents, oddsMap);
-    console.log(`[OddsAPI] ${oddsMap.size} matches with real odds loaded for ${date}.`);
-    return oddsMap;
+    console.log(`[OddsAPI] ${oddsMap.size} matches with full odds loaded for ${date}.`);
+    return { events: allEvents, oddsMap };
   }
 
-  /** Populate oddsMap from a The Odds API event list */
+  /**
+   * Convert The Odds API events → RealMatch[].
+   * Uses the sport_key to determine league name + code, and the
+   * oddsMap (already averaged across bookmakers) for all odds fields.
+   */
+  private buildMatchesFromOddsEvents(
+    events: any[],
+    oddsMap: Map<string, NonNullable<RealMatch['odds']>>,
+  ): RealMatch[] {
+    const matches: RealMatch[] = [];
+
+    for (const event of events) {
+      const leagueInfo = MatchService.ODDS_SPORT_KEY_TO_LEAGUE[event.sport_key];
+      if (!leagueInfo) continue; // unknown sport_key — skip
+
+      const commence = new Date(event.commence_time);
+      const eventDate = commence.toISOString().split('T')[0];
+      const eventTime = commence.toISOString().substring(11, 16);
+
+      const odds = this.lookupOdds(event.home_team, event.away_team, oddsMap) ?? undefined;
+
+      matches.push({
+        id: `odds-${event.id}`,
+        homeTeam: event.home_team,
+        awayTeam: event.away_team,
+        league: leagueInfo.name,
+        leagueCode: leagueInfo.code,
+        country: leagueInfo.country,
+        date: eventDate,
+        time: eventTime,
+        status: 'scheduled',
+        sport: 'football',
+        odds,
+      });
+    }
+
+    return matches;
+  }
+
+  /** Populate oddsMap from a The Odds API event list (h2h + totals + btts) */
   private hydrateOddsMap(
     events: any[],
-    oddsMap: Map<string, { home: number; draw: number; away: number }>
+    oddsMap: Map<string, NonNullable<RealMatch['odds']>>,
   ): void {
     for (const event of events) {
       if (!event?.bookmakers?.length) continue;
 
-      // Average h2h market across bookmakers for stability
-      const allOutcomes: { home: number[]; draw: number[]; away: number[] } = { home: [], draw: [], away: [] };
+      const acc: {
+        home: number[]; draw: number[]; away: number[];
+        over25: number[]; under25: number[];
+        btts: number[]; bttsNo: number[];
+      } = { home: [], draw: [], away: [], over25: [], under25: [], btts: [], bttsNo: [] };
 
       for (const bm of event.bookmakers) {
+        // ── h2h (Match Winner) ─────────────────────────────────────────────
         const h2h = bm.markets?.find((m: any) => m.key === 'h2h');
-        if (!h2h?.outcomes) continue;
-        for (const o of h2h.outcomes) {
-          const price = Number(o.price);
-          if (!price || price < 1) continue;
-          if (o.name === event.home_team) allOutcomes.home.push(price);
-          else if (o.name === event.away_team) allOutcomes.away.push(price);
-          else allOutcomes.draw.push(price);
+        if (h2h?.outcomes) {
+          for (const o of h2h.outcomes) {
+            const price = Number(o.price);
+            if (!price || price < 1) continue;
+            if (o.name === event.home_team) acc.home.push(price);
+            else if (o.name === event.away_team) acc.away.push(price);
+            else acc.draw.push(price);
+          }
+        }
+
+        // ── totals (Over/Under 2.5) ────────────────────────────────────────
+        const totals = bm.markets?.find((m: any) => m.key === 'totals');
+        if (totals?.outcomes) {
+          for (const o of totals.outcomes) {
+            const price = Number(o.price);
+            const point = Number(o.point);
+            if (!price || price < 1 || point !== 2.5) continue;
+            if (o.name === 'Over')  acc.over25.push(price);
+            if (o.name === 'Under') acc.under25.push(price);
+          }
+        }
+
+        // ── btts (Both Teams To Score) ─────────────────────────────────────
+        const bttsMarket = bm.markets?.find((m: any) => m.key === 'btts');
+        if (bttsMarket?.outcomes) {
+          for (const o of bttsMarket.outcomes) {
+            const price = Number(o.price);
+            if (!price || price < 1) continue;
+            if (o.name === 'Yes') acc.btts.push(price);
+            if (o.name === 'No')  acc.bttsNo.push(price);
+          }
         }
       }
 
       const avg = (arr: number[]) =>
         arr.length ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100 : 0;
 
-      const homeOdd = avg(allOutcomes.home);
-      const awayOdd = avg(allOutcomes.away);
-      const drawOdd = avg(allOutcomes.draw);
-
+      const homeOdd  = avg(acc.home);
+      const awayOdd  = avg(acc.away);
       if (!homeOdd || !awayOdd) continue;
 
       const key = this.makeOddsKey(event.home_team, event.away_team);
-      oddsMap.set(key, { home: homeOdd, draw: drawOdd || 3.2, away: awayOdd });
+      oddsMap.set(key, {
+        home:     homeOdd,
+        draw:     avg(acc.draw) || 3.2,
+        away:     awayOdd,
+        over25:   avg(acc.over25)  || undefined,
+        under25:  avg(acc.under25) || undefined,
+        btts:     avg(acc.btts)    || undefined,
+        bttsNo:   avg(acc.bttsNo)  || undefined,
+      });
     }
   }
 
@@ -875,8 +898,8 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
   private lookupOdds(
     homeTeam: string,
     awayTeam: string,
-    oddsMap: Map<string, { home: number; draw: number; away: number }>
-  ): { home: number; draw: number; away: number } | null {
+    oddsMap: Map<string, NonNullable<RealMatch['odds']>>,
+  ): NonNullable<RealMatch['odds']> | null {
     const exactKey = this.makeOddsKey(homeTeam, awayTeam);
     if (oddsMap.has(exactKey)) return oddsMap.get(exactKey)!;
 
