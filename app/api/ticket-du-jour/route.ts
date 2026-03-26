@@ -400,17 +400,24 @@ export async function GET(req: Request) {
         );
       }
 
-      // Exclude matches that have already kicked off
-      const now = new Date();
+      // Exclude matches that have clearly already kicked off.
+      // match_time is stored as "HH:MM" local time (CET/CEST, UTC+1/+2) with no timezone info.
+      // Parsing as bare ISO string gives UTC — which can be 1-2h behind real kickoff.
+      // Margin: allow matches up to 2h in the past (covers timezone drift + early evening games).
+      const nowMs = Date.now();
+      const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
       const futurePool = (pool ?? []).filter(m => {
         if (!m.match_time) return true;
-        const kickoff = new Date(`${m.match_date}T${m.match_time}:00`);
-        return kickoff > now;
+        // Treat as UTC — add 2h margin so CET matches aren't wrongly excluded
+        const kickoffMs = new Date(`${m.match_date}T${m.match_time}:00Z`).getTime();
+        const passed = nowMs - kickoffMs > TWO_HOURS_MS;
+        return !passed;
       });
 
+      const excluded = (pool?.length ?? 0) - futurePool.length;
       const withEdge3  = (pool ?? []).filter(m => (m.value_edge ?? 0) > 3).length;
       const withEdge0  = (pool ?? []).filter(m => (m.value_edge ?? 0) > 0).length;
-      console.log(`[ticket-du-jour][optimus] Filtres — value_edge>3: ${withEdge3} | value_edge>0: ${withEdge0} | kickoff>now: ${futurePool.length}`);
+      console.log(`[ticket-du-jour][optimus] Filtres — value_edge>3: ${withEdge3} | value_edge>0: ${withEdge0} | kickoff ok: ${futurePool.length} (exclus déjà joués: ${excluded})`);
 
       if (futurePool.length < 2) {
         console.error(`[ticket-du-jour][optimus] 503 — futurePool insuffisant (${futurePool.length}/2 requis). pool total=${pool?.length ?? 0}`);
