@@ -742,13 +742,17 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         url.searchParams.set('commenceTimeTo', commenceTimeTo);
 
         const res = await fetch(url.toString());
+        const remaining = res.headers.get('x-requests-remaining');
+        const used      = res.headers.get('x-requests-used');
         if (!res.ok) {
-          if (res.status !== 422) console.warn(`[OddsAPI] ${sportKey}: HTTP ${res.status}`);
+          if (res.status !== 422) {
+            console.warn(`[OddsAPI] ${sportKey}: HTTP ${res.status} | URL: ${url.toString().replace(apiKey, '***')} | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
+          }
           return [] as any[];
         }
-        const remaining = res.headers.get('x-requests-remaining');
-        if (remaining) console.log(`[OddsAPI] Credits remaining: ${remaining}`);
-        return res.json() as Promise<any[]>;
+        const data = await res.json() as any[];
+        console.log(`[OddsAPI] ${sportKey}: HTTP ${res.status} → ${data.length} events | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
+        return data;
       })
     );
 
