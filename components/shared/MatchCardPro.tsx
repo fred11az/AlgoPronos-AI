@@ -14,12 +14,18 @@ export function MatchCardPro({ match }: MatchCardProProps) {
     if (type === 'home') return '1';
     if (type === 'draw') return 'N';
     if (type === 'away') return '2';
-    return type;
+    if (type === 'btts') return 'BTTS';
+    if (type === 'over25') return 'O2.5';
+    if (type === 'under25') return 'U2.5';
+    return type.toUpperCase();
   }
 
   function predColor(type: string): string {
     if (type === 'home') return 'from-blue-500/20 to-blue-600/5 border-blue-500/30 text-blue-400';
     if (type === 'draw') return 'from-yellow-500/20 to-yellow-600/5 border-yellow-500/30 text-yellow-400';
+    if (type === 'away') return 'from-orange-500/20 to-orange-600/5 border-orange-500/30 text-orange-400';
+    if (type === 'btts' || type === 'over25') return 'from-green-500/20 to-green-600/5 border-green-500/30 text-green-400';
+    if (type === 'under25') return 'from-purple-500/20 to-purple-600/5 border-purple-500/30 text-purple-400';
     return 'from-orange-500/20 to-orange-600/5 border-orange-500/30 text-orange-400';
   }
 
