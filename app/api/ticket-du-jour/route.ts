@@ -398,7 +398,22 @@ export async function GET(req: Request) {
         );
       }
 
-      const optimusSelected = buildOptimusCombo((pool ?? []).map(m => ({
+      // Exclude matches that have already kicked off
+      const now = new Date();
+      const futurePool = (pool ?? []).filter(m => {
+        if (!m.match_time) return true;
+        const kickoff = new Date(`${m.match_date}T${m.match_time}:00`);
+        return kickoff > now;
+      });
+
+      if (futurePool.length < 2) {
+        return NextResponse.json(
+          { error: 'Pas assez de matchs à venir pour générer le ticket Optimus aujourd\'hui.' },
+          { status: 503 }
+        );
+      }
+
+      const optimusSelected = buildOptimusCombo(futurePool.map(m => ({
         ...m,
         league_code: m.league_code || 'TOP',
         value_edge: m.value_edge ?? 0,

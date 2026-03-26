@@ -2,10 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { notifyTicketResult, TicketMatch } from '@/lib/services/notification-service';
 import { broadcastPush, PushSubscription } from '@/lib/services/push';
-import { cachedFetch } from '@/lib/services/api/footballApi';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+
+// ─── Sport keys (mirrors MatchService.ODDS_SPORT_KEY_TO_LEAGUE) ───────────────
+
+const ODDS_SPORT_KEYS = [
+  'soccer_epl',
+  'soccer_spain_la_liga',
+  'soccer_italy_serie_a',
+  'soccer_germany_bundesliga',
+  'soccer_france_ligue_one',
+  'soccer_uefa_champs_league',
+  'soccer_europa_league',
+  'soccer_uefa_conference_league',
+  'soccer_portugal_primeira_liga',
+  'soccer_netherlands_eredivisie',
+  'soccer_turkey_super_ligi',
+  'soccer_belgium_first_div',
+  'soccer_scotland_premiership',
+  'soccer_brazil_campeonato',
+  'soccer_mexico_ligamx',
+  'soccer_usa_mls',
+  'soccer_argentina_primera_division',
+];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,38 +47,68 @@ interface DailyTicket {
   status: string;
 }
 
-interface APIFootballFixture {
-  fixture: { id: number; status: { short: string } };
-  goals: { home: number | null; away: number | null };
+interface OddsScore {
+  name: string;
+  score: string;
 }
 
-// ─── API-Football result fetch ────────────────────────────────────────────────
+interface OddsEvent {
+  id: string;
+  home_team: string;
+  away_team: string;
+  completed: boolean;
+  scores: OddsScore[] | null;
+}
 
-async function fetchFixtureResults(
-  fixtureIds: number[],
-): Promise<Map<number, { homeGoals: number; awayGoals: number; finished: boolean }>> {
-  const results = new Map<number, { homeGoals: number; awayGoals: number; finished: boolean }>();
-  if (fixtureIds.length === 0) return results;
+type ScoreResult = { homeGoals: number; awayGoals: number; finished: boolean };
 
-  // Use cachedFetch (RapidAPI) — results cache TTL short (5 min) for live score accuracy
-  const ids = fixtureIds.join('-');
-  const data = await cachedFetch<any>('/fixtures', { ids }, 300);
+// ─── The Odds API scores fetch ────────────────────────────────────────────────
 
-  if (!data) {
-    console.error('[resolve-tickets] cachedFetch returned null for /fixtures');
+async function fetchScoresFromTheOddsAPI(
+  daysFrom: number = 3,
+): Promise<Map<string, ScoreResult>> {
+  const results = new Map<string, ScoreResult>();
+  const apiKey = process.env.THE_ODDS_API_KEY;
+
+  if (!apiKey) {
+    console.error('[resolve-tickets] THE_ODDS_API_KEY not set — cannot resolve tickets');
     return results;
   }
 
-  const FINISHED = ['FT', 'AET', 'PEN', 'AWD', 'WO'];
+  const fetches = await Promise.allSettled(
+    ODDS_SPORT_KEYS.map(async (sportKey) => {
+      const url = new URL(`https://api.the-odds-api.com/v4/sports/${sportKey}/scores/`);
+      url.searchParams.set('apiKey', apiKey);
+      url.searchParams.set('daysFrom', String(daysFrom));
+      url.searchParams.set('dateFormat', 'iso');
 
-  for (const item of (data.response ?? []) as APIFootballFixture[]) {
-    const fid = item.fixture.id;
-    const finished = FINISHED.includes(item.fixture.status.short);
-    const homeGoals = item.goals.home ?? 0;
-    const awayGoals = item.goals.away ?? 0;
-    results.set(fid, { homeGoals, awayGoals, finished });
+      const res = await fetch(url.toString(), { cache: 'no-store' });
+      if (!res.ok) {
+        console.warn(`[resolve-tickets] scores ${sportKey} → ${res.status}`);
+        return [] as OddsEvent[];
+      }
+      return res.json() as Promise<OddsEvent[]>;
+    })
+  );
+
+  for (const result of fetches) {
+    if (result.status !== 'fulfilled') continue;
+    for (const event of result.value) {
+      if (!event.completed || !event.scores?.length) continue;
+
+      const homeScore = event.scores.find((s) => s.name === event.home_team);
+      const awayScore = event.scores.find((s) => s.name === event.away_team);
+      if (!homeScore || !awayScore) continue;
+
+      results.set(event.id, {
+        homeGoals: parseInt(homeScore.score, 10) || 0,
+        awayGoals: parseInt(awayScore.score, 10) || 0,
+        finished: true,
+      });
+    }
   }
 
+  console.log(`[resolve-tickets] Scores fetched: ${results.size} completed events across ${ODDS_SPORT_KEYS.length} competitions`);
   return results;
 }
 
@@ -98,15 +149,10 @@ function evaluatePick(
 // ─── Main cron handler ────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  // Verify cron secret (Vercel injects Authorization: Bearer {CRON_SECRET} automatically)
   const secret = req.headers.get('authorization')?.replace('Bearer ', '');
   const expected = process.env.CRON_SECRET;
   if (expected && secret !== expected) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  if (!process.env.API_FOOTBALL_KEY) {
-    return NextResponse.json({ error: 'API_FOOTBALL_KEY not set' }, { status: 500 });
   }
 
   const adminSupabase = createAdminClient();
@@ -130,56 +176,52 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ resolved: 0, message: 'Aucun ticket en attente' });
   }
 
+  // Fetch all completed scores from The Odds API (single batch, all sport_keys)
+  const scoresMap = await fetchScoresFromTheOddsAPI(3);
+
   const resolved: { id: string; date: string; status: string }[] = [];
 
   for (const ticket of tickets as DailyTicket[]) {
     try {
       const matches = ticket.matches || [];
 
-      // Extract API-Football fixture IDs (format: "apif-12345")
-      const fixtureIds = matches
-        .map(m => {
-          const match = m.matchId?.match(/^apif-(\d+)$/);
-          return match ? parseInt(match[1]) : null;
-        })
-        .filter((id): id is number => id !== null);
-
       // Ticket age in days (after midnight of the ticket date)
       const ticketAgeDays = Math.floor(
         (Date.now() - new Date(ticket.date + 'T23:59:59Z').getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // Fetch results from API-Football for all apif- fixture IDs we found
-      const fixtureResults = await fetchFixtureResults(fixtureIds);
-
-      // Check if any resolvable apif matches are still not finished
-      const unresolvedApif = fixtureIds.filter(id => !fixtureResults.get(id)?.finished);
-      if (unresolvedApif.length > 0 && ticketAgeDays < 1) {
-        // Matches not finished yet and ticket is recent — wait
-        console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}): ${unresolvedApif.length} match(es) not finished yet`);
-        continue;
-      }
-
-      // Evaluate each pick — non-apif IDs get marked void individually
       let anyResolved = false;
       let anyLost = false;
       let anyVoid = false;
 
       const enrichedMatches = matches.map((m) => {
-        const apifMatch = m.matchId?.match(/^apif-(\d+)$/);
-        if (!apifMatch) {
-          // Non-apif ID: cannot auto-resolve this pick
+        const matchId = m.matchId;
+
+        // Legacy apif- IDs: cannot resolve via The Odds API → void
+        if (!matchId || matchId.startsWith('apif-')) {
           anyVoid = true;
           return { ...m, result: 'void', score: null };
         }
-        const fid = parseInt(apifMatch[1]);
-        const result = fixtureResults.get(fid);
+
+        const result = scoresMap.get(matchId);
+
         if (!result || !result.finished) {
-          // Still not finished or missing — treat as void for old tickets
+          // Event not yet in scores or not completed
+          if (ticketAgeDays < 1) {
+            // Match probably hasn't happened yet — skip ticket
+            return { ...m, result: 'pending', score: null };
+          }
+          // Old ticket without a score — void this pick
           anyVoid = true;
           return { ...m, result: 'void', score: null };
         }
-        const won = evaluatePick(m.selection.type, m.selection.value, result.homeGoals, result.awayGoals);
+
+        const won = evaluatePick(
+          m.selection.type,
+          m.selection.value,
+          result.homeGoals,
+          result.awayGoals,
+        );
         if (!won) anyLost = true;
         anyResolved = true;
         return {
@@ -189,22 +231,26 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      // If nothing could be resolved and ticket is recent, wait
+      // If any match is still pending (too recent), skip this ticket
+      if (enrichedMatches.some((m: any) => m.result === 'pending')) {
+        console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}): matches not finished yet — waiting`);
+        continue;
+      }
+
+      // If nothing resolved and ticket is recent, wait another day
       if (!anyResolved && !anyVoid && ticketAgeDays < 2) {
         console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}): nothing resolved yet, waiting`);
         continue;
       }
 
-      // Overall status: lost if any pick lost, void if any pick unresolvable + none lost, won only if all resolved + won
-      const newStatus = anyLost ? 'lost' : (anyVoid ? 'void' : 'won');
+      const newStatus = anyLost ? 'lost' : anyVoid ? 'void' : 'won';
 
-      // Update ticket in DB with enriched matches + global status
       const { error: updateErr } = await adminSupabase
         .from('daily_ticket')
         .update({
           status: newStatus,
           matches: enrichedMatches,
-          result_notes: `Résolu automatiquement via API-Football`,
+          result_notes: `Résolu automatiquement via The Odds API`,
           resolved_at: new Date().toISOString(),
         })
         .eq('id', ticket.id);
@@ -217,7 +263,6 @@ export async function GET(req: NextRequest) {
       resolved.push({ id: ticket.id, date: ticket.date, status: newStatus });
       console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}) → ${newStatus}`);
 
-      // Notify users (email + WhatsApp + push)
       await notifyUsers(adminSupabase, ticket, newStatus);
     } catch (err) {
       console.error(`[resolve-tickets] Error processing ticket ${ticket.id}:`, err);
@@ -251,14 +296,13 @@ async function notifyUsers(
       return !meta || meta.notify_results !== false;
     });
 
-    const notifMatches: TicketMatch[] = ticket.matches.map(m => ({
+    const notifMatches: TicketMatch[] = ticket.matches.map((m) => ({
       home_team: m.homeTeam,
       away_team: m.awayTeam,
       prediction: `${m.selection.type} ${m.selection.value}`,
       odds: m.selection.odds,
     }));
 
-    // Email + WhatsApp notifications
     const batches: typeof eligible[] = [];
     for (let i = 0; i < eligible.length; i += 10) {
       batches.push(eligible.slice(i, i + 10));
@@ -280,7 +324,6 @@ async function notifyUsers(
       );
     }
 
-    // Web push notifications
     const allPushSubs: PushSubscription[] = [];
     for (const p of profiles) {
       const meta = p.metadata as Record<string, unknown> | null;

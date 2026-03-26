@@ -68,19 +68,19 @@ class MatchService {
       }
 
       if (sport === 'football') {
-        // ── LEVEL 2: api_cache → RapidAPI (raw response, TTL 24h) ────────
-        console.log(`[Sync] ${date} (FOOTBALL): Cache MISS — fetching via API-Football...`);
+        // ── LEVEL 2: The Odds API (fixtures + odds, TTL 12h) ─────────────
+        console.log(`[Sync] ${date} (FOOTBALL): Cache MISS — fetching via The Odds API...`);
         const apiMatches = await this.fetchFootballFromAPI(date);
 
         if (apiMatches.length > 0) {
-          console.log(`[Sync] ${date} (FOOTBALL): Success! Found ${apiMatches.length} matches via API.`);
+          console.log(`[Sync] ${date} (FOOTBALL): Success! Found ${apiMatches.length} matches via The Odds API.`);
           byDate[date] = apiMatches;
           rawFixturesCount += apiMatches.length;
           await this.cacheMatches(date, apiMatches, sport);
           continue; // Found via API, skip AI fallback
         }
 
-        console.error(`[Sync] ${date}: API-Football returned 0 fixtures. Quota épuisé ou clé invalide — vérifier API_FOOTBALL_KEY et quota sur api-sports.io.`);
+        console.error(`[Sync] ${date}: The Odds API returned 0 fixtures — vérifier THE_ODDS_API_KEY et crédits restants.`);
       }
 
       // ── LEVEL 3: AI Search fallback ───────────────────────────────────
@@ -742,13 +742,17 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         url.searchParams.set('commenceTimeTo', commenceTimeTo);
 
         const res = await fetch(url.toString());
+        const remaining = res.headers.get('x-requests-remaining');
+        const used      = res.headers.get('x-requests-used');
         if (!res.ok) {
-          if (res.status !== 422) console.warn(`[OddsAPI] ${sportKey}: HTTP ${res.status}`);
+          if (res.status !== 422) {
+            console.warn(`[OddsAPI] ${sportKey}: HTTP ${res.status} | URL: ${url.toString().replace(apiKey, '***')} | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
+          }
           return [] as any[];
         }
-        const remaining = res.headers.get('x-requests-remaining');
-        if (remaining) console.log(`[OddsAPI] Credits remaining: ${remaining}`);
-        return res.json() as Promise<any[]>;
+        const data = await res.json() as any[];
+        console.log(`[OddsAPI] ${sportKey}: HTTP ${res.status} → ${data.length} events | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
+        return data;
       })
     );
 
