@@ -68,19 +68,19 @@ class MatchService {
       }
 
       if (sport === 'football') {
-        // ── LEVEL 2: api_cache → RapidAPI (raw response, TTL 24h) ────────
-        console.log(`[Sync] ${date} (FOOTBALL): Cache MISS — fetching via API-Football...`);
+        // ── LEVEL 2: The Odds API (fixtures + odds, TTL 12h) ─────────────
+        console.log(`[Sync] ${date} (FOOTBALL): Cache MISS — fetching via The Odds API...`);
         const apiMatches = await this.fetchFootballFromAPI(date);
 
         if (apiMatches.length > 0) {
-          console.log(`[Sync] ${date} (FOOTBALL): Success! Found ${apiMatches.length} matches via API.`);
+          console.log(`[Sync] ${date} (FOOTBALL): Success! Found ${apiMatches.length} matches via The Odds API.`);
           byDate[date] = apiMatches;
           rawFixturesCount += apiMatches.length;
           await this.cacheMatches(date, apiMatches, sport);
           continue; // Found via API, skip AI fallback
         }
 
-        console.error(`[Sync] ${date}: API-Football returned 0 fixtures. Quota épuisé ou clé invalide — vérifier API_FOOTBALL_KEY et quota sur api-sports.io.`);
+        console.error(`[Sync] ${date}: The Odds API returned 0 fixtures — vérifier THE_ODDS_API_KEY et crédits restants.`);
       }
 
       // ── LEVEL 3: AI Search fallback ───────────────────────────────────
