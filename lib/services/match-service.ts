@@ -76,6 +76,8 @@ class MatchService {
           await this.cacheMatches(date, apiMatches, sport);
           continue; // Found via API, skip AI fallback
         }
+
+        console.error(`[Sync] ${date}: API-Football returned 0 fixtures. Quota épuisé ou clé invalide — vérifier API_FOOTBALL_KEY et quota sur api-sports.io.`);
       }
 
       // ── LEVEL 3: AI Search fallback ───────────────────────────────────
@@ -632,7 +634,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
       // 1. Fetch fixtures — API-Football v3 uses YYYY-MM-DD format natively
-      const data = await cachedFetch<any>('/fixtures', { date }, 86400);
+      const data = await cachedFetch<any>('/fixtures', { date }, 43200);
 
       if (!Array.isArray(data?.response)) {
         console.warn(`[MatchService] No fixtures from API-Football for ${date}. Response:`, JSON.stringify(data).substring(0, 300));
