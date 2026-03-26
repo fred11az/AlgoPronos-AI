@@ -54,26 +54,27 @@ function generateForm() {
 }
 
 function computePrediction(homeOdds, drawOdds, awayOdds) {
-  const homePct = impliedPct(homeOdds);
-  const drawPct = drawOdds > 0 ? impliedPct(drawOdds) : 0;
-  const awayPct = impliedPct(awayOdds);
-  const total = homePct + drawPct + awayPct;
+  const totalInverse = 1 / homeOdds + (drawOdds > 0 ? 1 / drawOdds : 0) + 1 / awayOdds;
+  const homePct = Math.round((1 / homeOdds / totalInverse) * 100);
+  const drawPct = drawOdds > 0 ? Math.round((1 / drawOdds / totalInverse) * 100) : 0;
+  const awayPct = Math.round((1 / awayOdds / totalInverse) * 100);
 
-  const homeProb = Math.round((homePct / total) * 100);
-  const drawProb = Math.round((drawPct / total) * 100);
-  const awayProb = Math.round((awayPct / total) * 100);
+  // Slight home advantage adjustment (mirrors route.ts model)
+  const modelHome = Math.min(homePct + 4, 85);
+  const modelDraw = Math.max(drawPct - 2, 8);
+  const modelAway = Math.max(awayPct - 2, 8);
 
   const options = [
-    { label: '1', prediction: 'Victoire domicile', prob: homeProb, odds: homeOdds, implied: homePct },
-    { label: 'X', prediction: 'Match nul', prob: drawProb, odds: drawOdds, implied: drawPct },
-    { label: '2', prediction: 'Victoire extérieur', prob: awayProb, odds: awayOdds, implied: awayPct },
+    { type: 'home', label: 'Victoire domicile',   prob: modelHome, odds: homeOdds, implied: homePct },
+    { type: 'draw', label: 'Match nul',            prob: modelDraw, odds: drawOdds, implied: drawPct },
+    { type: 'away', label: 'Victoire extérieur',   prob: modelAway, odds: awayOdds, implied: awayPct },
   ].filter((o) => o.odds > 0);
 
-  const best = options.reduce((a, b) => (a.prob - a.implied > b.prob - b.implied ? a : b));
+  const best = options.reduce((a, b) => (b.prob - b.implied > a.prob - a.implied ? b : a));
 
   return {
     prediction: best.label,
-    predictionType: best.prediction,
+    predictionType: best.type,   // 'home' | 'draw' | 'away' — cohérent avec route.ts
     probability: best.prob,
     impliedPct: best.implied,
     valueEdge: best.prob - best.implied,

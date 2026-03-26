@@ -50,14 +50,28 @@ function impliedPct(odds: number): number {
   return Math.round((1 / odds) * 100);
 }
 
+/** Map internal prediction_type → display type + value for ticket rendering */
+function mapPickDisplay(predType: string): { type: string; value: string } {
+  switch (predType) {
+    case 'home':    return { type: '1X2',        value: '1' };
+    case 'draw':    return { type: '1X2',        value: 'X' };
+    case 'away':    return { type: '1X2',        value: '2' };
+    case 'btts':    return { type: 'BTTS',       value: 'Oui' };
+    case 'over25':  return { type: 'Over/Under', value: 'Over 2.5' };
+    case 'under25': return { type: 'Over/Under', value: 'Under 2.5' };
+    default:        return { type: '1X2',        value: '1' };
+  }
+}
+
 /**
- * Simple deterministic pick: chooses the bet with the best value edge.
- * Home probability modeled as a function of home odds vs away odds.
+ * Picks the bet with the best value edge across all available markets.
+ * Accepts optional stats (API-Football) to include BTTS and Over/Under candidates.
  */
-function computePrediction(
+function computeBestPick(
   oddsHome: number,
   oddsDraw: number,
   oddsAway: number,
+  stats?: any,
 ): {
   prediction: string;
   predictionType: string;
@@ -71,18 +85,31 @@ function computePrediction(
   const drawPct = Math.round((1 / oddsDraw / totalInverse) * 100);
   const awayPct = Math.round((1 / oddsAway / totalInverse) * 100);
 
-  // Model probabilities: adjust with slight home advantage
-  const modelHome = Math.min(homePct + 4, 85);
-  const modelDraw = Math.max(drawPct - 2, 8);
-  const modelAway = Math.max(awayPct - 2, 8);
+  // Base model: slight home advantage + real API-Football probs when available
+  const apiReal = stats?.dataSource === 'api-football';
+  const modelHome = apiReal ? Math.max(Math.min(homePct + 4, 85), stats.homePct ?? 0) : Math.min(homePct + 4, 85);
+  const modelDraw = apiReal ? Math.max(Math.max(drawPct - 2, 8),  stats.drawPct ?? 0) : Math.max(drawPct - 2, 8);
+  const modelAway = apiReal ? Math.max(Math.max(awayPct - 2, 8),  stats.awayPct ?? 0) : Math.max(awayPct - 2, 8);
 
-  const candidates = [
-    { label: 'Victoire domicile', type: 'home', odds: oddsHome, impliedP: impliedPct(oddsHome), modelP: modelHome },
-    { label: 'Match nul', type: 'draw', odds: oddsDraw, impliedP: impliedPct(oddsDraw), modelP: modelDraw },
+  const candidates: { label: string; type: string; odds: number; impliedP: number; modelP: number }[] = [
+    { label: 'Victoire domicile',   type: 'home', odds: oddsHome, impliedP: impliedPct(oddsHome), modelP: modelHome },
+    { label: 'Match nul',           type: 'draw', odds: oddsDraw, impliedP: impliedPct(oddsDraw), modelP: modelDraw },
     { label: 'Victoire extérieure', type: 'away', odds: oddsAway, impliedP: impliedPct(oddsAway), modelP: modelAway },
   ];
 
-  // Pick the one with highest value edge (modelP - impliedP)
+  // BTTS + Over/Under quand les stats API-Football sont disponibles
+  if (stats) {
+    if (stats.bttsOdds && stats.bttsProbability !== null) {
+      candidates.push({ label: 'Les deux équipes marquent', type: 'btts',    odds: stats.bttsOdds,    impliedP: impliedPct(stats.bttsOdds),    modelP: stats.bttsProbability });
+    }
+    if (stats.over25Odds && stats.over25Probability !== null) {
+      candidates.push({ label: 'Plus de 2.5 buts',          type: 'over25',  odds: stats.over25Odds,  impliedP: impliedPct(stats.over25Odds),  modelP: stats.over25Probability });
+    }
+    if (stats.under25Odds && stats.over25Probability !== null) {
+      candidates.push({ label: 'Moins de 2.5 buts',         type: 'under25', odds: stats.under25Odds, impliedP: impliedPct(stats.under25Odds), modelP: 100 - stats.over25Probability });
+    }
+  }
+
   const best = candidates.reduce((a, b) =>
     (b.modelP - b.impliedP) > (a.modelP - a.impliedP) ? b : a
   );
@@ -246,10 +273,7 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        const pred = computePrediction(match.odds.home, match.odds.draw || 3.3, match.odds.away);
-
-        // Fetch real team stats for football (cached — no extra quota on repeat calls)
-        // For other sports or non-API-Football matches, stats returns odds-implied estimates
+        // Fetch stats first — needed for BTTS/Over25 candidate selection
         const footballApiKey = sport === 'football' ? process.env.API_FOOTBALL_KEY : undefined;
         const stats = await fetchMatchStats(
           match.id,
@@ -259,26 +283,17 @@ export async function POST(req: NextRequest) {
           footballApiKey
         );
 
-        // Use real form if available from API-Football, otherwise 'N/A'
         const homeForm = stats.homeForm?.form ?? 'N/A';
         const awayForm = stats.awayForm?.form ?? 'N/A';
 
-        // Use real probabilities if available (override odds-only model)
-        // Pick the stat that matches the actual prediction type — not always homePct
-        const realPct =
-          pred.predictionType === 'home' ? stats.homePct :
-          pred.predictionType === 'away' ? stats.awayPct :
-          pred.predictionType === 'draw' ? stats.drawPct :
-          pred.probability;
-        const finalPred = stats.dataSource === 'api-football'
-          ? { ...pred, probability: Math.max(pred.probability, realPct) }
-          : pred;
+        // computeBestPick uses stats to include BTTS/Over25 markets when available
+        const finalPred = computeBestPick(match.odds.home, match.odds.draw || 3.3, match.odds.away, stats);
 
         const aiAnalysis = await callAIAnalysis(
           match.homeTeam,
           match.awayTeam,
           match.league,
-          pred.prediction,
+          finalPred.prediction,
           finalPred.probability,
           homeForm,
           awayForm,
@@ -303,12 +318,12 @@ export async function POST(req: NextRequest) {
           odds_home: match.odds.home,
           odds_draw: match.odds.draw || null,
           odds_away: match.odds.away,
-          prediction: pred.prediction,
-          prediction_type: pred.predictionType,
+          prediction: finalPred.prediction,
+          prediction_type: finalPred.predictionType,
           probability: finalPred.probability,
-          implied_probability: pred.impliedPct,
-          value_edge: pred.valueEdge,
-          recommended_odds: pred.recommendedOdds,
+          implied_probability: finalPred.impliedPct,
+          value_edge: finalPred.valueEdge,
+          recommended_odds: finalPred.recommendedOdds,
           ai_analysis: aiAnalysis || null,
           home_form: homeForm,
           away_form: awayForm,
@@ -385,84 +400,132 @@ export async function GET(req: NextRequest) {
 }
 
 /**
+ * Selects an Optimus combo from a prediction pool.
+ * 1. Filters for value bets (value_edge > 0)
+ * 2. Diversifies by league_code (max 1 pick per league)
+ * 3. Finds combo of 2–4 picks with combined odds in [5.0, 8.0]
+ *    → maximises avg value_edge, prefers 3 picks over 2 or 4
+ *    → falls back to closest-to-5.0 if no combo lands in the range
+ */
+function buildOptimusCombo(pool: any[]): any[] {
+  const TARGET_MIN = 5.0;
+  const TARGET_MAX = 8.0;
+
+  // 1. Value filter — prefer edge > 3, relax to > 0 if not enough candidates
+  let valued = pool.filter((m: any) => (m.value_edge ?? 0) > 3);
+  if (valued.length < 4) valued = pool.filter((m: any) => (m.value_edge ?? 0) > 0);
+  if (valued.length < 2) valued = pool;
+
+  // 2. League diversification — best (highest value_edge) per league_code
+  const byLeague = new Map<string, any>();
+  for (const m of valued) {
+    const code = m.league_code || 'TOP';
+    if (!byLeague.has(code) || (m.value_edge ?? 0) > (byLeague.get(code).value_edge ?? 0)) {
+      byLeague.set(code, m);
+    }
+  }
+  const diversified = Array.from(byLeague.values())
+    .sort((a: any, b: any) => (b.value_edge ?? 0) - (a.value_edge ?? 0))
+    .slice(0, 10);
+
+  // 3. Brute-force combos 2–4, keep those within [TARGET_MIN, TARGET_MAX]
+  let best: any[] = [];
+  let bestScore = -Infinity;
+
+  const tryCombo = (combo: any[]) => {
+    const totalOdds = combo.reduce((acc: number, m: any) => acc * (m.recommended_odds || 1), 1);
+    if (totalOdds < TARGET_MIN || totalOdds > TARGET_MAX) return;
+    const avgEdge = combo.reduce((acc: number, m: any) => acc + (m.value_edge ?? 0), 0) / combo.length;
+    const sizeBonus = combo.length === 3 ? 1.0 : combo.length === 2 ? 0.3 : 0;
+    if (avgEdge + sizeBonus > bestScore) { bestScore = avgEdge + sizeBonus; best = combo; }
+  };
+
+  const c = diversified;
+  for (let i = 0; i < c.length; i++)
+    for (let j = i + 1; j < c.length; j++) {
+      tryCombo([c[i], c[j]]);
+      for (let k = j + 1; k < c.length; k++) {
+        tryCombo([c[i], c[j], c[k]]);
+        for (let l = k + 1; l < c.length; l++)
+          tryCombo([c[i], c[j], c[k], c[l]]);
+      }
+    }
+
+  // Fallback: no combo in [5, 8] → pick 3 closest to 5.0 from diversified pool
+  if (best.length === 0) {
+    let bestDiff = Infinity;
+    for (let i = 0; i < c.length; i++)
+      for (let j = i + 1; j < c.length; j++)
+        for (let k = j + 1; k < c.length; k++) {
+          const o = (c[i].recommended_odds||1) * (c[j].recommended_odds||1) * (c[k].recommended_odds||1);
+          const d = Math.abs(o - 5.0);
+          if (d < bestDiff) { bestDiff = d; best = [c[i], c[j], c[k]]; }
+        }
+  }
+
+  return best;
+}
+
+/**
  * Strategy Generator: Montante & Optimus
  */
 async function generateSpecialTickets(supabase: any, date: string) {
-  // Fetch a pool of high-confidence predictions for today
   const { data: pool } = await supabase
     .from('match_predictions')
     .select('*')
     .eq('match_date', date)
-    .order('probability', { ascending: false });
+    .order('value_edge', { ascending: false });
 
-  if (!pool || pool.length < 5) return;
+  if (!pool || pool.length < 2) return;
 
-  // 1. MONTANTE (1 Ultra Safe match)
-  const safe = pool.find((m: any) => m.odds_home < 1.45 || m.odds_away < 1.45);
-  if (safe) {
+  // 1. MONTANTE — pick le Double Chance le plus sûr (impliedPct le plus élevé)
+  const montandeCandidate = pool.reduce((best: any, m: any) => {
+    const implied = m.implied_probability ?? Math.round((1 / (m.recommended_odds || 2)) * 100);
+    const bestImplied = best ? (best.implied_probability ?? Math.round((1 / (best.recommended_odds || 2)) * 100)) : 0;
+    return implied > bestImplied ? m : best;
+  }, null);
+
+  if (montandeCandidate) {
+    const { type, value } = mapPickDisplay(montandeCandidate.prediction_type);
     await supabase.from('daily_ticket').upsert({
       date,
       type: 'montante',
       matches: [{
-        matchId: safe.slug,
-        homeTeam: safe.home_team,
-        awayTeam: safe.away_team,
-        league: safe.league,
-        selection: { type: safe.prediction_type, value: '1', odds: safe.recommended_odds }
+        matchId: montandeCandidate.slug,
+        homeTeam: montandeCandidate.home_team,
+        awayTeam: montandeCandidate.away_team,
+        league: montandeCandidate.league,
+        selection: { type, value, odds: montandeCandidate.recommended_odds },
       }],
-      total_odds: safe.recommended_odds,
-      confidence_pct: 90,
-      status: 'pending'
+      total_odds: montandeCandidate.recommended_odds,
+      confidence_pct: montandeCandidate.implied_probability ?? 90,
+      status: 'pending',
     }, { onConflict: 'date,type' });
   }
 
-  // 2. OPTIMUS — combinaison 2-4 matchs dont la cote totale est la plus proche de 5.00
-  const OPTIMUS_TARGET = 5.0;
-  const candidates = pool.slice(0, 15);
-  let optimusMatches: any[] = candidates.slice(0, 3);
-  let bestDiff = Infinity;
-
-  for (let size = 2; size <= 4; size++) {
-    for (let i = 0; i < candidates.length; i++) {
-      for (let j = i + 1; j < candidates.length; j++) {
-        if (size === 2) {
-          const o = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1);
-          const diff = Math.abs(o - OPTIMUS_TARGET);
-          if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j]]; }
-        } else {
-          for (let k = j + 1; k < candidates.length; k++) {
-            if (size === 3) {
-              const o = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1) * (candidates[k].recommended_odds || 1);
-              const diff = Math.abs(o - OPTIMUS_TARGET);
-              if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j], candidates[k]]; }
-            } else {
-              for (let l = k + 1; l < candidates.length; l++) {
-                const o = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1) * (candidates[k].recommended_odds || 1) * (candidates[l].recommended_odds || 1);
-                const diff = Math.abs(o - OPTIMUS_TARGET);
-                if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j], candidates[k], candidates[l]]; }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+  // 2. OPTIMUS — value bets diversifiés, cote combinée 5–8
+  const optimusMatches = buildOptimusCombo(pool);
+  if (optimusMatches.length < 2) return;
 
   const totalOdds = Math.round(optimusMatches.reduce((acc: number, m: any) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+  const confidencePct = Math.round(optimusMatches.reduce((acc: number, m: any) => acc + (m.probability || 60), 0) / optimusMatches.length);
 
   await supabase.from('daily_ticket').upsert({
     date,
     type: 'optimus',
     access_tier: 'optimised_only',
-    matches: optimusMatches.map((m: any) => ({
-      matchId: m.slug,
-      homeTeam: m.home_team,
-      awayTeam: m.away_team,
-      league: m.league,
-      selection: { type: m.prediction_type, value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X', odds: m.recommended_odds }
-    })),
+    matches: optimusMatches.map((m: any) => {
+      const { type, value } = mapPickDisplay(m.prediction_type);
+      return {
+        matchId: m.slug,
+        homeTeam: m.home_team,
+        awayTeam: m.away_team,
+        league: m.league,
+        selection: { type, value, odds: m.recommended_odds },
+      };
+    }),
     total_odds: totalOdds,
-    confidence_pct: 75,
-    status: 'pending'
+    confidence_pct: confidencePct,
+    status: 'pending',
   }, { onConflict: 'date,type' });
 }
