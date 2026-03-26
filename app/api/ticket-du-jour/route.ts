@@ -565,91 +565,119 @@ export async function GET(req: Request) {
       });
     }
 
-    // ── 2. Fetch today's matches ─────────────────────────────────────────────
-    // Priority 1: Top 5 European leagues + CL/PT1/NL1
-    const topMatches = await matchService.getMatchesForDate(today, 'football', DAILY_TICKET_LEAGUES);
-    console.log(`[ticket-du-jour][classic] topMatches (leagues prioritaires) : ${topMatches.length}`);
+    // ── 2. Fetch today's picks ───────────────────────────────────────────────
+    // Priority 1: match_predictions (pre-computed, no live API call needed)
+    const { data: predPool } = await adminSupabase
+      .from('match_predictions')
+      .select('*')
+      .eq('match_date', today)
+      .eq('sport', 'football')
+      .gte('value_edge', 0)
+      .gte('probability', 55)
+      .order('probability', { ascending: false })
+      .limit(20);
 
-    // Priority 2: Secondary leagues (only used to fill remaining slots)
-    let matches = topMatches;
-    if (matches.length < DAILY_MATCH_COUNT) {
-      const extra = await matchService.getMatchesForDate(today, 'football', FALLBACK_LEAGUES);
-      matches = [...topMatches, ...extra];
-      console.log(`[ticket-du-jour][classic] +fallback leagues : ${extra.length} → total : ${matches.length}`);
-    }
-
-    // NO "all leagues" fallback — prefer returning an error over bizarre matches
-
-    // Filter to scheduled matches with odds (deduplicate by id)
-    // Top-league matches are sorted first naturally (topMatches come first in array)
-    const seen = new Set<string>();
-    const available = matches
-      .filter(m => {
-        if (seen.has(m.id)) return false;
-        seen.add(m.id);
-        return m.status === 'scheduled' && m.odds;
-      })
-      .slice(0, 10); // top 10 candidates
-
-    const notScheduled = matches.filter(m => m.status !== 'scheduled').length;
-    const noOdds       = matches.filter(m => m.status === 'scheduled' && !m.odds).length;
-    console.log(`[ticket-du-jour][classic] available après filtre : ${available.length} (exclus: ${notScheduled} pas scheduled, ${noOdds} sans cotes)`);
-
-    if (available.length < DAILY_MATCH_COUNT) {
-      console.error(`[ticket-du-jour][classic] 503 — available=${available.length} < DAILY_MATCH_COUNT=${DAILY_MATCH_COUNT}. topMatches=${topMatches.length} total=${matches.length}`);
-      return NextResponse.json(
-        { error: 'Pas assez de matchs disponibles aujourd\'hui pour générer le ticket', available: available.length },
-        { status: 503 }
-      );
-    }
-
-    // Detect data source: real API matches have id starting with "apif-"; AI-generated have "openclaw-"
-    const hasRealApiMatches = available.some(m => m.id.startsWith('apif-'));
-    const dataSource = hasRealApiMatches ? 'api-football' : 'ai-fallback';
-    if (!hasRealApiMatches) {
-      console.warn('[ticket-du-jour] No real API matches found — generating from AI fallback data');
-    }
-
-    // Select the top DAILY_MATCH_COUNT matches
-    const selected = available.slice(0, DAILY_MATCH_COUNT);
-
-    // ── 3. Fetch real stats ──────────────────────────────────────────────────
-    const footballApiKey = process.env.API_FOOTBALL_KEY;
-    const statsMap = await fetchStatsForMatches(
-      selected.map(m => ({ 
-        ...m, 
-        odds: { 
-          home: m.odds!.home, 
-          draw: m.odds!.draw || 3.3, 
-          away: m.odds!.away 
-        }, 
-        country: m.country 
-      })),
-      footballApiKey
-    ).catch(() => new Map<string, MatchStats>());
-
-    // ── 4. Build picks ───────────────────────────────────────────────────────
-    const picks = selected.map(m => {
-      const pick = pickForMatch(
-        { 
-          ...m, 
-          odds: { 
-            home: m.odds!.home, 
-            draw: m.odds!.draw || 3.3, 
-            away: m.odds!.away 
-          } 
-        },
-        statsMap.get(m.id)
-      );
-      return {
-        matchId: m.id,
-        homeTeam: m.homeTeam,
-        awayTeam: m.awayTeam,
-        league: m.league,
-        kickoffTime: `${m.date} ${m.time}`.trim(),
-        selection: pick,
-      };
+    // Exclude matches that have already kicked off (same logic as Optimus)
+    const nowMsC = Date.now();
+    const TWO_H = 2 * 60 * 60 * 1000;
+    const futurePreds = (predPool ?? []).filter(m => {
+      if (!m.match_time) return true;
+      const kickoffMs = new Date(`${m.match_date}T${m.match_time}:00Z`).getTime();
+      return nowMsC - kickoffMs <= TWO_H;
     });
+
+    console.log(`[ticket-du-jour][classic] match_predictions: ${predPool?.length ?? 0} trouvées, ${futurePreds.length} à venir`);
+
+    let picks: any[];
+    let dataSource: string;
+
+    if (futurePreds.length >= DAILY_MATCH_COUNT) {
+      // Build picks directly from pre-computed predictions — no live API call
+      const selected = futurePreds.slice(0, DAILY_MATCH_COUNT);
+      picks = selected.map(m => {
+        const { type, value } = mapPickDisplay(m.prediction_type);
+        return {
+          matchId: m.slug,
+          homeTeam: m.home_team,
+          awayTeam: m.away_team,
+          league: m.league,
+          kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
+          selection: {
+            type,
+            value,
+            odds: m.recommended_odds,
+            impliedPct: Math.round((m.implied_probability || (1 / (m.recommended_odds || 2))) * 100),
+            modelPct: m.probability,
+            valueEdge: m.value_edge,
+          },
+        };
+      });
+      dataSource = 'match_predictions';
+      console.log(`[ticket-du-jour][classic] ${picks.length} picks depuis match_predictions`);
+
+    } else {
+      // Fallback: live matches via The Odds API
+      console.warn(`[ticket-du-jour][classic] match_predictions insuffisantes (${futurePreds.length}/${DAILY_MATCH_COUNT}) — fallback The Odds API`);
+
+      const topMatches = await matchService.getMatchesForDate(today, 'football', DAILY_TICKET_LEAGUES);
+      console.log(`[ticket-du-jour][classic] topMatches (leagues prioritaires) : ${topMatches.length}`);
+
+      let matches = topMatches;
+      if (matches.length < DAILY_MATCH_COUNT) {
+        const extra = await matchService.getMatchesForDate(today, 'football', FALLBACK_LEAGUES);
+        matches = [...topMatches, ...extra];
+        console.log(`[ticket-du-jour][classic] +fallback leagues : ${extra.length} → total : ${matches.length}`);
+      }
+
+      const seen = new Set<string>();
+      const available = matches
+        .filter(m => {
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
+          return m.status === 'scheduled' && m.odds;
+        })
+        .slice(0, 10);
+
+      const notScheduled = matches.filter(m => m.status !== 'scheduled').length;
+      const noOdds = matches.filter(m => m.status === 'scheduled' && !m.odds).length;
+      console.log(`[ticket-du-jour][classic] available après filtre : ${available.length} (exclus: ${notScheduled} pas scheduled, ${noOdds} sans cotes)`);
+
+      if (available.length < DAILY_MATCH_COUNT) {
+        console.error(`[ticket-du-jour][classic] 503 — available=${available.length} < DAILY_MATCH_COUNT=${DAILY_MATCH_COUNT}. topMatches=${topMatches.length} total=${matches.length}`);
+        return NextResponse.json(
+          { error: 'Pas assez de matchs disponibles aujourd\'hui pour générer le ticket', available: available.length },
+          { status: 503 }
+        );
+      }
+
+      const selected = available.slice(0, DAILY_MATCH_COUNT);
+      const statsMap = await fetchStatsForMatches(
+        selected.map(m => ({
+          ...m,
+          odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away },
+          country: m.country,
+        })),
+        process.env.API_FOOTBALL_KEY
+      ).catch(() => new Map<string, MatchStats>());
+
+      picks = selected.map(m => {
+        const pick = pickForMatch(
+          { ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } },
+          statsMap.get(m.id)
+        );
+        return {
+          matchId: m.id,
+          homeTeam: m.homeTeam,
+          awayTeam: m.awayTeam,
+          league: m.league,
+          kickoffTime: `${m.date} ${m.time}`.trim(),
+          selection: pick,
+        };
+      });
+      dataSource = available.some(m => m.id.startsWith('apif-')) ? 'api-football' : 'the-odds-api';
+    }
+
+    // ── 3. Compute totals ────────────────────────────────────────────────────
 
     const totalOddsRaw = picks.reduce((acc, p) => acc * (p.selection.odds || 1), 1);
     const totalOdds = isNaN(totalOddsRaw) ? 1.00 : Math.round(totalOddsRaw * 100) / 100;
