@@ -130,6 +130,88 @@ function pickForMatch(
   };
 }
 
+// ─── Market type mapping ──────────────────────────────────────────────────────
+
+function mapPickDisplay(predType: string): { type: string; value: string } {
+  switch (predType) {
+    case 'home':    return { type: '1X2',        value: '1' };
+    case 'draw':    return { type: '1X2',        value: 'X' };
+    case 'away':    return { type: '1X2',        value: '2' };
+    case 'btts':    return { type: 'BTTS',       value: 'Oui' };
+    case 'over25':  return { type: 'Over/Under', value: 'Over 2.5' };
+    case 'under25': return { type: 'Over/Under', value: 'Under 2.5' };
+    default:        return { type: '1X2',        value: '1' };
+  }
+}
+
+// ─── Optimus combo builder ────────────────────────────────────────────────────
+// 1. Value bets uniquement (value_edge > 0, préférence > 3)
+// 2. Max 1 pick par league_code (diversification)
+// 3. Cote combinée dans [5.0, 8.0], maximise avg value_edge, préfère 3 picks
+
+interface OptimusCandidate {
+  league_code: string;
+  value_edge: number | null;
+  recommended_odds: number;
+  prediction_type: string;
+  [key: string]: any;
+}
+
+function buildOptimusCombo<T extends OptimusCandidate>(pool: T[]): T[] {
+  const TARGET_MIN = 5.0;
+  const TARGET_MAX = 8.0;
+
+  let valued = pool.filter(m => (m.value_edge ?? 0) > 3);
+  if (valued.length < 4) valued = pool.filter(m => (m.value_edge ?? 0) > 0);
+  if (valued.length < 2) valued = pool;
+
+  const byLeague = new Map<string, T>();
+  for (const m of valued) {
+    const code = m.league_code || 'TOP';
+    if (!byLeague.has(code) || (m.value_edge ?? 0) > (byLeague.get(code)!.value_edge ?? 0)) {
+      byLeague.set(code, m);
+    }
+  }
+  const c = Array.from(byLeague.values())
+    .sort((a, b) => (b.value_edge ?? 0) - (a.value_edge ?? 0))
+    .slice(0, 10);
+
+  let best: T[] = [];
+  let bestScore = -Infinity;
+
+  const tryCombo = (combo: T[]) => {
+    const totalOdds = combo.reduce((acc, m) => acc * (m.recommended_odds || 1), 1);
+    if (totalOdds < TARGET_MIN || totalOdds > TARGET_MAX) return;
+    const avgEdge = combo.reduce((acc, m) => acc + (m.value_edge ?? 0), 0) / combo.length;
+    const sizeBonus = combo.length === 3 ? 1.0 : combo.length === 2 ? 0.3 : 0;
+    if (avgEdge + sizeBonus > bestScore) { bestScore = avgEdge + sizeBonus; best = combo; }
+  };
+
+  for (let i = 0; i < c.length; i++)
+    for (let j = i + 1; j < c.length; j++) {
+      tryCombo([c[i], c[j]]);
+      for (let k = j + 1; k < c.length; k++) {
+        tryCombo([c[i], c[j], c[k]]);
+        for (let l = k + 1; l < c.length; l++)
+          tryCombo([c[i], c[j], c[k], c[l]]);
+      }
+    }
+
+  // Fallback: aucun combo dans [5, 8] → le plus proche de 5.0
+  if (best.length === 0) {
+    let bestDiff = Infinity;
+    for (let i = 0; i < c.length; i++)
+      for (let j = i + 1; j < c.length; j++)
+        for (let k = j + 1; k < c.length; k++) {
+          const o = (c[i].recommended_odds||1) * (c[j].recommended_odds||1) * (c[k].recommended_odds||1);
+          const d = Math.abs(o - 5.0);
+          if (d < bestDiff) { bestDiff = d; best = [c[i], c[j], c[k]]; }
+        }
+  }
+
+  return best;
+}
+
 // ─── Groq analysis ────────────────────────────────────────────────────────────
 
 async function callGroq(prompt: string): Promise<string> {
@@ -260,44 +342,46 @@ export async function GET(req: Request) {
             process.env.API_FOOTBALL_KEY
           ).catch(() => new Map<string, MatchStats>());
 
-          const syntheticPool = avail.map(m => {
+          // Convertit le pick interne (type '1X2'/'BTTS'/etc.) → prediction_type court ('home'/'btts'/etc.)
+          const toPredType = (pickType: string, pickValue: string): string => {
+            if (pickType === 'BTTS') return pickValue === 'Oui' ? 'btts' : 'btts_no';
+            if (pickType === 'Over/Under') return pickValue === 'Over 2.5' ? 'over25' : 'under25';
+            if (pickType === 'Double Chance') return pickValue === '1X' ? 'home' : 'away'; // approximation
+            return pickValue === '1' ? 'home' : pickValue === '2' ? 'away' : 'draw';
+          };
+
+          const syntheticPool: OptimusCandidate[] = avail.map(m => {
             const pick = pickForMatch(
               { ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } },
               fallbackStatsMap.get(m.id)
             );
             return {
-              slug: m.id, home_team: m.homeTeam, away_team: m.awayTeam,
-              league: m.league, match_date: m.date, match_time: m.time,
+              slug: m.id,
+              home_team: m.homeTeam,
+              away_team: m.awayTeam,
+              // Filtre les ligues inconnues : utilise leagueCode comme fallback
+              league: m.league.includes('Unknown') ? (m.leagueCode || m.league) : m.league,
+              league_code: m.leagueCode || 'TOP',
+              match_date: m.date,
+              match_time: m.time,
               recommended_odds: pick.odds,
-              prediction_type: pick.type,
-              prediction_value: pick.value,
+              prediction_type: toPredType(pick.type, pick.value),
               probability: pick.modelPct ?? pick.impliedPct,
+              value_edge: pick.valueEdge ?? 0,
             };
           });
-          // Replace pool with synthetic
-          const OPTIMUS_TARGET = 5.0;
-          const candidates = syntheticPool;
-          let optimusMatches: typeof candidates = candidates.slice(0, 3);
-          let bestDiff = Infinity;
-          for (let i = 0; i < candidates.length; i++) {
-            for (let j = i + 1; j < candidates.length; j++) {
-              const combo2 = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1);
-              const diff2 = Math.abs(combo2 - OPTIMUS_TARGET);
-              if (diff2 < bestDiff) { bestDiff = diff2; optimusMatches = [candidates[i], candidates[j]]; }
-              for (let k = j + 1; k < candidates.length; k++) {
-                const combo3 = combo2 * (candidates[k].recommended_odds || 1);
-                const diff3 = Math.abs(combo3 - OPTIMUS_TARGET);
-                if (diff3 < bestDiff) { bestDiff = diff3; optimusMatches = [candidates[i], candidates[j], candidates[k]]; }
-              }
-            }
-          }
-          const totalOdds = Math.round(optimusMatches.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
-          const confidencePct = Math.round(optimusMatches.reduce((acc, m) => acc + (m.probability || 60), 0) / optimusMatches.length);
-          const optimusPicks = optimusMatches.map(m => ({
-            matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team,
-            league: m.league, kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
-            selection: { type: m.prediction_type, value: m.prediction_value, odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
-          }));
+
+          const optimusSelected = buildOptimusCombo(syntheticPool);
+          const totalOdds = Math.round(optimusSelected.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+          const confidencePct = Math.round(optimusSelected.reduce((acc, m) => acc + (m.probability || 60), 0) / optimusSelected.length);
+          const optimusPicks = optimusSelected.map(m => {
+            const { type, value } = mapPickDisplay(m.prediction_type);
+            return {
+              matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team,
+              league: m.league, kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
+              selection: { type, value, odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
+            };
+          });
           const optimusTicket = { date: today, type: 'optimus', matches: optimusPicks, total_odds: totalOdds, confidence_pct: confidencePct, risk_level: 'balanced', analysis: {}, status: 'pending' };
           let { data: savedOptimusF, error: optimusErrorF } = await adminSupabase.from('daily_ticket').upsert(optimusTicket, { onConflict: 'date,type' }).select().single();
           if (optimusErrorF && (optimusErrorF.code === 'PGRST204' || optimusErrorF.message?.includes('type'))) {
@@ -314,53 +398,28 @@ export async function GET(req: Request) {
         );
       }
 
-      const OPTIMUS_TARGET = 5.0;
-      const candidates = pool.slice(0, 15);
-      let optimusMatches: typeof candidates = candidates.slice(0, 3);
-      let bestDiff = Infinity;
+      const optimusSelected = buildOptimusCombo((pool ?? []).map(m => ({
+        ...m,
+        league_code: m.league_code || 'TOP',
+        value_edge: m.value_edge ?? 0,
+        recommended_odds: m.recommended_odds || 1.5,
+        prediction_type: m.prediction_type || 'home',
+      })));
 
-      for (let size = 2; size <= 4; size++) {
-        for (let i = 0; i < candidates.length; i++) {
-          for (let j = i + 1; j < candidates.length; j++) {
-            const combo2 = (candidates[i].recommended_odds || 1) * (candidates[j].recommended_odds || 1);
-            if (size === 2) {
-              const diff = Math.abs(combo2 - OPTIMUS_TARGET);
-              if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j]]; }
-            } else {
-              for (let k = j + 1; k < candidates.length; k++) {
-                const combo3 = combo2 * (candidates[k].recommended_odds || 1);
-                if (size === 3) {
-                  const diff = Math.abs(combo3 - OPTIMUS_TARGET);
-                  if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j], candidates[k]]; }
-                } else {
-                  for (let l = k + 1; l < candidates.length; l++) {
-                    const combo4 = combo3 * (candidates[l].recommended_odds || 1);
-                    const diff = Math.abs(combo4 - OPTIMUS_TARGET);
-                    if (diff < bestDiff) { bestDiff = diff; optimusMatches = [candidates[i], candidates[j], candidates[k], candidates[l]]; }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+      const totalOdds = Math.round(optimusSelected.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+      const confidencePct = Math.round(optimusSelected.reduce((acc, m) => acc + (m.probability || 60), 0) / optimusSelected.length);
 
-      const totalOdds = Math.round(optimusMatches.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
-      const confidencePct = Math.round(optimusMatches.reduce((acc, m) => acc + (m.probability || 60), 0) / optimusMatches.length);
-
-      const optimusPicks = optimusMatches.map(m => ({
-        matchId: m.slug,
-        homeTeam: m.home_team,
-        awayTeam: m.away_team,
-        league: m.league,
-        kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
-        selection: {
-          type: '1X2',
-          value: m.prediction_type === 'home' ? '1' : m.prediction_type === 'away' ? '2' : 'X',
-          odds: m.recommended_odds,
-          impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100),
-        },
-      }));
+      const optimusPicks = optimusSelected.map(m => {
+        const { type, value } = mapPickDisplay(m.prediction_type);
+        return {
+          matchId: m.slug,
+          homeTeam: m.home_team,
+          awayTeam: m.away_team,
+          league: m.league,
+          kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
+          selection: { type, value, odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
+        };
+      });
 
       const optimusTicket = {
         date: today,

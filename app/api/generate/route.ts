@@ -295,7 +295,10 @@ function pickForMatch(
 
   const riskProfile = RISK_ODDS_PROFILE[riskLevel];
 
-  let pool = candidates.filter(c => c.odds >= riskProfile.minOdds && c.odds <= riskProfile.maxOdds);
+  let pool = candidates.filter(c =>
+    c.odds <= riskProfile.maxOdds &&
+    (c.type === 'Double Chance' ? c.odds >= 1.01 : c.odds >= riskProfile.minOdds)
+  );
   // Fallback: si aucun candidat dans la plage, on prend tout
   if (pool.length === 0) pool = candidates;
 

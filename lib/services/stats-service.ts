@@ -97,18 +97,32 @@ export async function fetchMatchStats(
   matchId: string,
   homeTeam: string,
   awayTeam: string,
-  currentOdds: { home: number; draw: number; away: number } | null,
+  currentOdds: { home: number; draw: number; away?: number; over25?: number; under25?: number; btts?: number; bttsNo?: number } | null,
   apiKey: string | undefined,
 ): Promise<MatchStats> {
+  // Populate btts/over25 odds directly from The Odds API extended odds (no API-Football needed)
+  const extBttsOdds    = currentOdds?.btts    ?? null;
+  const extBttsNoOdds  = currentOdds?.bttsNo  ?? null;
+  const extOver25Odds  = currentOdds?.over25   ?? null;
+  const extUnder25Odds = currentOdds?.under25  ?? null;
+
+  // Poisson estimates from implied xG when bookmaker odds are available
+  // xG proxy: −ln(P(0 goals)) = λ → P(0) = 1/home_odds_normalised ≈ rough estimate
+  // Better: use over25 odds directly to back-derive lambda (skipped for simplicity)
+  const xgHome = currentOdds?.home ? Math.max(0.3, 1.2 / currentOdds.home) : 1.3;
+  const xgAway = currentOdds?.away ? Math.max(0.3, 1.0 / currentOdds.away) : 1.0;
+  const estBtts    = extBttsOdds   ? Math.round((1 / extBttsOdds)   * 100) : computeBttsProb(xgHome, xgAway);
+  const estOver25  = extOver25Odds ? Math.round((1 / extOver25Odds)  * 100) : computeOver25Prob(xgHome, xgAway);
+
   const base: MatchStats = {
     fixtureId: matchId,
     homeTeam,
     awayTeam,
     homePct: currentOdds ? Math.round((1 / currentOdds.home) * 100) : 33,
-    drawPct: currentOdds ? Math.round((1 / currentOdds.draw) * 100) : 33,
-    awayPct: currentOdds ? Math.round((1 / currentOdds.away) * 100) : 33,
-    goalsHomeExpected: 0,
-    goalsAwayExpected: 0,
+    drawPct: currentOdds?.away ? Math.round((1 / (currentOdds as any).draw) * 100) : 33,
+    awayPct: currentOdds?.away ? Math.round((1 / currentOdds.away) * 100) : 33,
+    goalsHomeExpected: xgHome,
+    goalsAwayExpected: xgAway,
     advice: '',
     underOverAdvice: null,
     predictedWinner: null,
@@ -117,17 +131,18 @@ export async function fetchMatchStats(
     h2h: null,
     valueBetHome: null,
     valueBetAway: null,
-    realOdds: null,
-    bttsOdds: null,
-    bttsNoOdds: null,
-    over25Odds: null,
-    under25Odds: null,
-    bttsProbability: null,
-    over25Probability: null,
+    realOdds: currentOdds ? { home: currentOdds.home, draw: (currentOdds as any).draw ?? 3.3, away: currentOdds.away ?? 2.0 } : null,
+    bttsOdds:    extBttsOdds,
+    bttsNoOdds:  extBttsNoOdds,
+    over25Odds:  extOver25Odds,
+    under25Odds: extUnder25Odds,
+    bttsProbability:  estBtts,
+    over25Probability: estOver25,
     dataSource: 'estimated',
   };
 
-  // Without API key or non-API-Football match, return odds-implied estimates
+  // Without API key or non-API-Football match ID, return estimated stats
+  // (API-Football account suspended — The Odds API cotes are the primary source)
   if (!apiKey || !matchId.startsWith('apif-')) return base;
 
   const fixtureId = matchId.replace('apif-', '');
