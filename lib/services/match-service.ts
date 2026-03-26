@@ -662,23 +662,33 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
   /** sport_key → league display info (used to build fixtures from API events) */
   private static readonly ODDS_SPORT_KEY_TO_LEAGUE: Record<string, { name: string; code: string; country: string }> = {
+    // Top 5 européens
     'soccer_epl':                        { name: 'Premier League',         code: 'PL',  country: 'Angleterre' },
     'soccer_spain_la_liga':              { name: 'La Liga',                code: 'LA',  country: 'Espagne' },
     'soccer_italy_serie_a':              { name: 'Serie A',                code: 'SA',  country: 'Italie' },
     'soccer_germany_bundesliga':         { name: 'Bundesliga',             code: 'BL',  country: 'Allemagne' },
     'soccer_france_ligue_one':           { name: 'Ligue 1',                code: 'FL',  country: 'France' },
+    // UEFA
     'soccer_uefa_champs_league':         { name: 'UEFA Champions League',  code: 'CL',  country: 'Europe' },
     'soccer_europa_league':              { name: 'UEFA Europa League',     code: 'EL',  country: 'Europe' },
     'soccer_uefa_conference_league':     { name: 'UEFA Conference League', code: 'ECL', country: 'Europe' },
+    // Autres ligues européennes
     'soccer_portugal_primeira_liga':     { name: 'Primeira Liga',          code: 'PT1', country: 'Portugal' },
     'soccer_netherlands_eredivisie':     { name: 'Eredivisie',             code: 'NL1', country: 'Pays-Bas' },
     'soccer_turkey_super_ligi':          { name: 'Süper Lig',              code: 'TR1', country: 'Turquie' },
     'soccer_belgium_first_div':          { name: 'Pro League',             code: 'BE1', country: 'Belgique' },
     'soccer_scotland_premiership':       { name: 'Scottish Premiership',   code: 'SC1', country: 'Écosse' },
+    // Amériques (jouent pendant trêves internationales UEFA)
     'soccer_brazil_campeonato':          { name: 'Brasileirão',            code: 'BR1', country: 'Brésil' },
     'soccer_mexico_ligamx':              { name: 'Liga MX',                code: 'MX1', country: 'Mexique' },
     'soccer_usa_mls':                    { name: 'MLS',                    code: 'US1', country: 'États-Unis' },
     'soccer_argentina_primera_division': { name: 'Primera División',       code: 'AR1', country: 'Argentine' },
+    'soccer_colombia_primera_a':         { name: 'Primera A',              code: 'CO1', country: 'Colombie' },
+    'soccer_chile_primera_division':     { name: 'Primera División',       code: 'CL1', country: 'Chili' },
+    // Asie-Pacifique
+    'soccer_japan_j_league':             { name: 'J1 League',              code: 'JP1', country: 'Japon' },
+    'soccer_south_korea_kleague1':       { name: 'K League 1',             code: 'KR1', country: 'Corée du Sud' },
+    'soccer_australia_aleague':          { name: 'A-League',               code: 'AU1', country: 'Australie' },
   };
 
   /** All soccer sport keys to fetch (top-5 + UEFA + 10 autres compétitions) */
@@ -706,71 +716,88 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     const cacheKey = `the-odds-api:soccer:full:${date}`;
 
     try {
+      // Check cache for either window (1d preferred, fallback to 3d)
       const { data: cached } = await supabase
         .from('api_cache')
-        .select('data, fetched_at')
-        .eq('cache_key', cacheKey)
+        .select('data, fetched_at, cache_key')
+        .in('cache_key', [`${cacheKey}:1d`, `${cacheKey}:3d`])
+        .order('fetched_at', { ascending: false })
+        .limit(1)
         .single();
 
       if (cached) {
         const ageSeconds = (Date.now() - new Date(cached.fetched_at).getTime()) / 1000;
         if (ageSeconds < 21600) {
           const events = cached.data as any[];
-          console.log(`[OddsAPI] Cache HIT for ${date} (${events.length} events)`);
+          console.log(`[OddsAPI] Cache HIT for ${date} (${events.length} events, key=${cached.cache_key})`);
           this.hydrateOddsMap(events, oddsMap);
           return { events, oddsMap };
         }
       }
     } catch { /* cache miss */ }
 
-    const nextDay = new Date(date);
-    nextDay.setDate(nextDay.getDate() + 1);
     const commenceTimeFrom = `${date}T00:00:00Z`;
-    const commenceTimeTo = nextDay.toISOString().split('T')[0] + 'T00:00:00Z';
+    const toDate = (d: Date) => d.toISOString().split('T')[0] + 'T00:00:00Z';
+    const day1 = new Date(date); day1.setDate(day1.getDate() + 1);
+    const day3 = new Date(date); day3.setDate(day3.getDate() + 3);
 
-    console.log(`[OddsAPI] Fetching fixtures+odds for ${date} (${this.ODDS_SPORT_KEYS.length} competitions, markets: h2h+totals+btts)...`);
+    // Helper: fetch all sport_keys for a given time window
+    const fetchWindow = async (from: string, to: string): Promise<any[]> => {
+      console.log(`[OddsAPI] Fetching ${this.ODDS_SPORT_KEYS.length} competitions (${from} → ${to}, markets: h2h+totals+btts)...`);
+      const results = await Promise.allSettled(
+        this.ODDS_SPORT_KEYS.map(async (sportKey) => {
+          const url = new URL(`https://api.the-odds-api.com/v4/sports/${sportKey}/odds/`);
+          url.searchParams.set('apiKey', apiKey);
+          url.searchParams.set('regions', 'eu');
+          url.searchParams.set('markets', 'h2h,totals,btts');
+          url.searchParams.set('oddsFormat', 'decimal');
+          url.searchParams.set('dateFormat', 'iso');
+          url.searchParams.set('commenceTimeFrom', from);
+          url.searchParams.set('commenceTimeTo', to);
 
-    const results = await Promise.allSettled(
-      this.ODDS_SPORT_KEYS.map(async (sportKey) => {
-        const url = new URL(`https://api.the-odds-api.com/v4/sports/${sportKey}/odds/`);
-        url.searchParams.set('apiKey', apiKey);
-        url.searchParams.set('regions', 'eu');
-        url.searchParams.set('markets', 'h2h,totals,btts');
-        url.searchParams.set('oddsFormat', 'decimal');
-        url.searchParams.set('dateFormat', 'iso');
-        url.searchParams.set('commenceTimeFrom', commenceTimeFrom);
-        url.searchParams.set('commenceTimeTo', commenceTimeTo);
+          // DEBUG — URL complète avec apiKey visible pour diagnostic
+          console.log(`[OddsAPI][DEBUG] PRE-FETCH ${sportKey} → ${url.toString()}`);
 
-        // DEBUG — URL complète avec apiKey visible pour diagnostic
-        console.log(`[OddsAPI][DEBUG] PRE-FETCH ${sportKey} → ${url.toString()}`);
+          const res = await fetch(url.toString());
+          const remaining = res.headers.get('x-requests-remaining');
+          const used      = res.headers.get('x-requests-used');
 
-        const res = await fetch(url.toString());
-        const remaining = res.headers.get('x-requests-remaining');
-        const used      = res.headers.get('x-requests-used');
+          if (!res.ok) {
+            const bodyText = await res.text();
+            console.error(`[OddsAPI][DEBUG] POST-FETCH ${sportKey}: HTTP ${res.status} | body: ${bodyText.slice(0, 200)} | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
+            return [] as any[];
+          }
+          const data = await res.json() as any[];
+          console.log(`[OddsAPI][DEBUG] POST-FETCH ${sportKey}: HTTP ${res.status} → ${data.length} events | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
+          return data;
+        })
+      );
+      return results.flatMap((r) => r.status === 'fulfilled' ? r.value : []);
+    };
 
-        if (!res.ok) {
-          const bodyText = await res.text();
-          console.error(`[OddsAPI][DEBUG] POST-FETCH ${sportKey}: HTTP ${res.status} | body: ${bodyText.slice(0, 200)} | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
-          return [] as any[];
-        }
-        const data = await res.json() as any[];
-        console.log(`[OddsAPI][DEBUG] POST-FETCH ${sportKey}: HTTP ${res.status} → ${data.length} events | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
-        return data;
-      })
-    );
+    // Fenêtre 1 jour (normal)
+    let allEvents = await fetchWindow(commenceTimeFrom, toDate(day1));
+    let windowUsed = '1d';
 
-    const allEvents: any[] = results.flatMap((r) => r.status === 'fulfilled' ? r.value : []);
+    // Fenêtre élargie à 3 jours si 0 events (trêve internationale, week-end sans matchs)
+    if (allEvents.length === 0) {
+      console.warn(`[OddsAPI] 0 events pour ${date} (fenêtre 1j) — retry avec fenêtre 3j (trêve internationale?)`);
+      allEvents = await fetchWindow(commenceTimeFrom, toDate(day3));
+      windowUsed = '3d';
+    }
+
+    console.log(`[OddsAPI] Total: ${allEvents.length} events (fenêtre ${windowUsed}) pour ${date}.`);
 
     if (allEvents.length > 0) {
       await supabase.from('api_cache').upsert({
-        cache_key: cacheKey,
+        cache_key: `${cacheKey}:${windowUsed}`,
         data: allEvents,
         fetched_at: new Date().toISOString(),
       }, { onConflict: 'cache_key' });
     }
 
     this.hydrateOddsMap(allEvents, oddsMap);
-    console.log(`[OddsAPI] ${oddsMap.size} matches with full odds loaded for ${date}.`);
+    console.log(`[OddsAPI] ${oddsMap.size} matches avec cotes complètes chargés pour ${date}.`);
     return { events: allEvents, oddsMap };
   }
 
