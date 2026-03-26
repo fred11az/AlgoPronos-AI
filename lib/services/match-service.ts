@@ -69,11 +69,11 @@ class MatchService {
 
       if (sport === 'football') {
         // ── LEVEL 2: The Odds API (fixtures + odds, TTL 12h) ─────────────
-        console.log(`[Sync] ${date} (FOOTBALL): Cache MISS — fetching via The Odds API...`);
+        console.log(`[Sync] ${date} (OddsAPI): Cache MISS — fetching via The Odds API...`);
         const apiMatches = await this.fetchFootballFromAPI(date);
 
         if (apiMatches.length > 0) {
-          console.log(`[Sync] ${date} (FOOTBALL): Success! Found ${apiMatches.length} matches via The Odds API.`);
+          console.log(`[Sync] ${date} (OddsAPI): Success! Found ${apiMatches.length} matches via The Odds API.`);
           byDate[date] = apiMatches;
           rawFixturesCount += apiMatches.length;
           await this.cacheMatches(date, apiMatches, sport);
