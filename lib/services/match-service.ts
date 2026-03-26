@@ -741,17 +741,20 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         url.searchParams.set('commenceTimeFrom', commenceTimeFrom);
         url.searchParams.set('commenceTimeTo', commenceTimeTo);
 
+        // DEBUG — URL complète avec apiKey visible pour diagnostic
+        console.log(`[OddsAPI][DEBUG] PRE-FETCH ${sportKey} → ${url.toString()}`);
+
         const res = await fetch(url.toString());
         const remaining = res.headers.get('x-requests-remaining');
         const used      = res.headers.get('x-requests-used');
+
         if (!res.ok) {
-          if (res.status !== 422) {
-            console.warn(`[OddsAPI] ${sportKey}: HTTP ${res.status} | URL: ${url.toString().replace(apiKey, '***')} | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
-          }
+          const bodyText = await res.text();
+          console.error(`[OddsAPI][DEBUG] POST-FETCH ${sportKey}: HTTP ${res.status} | body: ${bodyText.slice(0, 200)} | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
           return [] as any[];
         }
         const data = await res.json() as any[];
-        console.log(`[OddsAPI] ${sportKey}: HTTP ${res.status} → ${data.length} events | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
+        console.log(`[OddsAPI][DEBUG] POST-FETCH ${sportKey}: HTTP ${res.status} → ${data.length} events | remaining=${remaining ?? 'N/A'} used=${used ?? 'N/A'}`);
         return data;
       })
     );
