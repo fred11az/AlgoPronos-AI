@@ -325,12 +325,6 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
       return this.filterByLeague(cached, leagueCodes);
     }
 
-    const apiKey = process.env.API_FOOTBALL_KEY;
-    if (!apiKey) {
-      console.warn('[MatchService] API_FOOTBALL_KEY not set and no cache found — returning empty matches.');
-      return [];
-    }
-
     // Fetch just this date if not cached
     const { byDate } = await this.getMatchesForRange(date, date, sport);
     const matches = byDate[date] ?? [];
