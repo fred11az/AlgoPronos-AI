@@ -316,6 +316,8 @@ export async function GET(req: Request) {
         .order('probability', { ascending: false })
         .limit(20);
 
+      console.log(`[ticket-du-jour][optimus] match_predictions trouvées : ${pool?.length ?? 0} (date=${today}, sport=football, probability>=55)`);
+
       // If no pre-generated predictions exist, fall back to live matches + quick prediction
       if (!pool || pool.length < 2) {
         console.warn('[ticket-du-jour] No match_predictions found for Optimus — falling back to live matches');
@@ -406,7 +408,12 @@ export async function GET(req: Request) {
         return kickoff > now;
       });
 
+      const withEdge3  = (pool ?? []).filter(m => (m.value_edge ?? 0) > 3).length;
+      const withEdge0  = (pool ?? []).filter(m => (m.value_edge ?? 0) > 0).length;
+      console.log(`[ticket-du-jour][optimus] Filtres — value_edge>3: ${withEdge3} | value_edge>0: ${withEdge0} | kickoff>now: ${futurePool.length}`);
+
       if (futurePool.length < 2) {
+        console.error(`[ticket-du-jour][optimus] 503 — futurePool insuffisant (${futurePool.length}/2 requis). pool total=${pool?.length ?? 0}`);
         return NextResponse.json(
           { error: 'Pas assez de matchs à venir pour générer le ticket Optimus aujourd\'hui.' },
           { status: 503 }
@@ -554,13 +561,14 @@ export async function GET(req: Request) {
     // ── 2. Fetch today's matches ─────────────────────────────────────────────
     // Priority 1: Top 5 European leagues + CL/PT1/NL1
     const topMatches = await matchService.getMatchesForDate(today, 'football', DAILY_TICKET_LEAGUES);
+    console.log(`[ticket-du-jour][classic] topMatches (leagues prioritaires) : ${topMatches.length}`);
 
     // Priority 2: Secondary leagues (only used to fill remaining slots)
     let matches = topMatches;
     if (matches.length < DAILY_MATCH_COUNT) {
       const extra = await matchService.getMatchesForDate(today, 'football', FALLBACK_LEAGUES);
-      // Add fallback matches only to fill remaining slots; keep top matches first
       matches = [...topMatches, ...extra];
+      console.log(`[ticket-du-jour][classic] +fallback leagues : ${extra.length} → total : ${matches.length}`);
     }
 
     // NO "all leagues" fallback — prefer returning an error over bizarre matches
@@ -576,7 +584,12 @@ export async function GET(req: Request) {
       })
       .slice(0, 10); // top 10 candidates
 
+    const notScheduled = matches.filter(m => m.status !== 'scheduled').length;
+    const noOdds       = matches.filter(m => m.status === 'scheduled' && !m.odds).length;
+    console.log(`[ticket-du-jour][classic] available après filtre : ${available.length} (exclus: ${notScheduled} pas scheduled, ${noOdds} sans cotes)`);
+
     if (available.length < DAILY_MATCH_COUNT) {
+      console.error(`[ticket-du-jour][classic] 503 — available=${available.length} < DAILY_MATCH_COUNT=${DAILY_MATCH_COUNT}. topMatches=${topMatches.length} total=${matches.length}`);
       return NextResponse.json(
         { error: 'Pas assez de matchs disponibles aujourd\'hui pour générer le ticket', available: available.length },
         { status: 503 }
