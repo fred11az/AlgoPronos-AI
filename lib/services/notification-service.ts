@@ -462,7 +462,7 @@ export async function sendRejectionEmail(p: ActivationPayload & { reason?: strin
       subject: 'Votre demande d\'acces Full Access AlgoPronos AI',
       replyTo,
       html: buildRejectionEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre demande d'accès Full Access AlgoPronos AI n'a pas pu être validée.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour obtenir votre accès :\n1. Créez un compte optimisé IA : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia\n2. Soumettez votre ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre demande d'acces Full Access AlgoPronos AI n'a pas pu etre validee.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nConfigurez votre compte depuis notre plateforme pour obtenir l'acces : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia`,
     });
     if (error) { console.error('[Notification] Rejection email error:', error); return false; }
     return true;
@@ -529,7 +529,7 @@ export async function sendRevocationEmail(p: ActivationPayload & { reason?: stri
       subject: 'Information importante concernant votre acces AlgoPronos AI',
       replyTo,
       html: buildRevocationEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour réactiver votre accès :\n1. Créez un compte optimisé IA : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia\n2. Soumettez votre nouvel ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre acces Full Access AlgoPronos AI a ete suspendu par notre equipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nConfigurez votre compte depuis notre plateforme pour reactiver l'acces : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia`,
     });
     if (error) { console.error('[Notification] Revocation email error:', error); return false; }
     return true;
