@@ -448,7 +448,7 @@ export async function notifyRejection(p: ActivationPayload & { reason?: string }
 function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): string {
   const firstName = p.userName?.split(' ')[0] || 'Parieur';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
-  const affiliateUrl = process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599';
+  const createAccountUrl = `${appUrl}/compte-optimise-ia`;
 
   return `
 <!DOCTYPE html>
@@ -488,9 +488,9 @@ function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): s
           <div style="flex:1">
             <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Créez un compte bookmaker optimisé IA</p>
             <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Utilisez notre lien partenaire pour créer un nouveau compte 1xBet optimisé. Les comptes existants ou créés hors de ce lien ne sont pas éligibles.</p>
-            <a href="${affiliateUrl}"
+            <a href="${createAccountUrl}"
                style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:12px">
-              ⚡ Créer mon compte 1xBet optimisé →
+              ⚡ Créer mon compte optimisé IA →
             </a>
           </div>
         </div>
@@ -539,7 +539,7 @@ export async function sendRevocationEmail(p: ActivationPayload & { reason?: stri
       subject: '⚠️ Votre accès Full Access AlgoPronos AI a été suspendu',
       replyTo,
       html: buildRevocationEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour réactiver votre accès :\n1. Créez un compte 1xBet via notre lien partenaire : ${process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599'}\n2. Soumettez votre nouvel ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour réactiver votre accès :\n1. Créez un compte optimisé IA : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia\n2. Soumettez votre nouvel ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
     });
     if (error) { console.error('[Notification] Revocation email error:', error); return false; }
     return true;
