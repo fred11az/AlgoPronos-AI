@@ -7,7 +7,7 @@ import { Sparkles, ArrowRight, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const BOOKMAKERS = [
-  { name: 'Partenaire', url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599', bonus: 'Bonus 200%' },
+  { name: '1xBet', url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599', bonus: 'Bonus 200%' },
   { name: 'Melbet', url: 'https://refpa10004847.top/L?tag=d_3638696m_1186c&site=3638696&ad=1186', bonus: 'Bonus 100%' },
   { name: 'Betwinner', url: 'https://refpa10015723.top/L?tag=d_3638694m_8148c&site=3638694&ad=8148', bonus: 'Bonus 100%' },
 ];

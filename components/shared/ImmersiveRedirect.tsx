@@ -25,7 +25,7 @@ interface ImmersiveRedirectProps {
   bookmaker?: string;
 }
 
-export function ImmersiveRedirect({ url, bookmaker = 'Partenaire' }: ImmersiveRedirectProps) {
+export function ImmersiveRedirect({ url, bookmaker = '1xBet' }: ImmersiveRedirectProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);

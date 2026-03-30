@@ -37,7 +37,7 @@ export function StickyCodeCTA() {
       setCopied(true);
       // Wait a bit for the user to see "Copié!" before starting immersion
       setTimeout(() => {
-        window.location.href = `/redirect?url=${encodeURIComponent('https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599')}&bookmaker=Partenaire`;
+        window.location.href = `/redirect?url=${encodeURIComponent('https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599')}&bookmaker=1xBet`;
       }, 1000);
       setTimeout(() => setCopied(false), 2500);
     });

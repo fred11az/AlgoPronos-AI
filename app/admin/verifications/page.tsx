@@ -266,7 +266,7 @@ export default function VerificationsPage() {
                     )}
                   </div>
 
-                  {/* Action buttons (pending only) */}
+                  {/* Action buttons */}
                   {v.status === 'pending' && (
                     <div className="mt-3 flex gap-2">
                       <Button
@@ -296,6 +296,26 @@ export default function VerificationsPage() {
                       </Button>
                     </div>
                   )}
+                  {v.status === 'approved' && (
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="w-full text-xs h-9"
+                        onClick={() => { setRejectId(v.id); setRejectNotes(''); }}
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Révoquer l&apos;accès VIP
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -309,10 +329,14 @@ export default function VerificationsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
               <XCircle className="h-5 w-5 text-error" />
-              Rejeter la demande
+              {verifications.find(v => v.id === rejectId)?.status === 'approved'
+                ? 'Révoquer l\'accès VIP'
+                : 'Rejeter la demande'}
             </DialogTitle>
             <DialogDescription className="text-text-muted">
-              Un email sera envoyé à l&apos;utilisateur pour l&apos;informer du rejet.
+              {verifications.find(v => v.id === rejectId)?.status === 'approved'
+                ? 'L\'accès VIP sera immédiatement révoqué et un email sera envoyé à l\'utilisateur.'
+                : 'Un email sera envoyé à l\'utilisateur pour l\'informer du rejet.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 pt-1">

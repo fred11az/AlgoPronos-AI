@@ -59,7 +59,7 @@ export function PromoWidgetPartenaire({
               asChild
             >
               <Link
-                href={`/redirect?url=${encodeURIComponent(process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599')}&bookmaker=Partenaire`}
+                href={`/redirect?url=${encodeURIComponent(process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599')}&bookmaker=1xBet`}
               >
                 <Rocket className="mr-2 h-5 w-5 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
                 Créer Mon Compte (Gratuit)

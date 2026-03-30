@@ -54,7 +54,7 @@ interface MatchPrediction {
 
 const BOOKMAKERS = [
   {
-    name: 'Partenaire Premium',
+    name: '1xBet',
     logo: '⭐',
     url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
     bonus: 'Bonus 200%',
@@ -338,7 +338,7 @@ export default async function MatchPredictionPage({
                     <div className="flex flex-col gap-4">
                         <Button variant="gradient" className="w-full h-14 text-lg font-black uppercase tracking-wider rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform" asChild>
                             <Link href={BOOKMAKERS[0].url}>
-                                Valider avec le Partenaire Pro
+                                Valider avec 1xBet
                                 <ArrowRight className="ml-3 h-5 w-5" />
                             </Link>
                         </Button>
