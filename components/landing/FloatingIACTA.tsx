@@ -65,7 +65,7 @@ export function FloatingIACTA({ affiliateUrl, promoCode = 'ALGOPRONOS' }: Props)
 
       {/* Main CTA button */}
       <Link
-        href={`/redirect?url=${encodeURIComponent(affiliateUrl)}&bookmaker=Partenaire`}
+        href={`/redirect?url=${encodeURIComponent(affiliateUrl)}&bookmaker=1xBet`}
         className={`group relative flex flex-col items-center gap-1.5 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-2xl px-4 py-3.5 shadow-2xl shadow-primary/30 border border-primary/40 cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 max-w-[200px] text-center ${
           pulse ? 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background' : ''
         }`}

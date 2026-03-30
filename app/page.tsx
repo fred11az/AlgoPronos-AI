@@ -409,7 +409,7 @@ export default function LandingPage() {
                   </span>
                 </h2>
                 <p className="text-text-secondary leading-relaxed mb-4 text-sm sm:text-base">
-                  Si vous avez déjà un compte chez un bookmaker partenaire, il est <strong className="text-white">probablement non optimisé IA</strong>.
+                  Si vous avez déjà un compte 1xBet, il est <strong className="text-white">probablement non optimisé IA</strong>.
                   Les comptes non créés via AlgoPronos ne bénéficient pas de la configuration
                   nécessaire pour exploiter pleinement l&apos;algorithme.
                 </p>

@@ -18,7 +18,7 @@ const BOOKMAKERS = [
     borderColor: 'border-blue-700/40 hover:border-blue-500/70',
     shadowColor: 'hover:shadow-blue-900/30',
     url: process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
-    badge: 'Partenaire officiel',
+    badge: '1xBet',
     badgeColor: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
   },
   {
@@ -78,7 +78,7 @@ const BOOKMAKERS = [
     borderColor: 'border-orange-600/30 hover:border-orange-500/60',
     shadowColor: 'hover:shadow-orange-900/20',
     url: process.env.NEXT_PUBLIC_AFROPARI_AFFILIATE_URL || 'https://refpa84423.com/L?tag=d_5390010m_70055c_&site=5390010&ad=70055',
-    badge: 'Partenaire officiel',
+    badge: '1xBet',
     badgeColor: 'bg-orange-500/20 text-orange-300 border border-orange-500/30',
   },
 ];

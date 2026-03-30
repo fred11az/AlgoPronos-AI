@@ -191,7 +191,7 @@ export default function ActivatePage() {
                 Vérification en cours
               </h1>
               <p className="text-text-secondary text-lg mb-6">
-                Votre demande a été reçue ! Notre équipe vérifie votre compte partenaire.
+                Votre demande a été reçue ! Notre équipe vérifie votre compte 1xBet.
                 <br />
                 <strong className="text-primary">Délai maximum : 24 heures</strong>
               </p>
@@ -251,7 +251,7 @@ export default function ActivatePage() {
           <div className="text-3xl shrink-0">⚠️</div>
           <div className="flex-1">
             <p className="text-warning font-semibold text-sm mb-1">
-              Vous avez déjà un compte chez un bookmaker partenaire ?
+              Vous avez déjà un compte 1xBet ?
             </p>
             <p className="text-text-secondary text-sm leading-relaxed">
               Les comptes existants sont généralement <strong className="text-white">non optimisés IA</strong>.
@@ -277,7 +277,7 @@ export default function ActivatePage() {
           </div>
           <div className="bg-surface rounded-xl p-6 border border-surface-light text-center">
             <Gift className="h-8 w-8 text-secondary mx-auto mb-3" />
-            <h3 className="font-bold text-white mb-2">Bonus Partenaire</h3>
+            <h3 className="font-bold text-white mb-2">Bonus 1xBet</h3>
             <p className="text-sm text-text-muted">Jusqu&apos;à 208,000 FCFA de bonus exclusif</p>
           </div>
           <div className="bg-surface rounded-xl p-6 border border-surface-light text-center">
@@ -317,7 +317,7 @@ export default function ActivatePage() {
               href={`/redirect?url=${encodeURIComponent(AFFILIATE_URL)}&bookmaker=1xBet`}
               className="block w-full bg-gradient-to-r from-primary to-primary-dark text-white font-bold py-6 rounded-2xl hover:opacity-90 transition-opacity mb-8 text-center text-xl"
             >
-              Créer mon compte partenaire
+              Créer mon compte 1xBet
               <ExternalLink className="inline-block ml-2 h-5 w-5" />
             </Link>
 
@@ -435,7 +435,7 @@ export default function ActivatePage() {
               </AccordionTrigger>
               <AccordionContent>
                 Non, aucun dépôt n&apos;est requis pour activer AlgoPronos AI.
-                Créez simplement le compte partenaire et soumettez votre ID.
+                Créez simplement votre compte 1xBet et soumettez votre ID.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem

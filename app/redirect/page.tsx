@@ -7,7 +7,7 @@ import { Suspense } from 'react';
 function RedirectContent() {
   const searchParams = useSearchParams();
   const url = searchParams.get('url');
-  const bookmaker = searchParams.get('bookmaker') || 'Partenaire';
+  const bookmaker = searchParams.get('bookmaker') || '1xBet';
 
   if (!url) {
     return (
