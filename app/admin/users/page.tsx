@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Loader2,
   XCircle,
+  Send,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -62,6 +63,24 @@ export default function AdminUsersPage() {
       toast.error('Erreur de chargement des utilisateurs');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleInvite(userId: string) {
+    setProcessing(userId);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur');
+      toast.success('Invitation envoyée · Email recu ✓');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'envoi');
+    } finally {
+      setProcessing(null);
     }
   }
 
@@ -176,7 +195,7 @@ export default function AdminUsersPage() {
                     <Badge variant={u.tier === 'verified' ? 'success' : 'outline'}>
                       {u.tier === 'verified' ? 'VIP Activé' : 'Standard'}
                     </Badge>
-                    {u.tier === 'verified' && (
+                    {u.tier === 'verified' ? (
                       <Button
                         size="sm"
                         variant="destructive"
@@ -190,6 +209,24 @@ export default function AdminUsersPage() {
                           <>
                             <ShieldOff className="h-3.5 w-3.5" />
                             Révoquer
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-8 gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                        onClick={() => handleInvite(u.id)}
+                        disabled={processing === u.id}
+                        title="Envoyer un email pour inviter à passer au compte optimisé IA"
+                      >
+                        {processing === u.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <Send className="h-3.5 w-3.5" />
+                            Inviter
                           </>
                         )}
                       </Button>

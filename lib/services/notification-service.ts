@@ -540,6 +540,86 @@ export async function notifyRevocation(p: ActivationPayload & { reason?: string 
   return { email: emailOk, whatsapp: false };
 }
 
+function buildUpgradeInvitationEmailHtml(p: ActivationPayload): string {
+  const firstName = p.userName?.split(' ')[0] || 'Parieur';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
+      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">Debloquez le Full Access gratuitement</h1>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:32px">
+      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
+      <p style="margin:0 0 20px;color:#a0aec0;font-size:14px;line-height:1.6">
+        Vous utilisez AlgoPronos AI en acces de base. En configurant un compte bookmaker optimise IA,
+        vous debloquez l'ensemble des fonctionnalites <strong style="color:#fff">gratuitement</strong>.
+      </p>
+
+      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
+        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ce que vous debloquez</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">Analyses IA illimitees — sans quota journalier</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">Probabilites du modele et value bets visibles</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">Bankroll IA personnalise sur chaque ticket</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">Bouclier 20 Matchs — remboursement si 1 erreur sur 20</p>
+        <p style="margin:0;color:#e2e8f0;font-size:13px">Garantie Matchs Nuls — 100% si 2 nuls perdants</p>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center">
+        <a href="${appUrl}/compte-optimise-ia"
+           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:15px">
+          Configurer mon compte optimise IA
+        </a>
+        <p style="margin:16px 0 0;color:#6b7280;font-size:12px">
+          La configuration prend moins de 5 minutes et l'acces est active immediatement.
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
+      <p style="margin:0;color:#4a4a6a;font-size:11px">
+        AlgoPronos AI — Optimisation des paris sportifs par intelligence artificielle.<br>
+        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gerer mes preferences</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export async function sendUpgradeInvitationEmail(p: ActivationPayload): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const replyTo = 'support@algopronos.com';
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: p.userEmail,
+      subject: 'Debloquez le Full Access AlgoPronos AI gratuitement',
+      replyTo,
+      html: buildUpgradeInvitationEmailHtml(p),
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVous utilisez AlgoPronos AI en acces de base. En configurant un compte bookmaker optimise IA, vous debloquez toutes les fonctionnalites gratuitement.\n\nConfigurez votre compte : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia`,
+    });
+    if (error) { console.error('[Notification] Upgrade invitation email error:', error); return false; }
+    return true;
+  } catch (err) {
+    console.error('[Notification] Upgrade invitation email failed:', err);
+    return false;
+  }
+}
+
 export async function sendConfirmationEmail(email: string, userName?: string): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) return false;
   const resend = new Resend(process.env.RESEND_API_KEY);
