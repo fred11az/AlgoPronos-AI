@@ -344,7 +344,7 @@ function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): st
           </div>
           <div style="flex:1">
             <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Créez un compte bookmaker optimisé IA</p>
-            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Utilisez notre lien partenaire pour créer un nouveau compte. Les comptes existants ou créés hors de ce lien ne sont pas éligibles.</p>
+            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Le compte doit être créé <strong style="color:#e2e8f0">depuis notre plateforme</strong> via le lien partenaire ci-dessous. C'est ce processus qui permet à notre système d'enregistrer l'optimisation IA sur votre compte. Les comptes existants ou créés hors de ce lien ne sont pas pris en compte.</p>
             <a href="${createAccountUrl}"
                style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:12px">
               ⚡ Créer mon compte optimisé IA →
@@ -515,7 +515,7 @@ function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): s
           </div>
           <div style="flex:1">
             <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Créez un compte bookmaker optimisé IA</p>
-            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Utilisez notre lien partenaire pour créer un nouveau compte 1xBet optimisé. Les comptes existants ou créés hors de ce lien ne sont pas éligibles.</p>
+            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Le compte doit être créé <strong style="color:#e2e8f0">depuis notre plateforme</strong> via le lien partenaire ci-dessous. C'est ce processus qui permet à notre système d'enregistrer l'optimisation IA sur votre compte. Les comptes existants ou créés hors de ce lien ne sont pas pris en compte.</p>
             <a href="${createAccountUrl}"
                style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:12px">
               ⚡ Créer mon compte optimisé IA →
