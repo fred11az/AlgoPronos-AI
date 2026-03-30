@@ -305,6 +305,7 @@ function buildActivationEmailHtml(p: ActivationPayload): string {
 function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): string {
   const firstName = p.userName?.split(' ')[0] || 'Parieur';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+  const createAccountUrl = `${appUrl}/compte-optimise-ia`;
 
   return `
 <!DOCTYPE html>
@@ -314,35 +315,62 @@ function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): st
   <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
 
     <!-- Header -->
-    <div style="background:linear-gradient(135deg,#374151,#1f2937);padding:28px 32px">
+    <div style="background:linear-gradient(135deg,#7c2d12,#991b1b);padding:28px 32px">
       <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
-      <h1 style="margin:8px 0 0;font-size:20px;color:#fff;font-weight:700">Demande de vérification</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;color:#fff;font-weight:700">❌ Demande d'accès rejetée</h1>
     </div>
 
     <!-- Body -->
     <div style="padding:32px">
       <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
       <p style="margin:0 0 20px;color:#a0aec0;font-size:14px;line-height:1.6">
-        Nous n'avons pas pu valider votre demande d'activation Full Access pour le moment.
+        Votre demande d'accès <strong style="color:#fff">Full Access AlgoPronos AI</strong> n'a pas pu être validée par notre équipe.
       </p>
 
       ${p.reason ? `
       <div style="background:#ef444411;border:1px solid #ef444433;border-radius:10px;padding:16px;margin-bottom:20px">
-        <p style="margin:0 0 4px;color:#ef4444;font-size:12px;font-weight:600;text-transform:uppercase">Raison</p>
-        <p style="margin:0;color:#fca5a5;font-size:13px">${p.reason}</p>
+        <p style="margin:0 0 6px;color:#ef4444;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px">Motif du rejet</p>
+        <p style="margin:0;color:#fca5a5;font-size:14px;line-height:1.5">${p.reason}</p>
       </div>` : ''}
 
-      <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.6">
-        Si vous pensez qu'il s'agit d'une erreur ou si vous souhaitez soumettre à nouveau votre demande,
-        cliquez ci-dessous ou contactez notre support.
-      </p>
+      <!-- Steps to reactivate -->
+      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
+        <p style="margin:0 0 14px;color:#7c3aed;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment obtenir votre accès</p>
 
-      <div style="text-align:center">
-        <a href="${appUrl}/unlock-vip"
-           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-weight:600;font-size:14px">
-          Soumettre une nouvelle demande
-        </a>
+        <!-- Step 1 -->
+        <div style="display:flex;gap:12px;margin-bottom:14px">
+          <div style="width:28px;height:28px;border-radius:50%;background:#7c3aed22;border:1px solid #7c3aed55;flex-shrink:0;text-align:center;line-height:28px">
+            <span style="color:#a78bfa;font-weight:700;font-size:13px">1</span>
+          </div>
+          <div style="flex:1">
+            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Créez un compte bookmaker optimisé IA</p>
+            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Utilisez notre lien partenaire pour créer un nouveau compte. Les comptes existants ou créés hors de ce lien ne sont pas éligibles.</p>
+            <a href="${createAccountUrl}"
+               style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:12px">
+              ⚡ Créer mon compte optimisé IA →
+            </a>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div style="display:flex;gap:12px">
+          <div style="width:28px;height:28px;border-radius:50%;background:#06b6d422;border:1px solid #06b6d455;flex-shrink:0;text-align:center;line-height:28px">
+            <span style="color:#67e8f9;font-weight:700;font-size:13px">2</span>
+          </div>
+          <div style="flex:1">
+            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Soumettez votre ID bookmaker</p>
+            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Une fois le compte créé, revenez sur AlgoPronos AI et soumettez votre ID pour validation.</p>
+            <a href="${appUrl}/unlock-vip"
+               style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:600;font-size:12px">
+              Soumettre ma demande →
+            </a>
+          </div>
+        </div>
       </div>
+
+      <p style="margin:0;color:#6b7280;font-size:12px;text-align:center">
+        Des questions ? Répondez directement à cet email.
+      </p>
     </div>
 
     <!-- Footer -->
@@ -387,10 +415,10 @@ export async function sendRejectionEmail(p: ActivationPayload & { reason?: strin
     const { error } = await resend.emails.send({
       from,
       to: p.userEmail,
-      subject: 'Votre demande de vérification AlgoPronos AI',
+      subject: '❌ Demande d\'accès rejetée — AlgoPronos AI',
       replyTo,
       html: buildRejectionEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\nNous n'avons pas pu valider votre demande d'activation pour le moment.\n\nMotif : ${p.reason || 'Données non valides'}\n\nVous pouvez soumettre une nouvelle demande ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre demande d'accès Full Access AlgoPronos AI n'a pas pu être validée.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour obtenir votre accès :\n1. Créez un compte optimisé IA : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia\n2. Soumettez votre ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
     });
     if (error) { console.error('[Notification] Rejection email error:', error); return false; }
     return true;
@@ -460,7 +488,7 @@ function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): s
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#7c2d12,#991b1b);padding:28px 32px">
       <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
-      <h1 style="margin:8px 0 0;font-size:20px;color:#fff;font-weight:700">⚠️ Accès Full Access suspendu</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;color:#fff;font-weight:700">⚠️ Accès Full Access révoqué</h1>
     </div>
 
     <!-- Body -->
@@ -536,7 +564,7 @@ export async function sendRevocationEmail(p: ActivationPayload & { reason?: stri
     const { error } = await resend.emails.send({
       from,
       to: p.userEmail,
-      subject: '⚠️ Votre accès Full Access AlgoPronos AI a été suspendu',
+      subject: '⚠️ Accès Full Access révoqué — AlgoPronos AI',
       replyTo,
       html: buildRevocationEmailHtml(p),
       text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour réactiver votre accès :\n1. Créez un compte optimisé IA : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia\n2. Soumettez votre nouvel ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
