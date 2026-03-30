@@ -40,7 +40,7 @@ const BOOKMAKERS: Bookmaker[] = [
     affiliateUrl:
       process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL ||
       'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599',
-    badge: '1xBet',
+    badge: 'N°1',
     highlight: true,
     live: true,
   },
@@ -114,7 +114,7 @@ const BOOKMAKERS: Bookmaker[] = [
     affiliateUrl:
       process.env.NEXT_PUBLIC_AFROPARI_AFFILIATE_URL ||
       'https://refpa84423.com/L?tag=d_5390010m_70055c_&site=5390010&ad=70055',
-    badge: '1xBet',
+    badge: 'Afrique',
     live: true,
   },
 ];
