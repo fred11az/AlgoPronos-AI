@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
+import { notifyRevocation } from '@/lib/services/notification-service';
 
 // GET - List all users with their VIP verification status
 export async function GET(request: NextRequest) {
@@ -117,9 +118,26 @@ export async function PATCH(request: NextRequest) {
       .eq('user_id', user_id)
       .eq('status', 'approved');
 
+    // 3. Fetch user profile to send notification
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, full_name, phone')
+      .eq('id', user_id)
+      .single();
+
+    let notifResult = { email: false, whatsapp: false };
+    if (profile?.email) {
+      notifResult = await notifyRevocation({
+        userEmail: profile.email,
+        userName: profile.full_name || undefined,
+        reason: reason || undefined,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Accès VIP révoqué avec succès',
+      notification: notifResult,
     });
   } catch (error) {
     console.error('Unexpected error in PATCH /api/admin/users:', error);

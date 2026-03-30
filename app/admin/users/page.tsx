@@ -79,7 +79,8 @@ export default function AdminUsersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur');
-      toast.success('Accès VIP révoqué avec succès');
+      const notifMsg = data.notification?.email ? ' · Email envoyé ✓' : '';
+      toast.success(`Accès VIP révoqué avec succès${notifMsg}`);
       setRevokeUser(null);
       setRevokeReason('');
       fetchUsers();

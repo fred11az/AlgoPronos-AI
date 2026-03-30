@@ -445,6 +445,90 @@ export async function notifyRejection(p: ActivationPayload & { reason?: string }
   return { email: emailOk, whatsapp: false };
 }
 
+function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): string {
+  const firstName = p.userName?.split(' ')[0] || 'Parieur';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#7c2d12,#991b1b);padding:28px 32px">
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
+      <h1 style="margin:8px 0 0;font-size:20px;color:#fff;font-weight:700">⚠️ Accès Full Access suspendu</h1>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:32px">
+      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
+      <p style="margin:0 0 20px;color:#a0aec0;font-size:14px;line-height:1.6">
+        Votre accès <strong style="color:#fff">Full Access AlgoPronos AI</strong> a été suspendu par notre équipe de modération.
+      </p>
+
+      ${p.reason ? `
+      <div style="background:#ef444411;border:1px solid #ef444433;border-radius:10px;padding:16px;margin-bottom:20px">
+        <p style="margin:0 0 6px;color:#ef4444;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px">Motif de la suspension</p>
+        <p style="margin:0;color:#fca5a5;font-size:14px;line-height:1.5">${p.reason}</p>
+      </div>` : ''}
+
+      <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.6">
+        Si vous pensez qu'il s'agit d'une erreur ou si votre situation a changé,
+        vous pouvez soumettre une nouvelle demande de vérification.
+      </p>
+
+      <div style="text-align:center">
+        <a href="${appUrl}/unlock-vip"
+           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-weight:600;font-size:14px">
+          Soumettre une nouvelle demande
+        </a>
+        <p style="margin:14px 0 0;color:#6b7280;font-size:12px">
+          Des questions ? Répondez directement à cet email.
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
+      <p style="margin:0;color:#4a4a6a;font-size:11px">
+        AlgoPronos AI — <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Paramètres</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export async function sendRevocationEmail(p: ActivationPayload & { reason?: string }): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const replyTo = 'support@algopronos.com';
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: p.userEmail,
+      subject: '⚠️ Votre accès Full Access AlgoPronos AI a été suspendu',
+      replyTo,
+      html: buildRevocationEmailHtml(p),
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nVous pouvez soumettre une nouvelle demande ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
+    });
+    if (error) { console.error('[Notification] Revocation email error:', error); return false; }
+    return true;
+  } catch (err) {
+    console.error('[Notification] Revocation email failed:', err);
+    return false;
+  }
+}
+
+export async function notifyRevocation(p: ActivationPayload & { reason?: string }) {
+  const emailOk = await sendRevocationEmail(p);
+  return { email: emailOk, whatsapp: false };
+}
+
 export async function sendConfirmationEmail(email: string, userName?: string): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) return false;
   const resend = new Resend(process.env.RESEND_API_KEY);
