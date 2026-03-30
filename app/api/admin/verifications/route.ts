@@ -153,7 +153,7 @@ export async function PATCH(request: NextRequest) {
       .eq('id', verification.user_id)
       .single();
 
-    // If approved, try to update user tier to 'verified'
+    // Update user tier based on new status
     let profileUpdated = true;
     let profileError: string | null = null;
 
@@ -168,6 +168,21 @@ export async function PATCH(request: NextRequest) {
 
       if (tierError) {
         console.error('Error updating profile tier:', tierError);
+        profileUpdated = false;
+        profileError = tierError.message;
+      }
+    } else if (status === 'rejected') {
+      // Revoke VIP access when rejecting (even if previously approved)
+      const { error: tierError } = await supabase
+        .from('profiles')
+        .update({
+          tier: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', verification.user_id);
+
+      if (tierError) {
+        console.error('Error revoking profile tier:', tierError);
         profileUpdated = false;
         profileError = tierError.message;
       }
@@ -197,7 +212,7 @@ export async function PATCH(request: NextRequest) {
         ? profileUpdated
           ? 'Compte activé avec succès !'
           : `Vérification approuvée mais erreur profil: ${profileError}`
-        : 'Vérification rejetée'
+        : profileUpdated ? 'Accès VIP révoqué et vérification rejetée' : `Vérification rejetée mais erreur profil: ${profileError}`
     });
   } catch (error) {
     console.error('Unexpected error in PATCH /api/admin/verifications:', error);
