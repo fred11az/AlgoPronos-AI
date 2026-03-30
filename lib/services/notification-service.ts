@@ -254,38 +254,38 @@ function buildActivationEmailHtml(p: ActivationPayload): string {
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
       <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
-      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">🎉 Compte Full Access activé !</h1>
+      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">Compte Full Access active</h1>
     </div>
 
     <!-- Body -->
     <div style="padding:32px">
-      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Félicitations <strong style="color:#fff">${firstName}</strong> !</p>
+      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Felicitations <strong style="color:#fff">${firstName}</strong> !</p>
       <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.6">
-        Votre compte bookmaker a été vérifié et validé par notre équipe.
-        Vous bénéficiez maintenant du <strong style="color:#7c3aed">Full Access AlgoPronos AI</strong>.
+        Votre compte bookmaker a ete verifie et valide par notre equipe.
+        Vous beneficiez maintenant du <strong style="color:#7c3aed">Full Access AlgoPronos AI</strong>.
       </p>
 
       <!-- Features unlocked -->
       <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
-        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ce que vous débloquez</p>
+        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ce que vous debloquez</p>
         ${[
-          '⚡ Analyses IA illimitées (sans quota journalier)',
-          '📊 Probabilités du modèle + value bets visibles',
-          '💰 Bankroll IA personnalisé sur chaque ticket',
-          '🛡️ Bouclier 20 Matchs — remboursement si 1 erreur sur 20',
-          '⚽ Garantie Matchs Nuls — 100% si 2 nuls perdants',
-          '🔥 Accès aux cotes prioritaires négociées',
-        ].map(f => `<p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">${f}</p>`).join('')}
+          'Analyses IA illimitees (sans quota journalier)',
+          'Probabilites du modele + value bets visibles',
+          'Bankroll IA personnalise sur chaque ticket',
+          'Bouclier 20 Matchs — remboursement si 1 erreur sur 20',
+          'Garantie Matchs Nuls — 100% si 2 nuls perdants',
+          'Acces aux cotes prioritaires negociees',
+        ].map(f => `<p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">- ${f}</p>`).join('')}
       </div>
 
       <!-- CTA -->
       <div style="text-align:center">
         <a href="${appUrl}/dashboard"
            style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:15px">
-          Accéder à mon tableau de bord →
+          Acceder a mon tableau de bord
         </a>
         <p style="margin:16px 0 0;color:#6b7280;font-size:12px">
-          Génération de combinés optimisés, analyse en temps réel, historique complet.
+          Generation de combies optimises, analyse en temps reel, historique complet.
         </p>
       </div>
     </div>
@@ -294,7 +294,7 @@ function buildActivationEmailHtml(p: ActivationPayload): string {
     <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
       <p style="margin:0;color:#4a4a6a;font-size:11px">
         AlgoPronos AI — Optimisation des paris sportifs par intelligence artificielle.<br>
-        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gérer mes préférences</a>
+        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gerer mes preferences</a>
       </p>
     </div>
   </div>
@@ -437,10 +437,11 @@ export async function sendActivationEmail(p: ActivationPayload): Promise<boolean
     const { error } = await resend.emails.send({
       from,
       to: p.userEmail,
-      subject: '🎉 Votre compte Full Access AlgoPronos AI est activé !',
+      subject: 'Votre compte Full Access AlgoPronos AI est active',
       replyTo,
+      headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
       html: buildActivationEmailHtml(p),
-      text: `Félicitations ${p.userName || 'Parieur'} !\nVotre compte Full Access AlgoPronos AI est désormais activé.\n\nAccédez à votre tableau de bord : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard`,
+      text: `Felicitations ${p.userName || 'Parieur'} !\nVotre compte Full Access AlgoPronos AI est desormais active.\n\nAccedez a votre tableau de bord : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard`,
     });
     if (error) { console.error('[Notification] Activation email error:', error); return false; }
     return true;
@@ -461,8 +462,9 @@ export async function sendRejectionEmail(p: ActivationPayload & { reason?: strin
       to: p.userEmail,
       subject: 'Votre demande d\'acces Full Access AlgoPronos AI',
       replyTo,
+      headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
       html: buildRejectionEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre demande d'accès Full Access AlgoPronos AI n'a pas pu être validée.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour obtenir votre accès :\n1. Créez un compte optimisé IA : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia\n2. Soumettez votre ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre demande d'acces Full Access AlgoPronos AI n'a pas pu etre validee.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nConfigurez votre compte depuis notre plateforme pour obtenir l'acces : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia`,
     });
     if (error) { console.error('[Notification] Rejection email error:', error); return false; }
     return true;
@@ -528,8 +530,9 @@ export async function sendRevocationEmail(p: ActivationPayload & { reason?: stri
       to: p.userEmail,
       subject: 'Information importante concernant votre acces AlgoPronos AI',
       replyTo,
+      headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
       html: buildRevocationEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour réactiver votre accès :\n1. Créez un compte optimisé IA : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia\n2. Soumettez votre nouvel ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre acces Full Access AlgoPronos AI a ete suspendu par notre equipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nConfigurez votre compte depuis notre plateforme pour reactiver l'acces : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia`,
     });
     if (error) { console.error('[Notification] Revocation email error:', error); return false; }
     return true;
