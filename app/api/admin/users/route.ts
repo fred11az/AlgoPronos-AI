@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
-import { notifyRevocation } from '@/lib/services/notification-service';
+import { notifyRevocation, sendUpgradeInvitationEmail } from '@/lib/services/notification-service';
 
 // GET - List all users with their VIP verification status
 export async function GET(request: NextRequest) {
@@ -141,6 +141,52 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error) {
     console.error('Unexpected error in PATCH /api/admin/users:', error);
+    return NextResponse.json({
+      error: 'Une erreur inattendue est survenue',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    }, { status: 500 });
+  }
+}
+
+// POST - Send upgrade invitation email to a standard user
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
+    const isAdmin = await checkIsAdmin(user.id);
+    if (!isAdmin) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
+    let body;
+    try { body = await request.json(); } catch {
+      return NextResponse.json({ error: 'Format JSON invalide' }, { status: 400 });
+    }
+
+    const { user_id } = body;
+    if (!user_id) return NextResponse.json({ error: 'user_id requis' }, { status: 400 });
+
+    const supabase = createAdminClient();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', user_id)
+      .single();
+
+    if (!profile?.email) {
+      return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
+    }
+
+    const emailOk = await sendUpgradeInvitationEmail({
+      userEmail: profile.email,
+      userName: profile.full_name || undefined,
+    });
+
+    return NextResponse.json({
+      success: true,
+      email: emailOk,
+      message: emailOk ? 'Invitation envoyée' : 'Erreur envoi email',
+    });
+  } catch (error) {
     return NextResponse.json({
       error: 'Une erreur inattendue est survenue',
       details: error instanceof Error ? error.message : 'Unknown error',

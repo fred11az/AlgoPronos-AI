@@ -305,7 +305,6 @@ function buildActivationEmailHtml(p: ActivationPayload): string {
 function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): string {
   const firstName = p.userName?.split(' ')[0] || 'Parieur';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
-  const createAccountUrl = `${appUrl}/compte-optimise-ia`;
 
   return `
 <!DOCTYPE html>
@@ -315,9 +314,9 @@ function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): st
   <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
 
     <!-- Header -->
-    <div style="background:linear-gradient(135deg,#7c2d12,#991b1b);padding:28px 32px">
-      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
-      <h1 style="margin:8px 0 0;font-size:20px;color:#fff;font-weight:700">❌ Demande d'accès rejetée</h1>
+    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
+      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">Demande d'accès non validée</h1>
     </div>
 
     <!-- Body -->
@@ -328,55 +327,96 @@ function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): st
       </p>
 
       ${p.reason ? `
-      <div style="background:#ef444411;border:1px solid #ef444433;border-radius:10px;padding:16px;margin-bottom:20px">
-        <p style="margin:0 0 6px;color:#ef4444;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px">Motif du rejet</p>
-        <p style="margin:0;color:#fca5a5;font-size:14px;line-height:1.5">${p.reason}</p>
+      <div style="background:#0f0f1a;border-radius:12px;padding:16px;margin-bottom:20px;border-left:3px solid #7c3aed">
+        <p style="margin:0 0 4px;color:#a78bfa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Motif</p>
+        <p style="margin:0;color:#e2e8f0;font-size:14px;line-height:1.5">${p.reason}</p>
       </div>` : ''}
 
-      <!-- Steps to reactivate -->
       <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
-        <p style="margin:0 0 14px;color:#7c3aed;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment obtenir votre accès</p>
-
-        <!-- Step 1 -->
-        <div style="display:flex;gap:12px;margin-bottom:14px">
-          <div style="width:28px;height:28px;border-radius:50%;background:#7c3aed22;border:1px solid #7c3aed55;flex-shrink:0;text-align:center;line-height:28px">
-            <span style="color:#a78bfa;font-weight:700;font-size:13px">1</span>
-          </div>
-          <div style="flex:1">
-            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Configurez votre compte bookmaker optimisé IA</p>
-            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">La configuration doit être faite <strong style="color:#e2e8f0">depuis notre plateforme</strong>. C'est cette étape qui permet à notre algorithme d'activer l'optimisation IA sur votre compte bookmaker. Les comptes existants ne sont souvent pas optimisés IA et ne peuvent donc pas être reconnus par notre système.</p>
-            <a href="${createAccountUrl}"
-               style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:12px">
-              ⚡ Configurer mon compte optimisé IA →
-            </a>
-          </div>
-        </div>
-
-        <!-- Step 2 -->
-        <div style="display:flex;gap:12px">
-          <div style="width:28px;height:28px;border-radius:50%;background:#06b6d422;border:1px solid #06b6d455;flex-shrink:0;text-align:center;line-height:28px">
-            <span style="color:#67e8f9;font-weight:700;font-size:13px">2</span>
-          </div>
-          <div style="flex:1">
-            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Soumettez votre ID bookmaker</p>
-            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Une fois votre compte configuré, revenez sur AlgoPronos AI et soumettez votre ID pour validation.</p>
-            <a href="${appUrl}/unlock-vip"
-               style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:600;font-size:12px">
-              Soumettre ma demande →
-            </a>
-          </div>
-        </div>
+        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment obtenir votre accès</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">1. Configurez votre compte depuis notre plateforme</p>
+        <p style="margin:0 0 8px;color:#a0aec0;font-size:13px;line-height:1.5">La configuration doit être faite depuis AlgoPronos. C'est cette étape qui permet à notre algorithme d'activer l'optimisation IA sur votre compte. Les comptes existants ne sont souvent pas reconnus.</p>
+        <p style="margin:0;color:#e2e8f0;font-size:13px">2. Soumettez votre ID bookmaker pour validation</p>
       </div>
 
-      <p style="margin:0;color:#6b7280;font-size:12px;text-align:center">
-        Des questions ? Répondez directement à cet email.
-      </p>
+      <!-- CTA -->
+      <div style="text-align:center">
+        <a href="${appUrl}/compte-optimise-ia"
+           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:15px">
+          Configurer mon compte optimise IA
+        </a>
+        <p style="margin:16px 0 0;color:#6b7280;font-size:12px">
+          Des questions ? Repondez directement a cet email.
+        </p>
+      </div>
     </div>
 
     <!-- Footer -->
     <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
       <p style="margin:0;color:#4a4a6a;font-size:11px">
-        AlgoPronos AI — <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Paramètres</a>
+        AlgoPronos AI — Optimisation des paris sportifs par intelligence artificielle.<br>
+        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gerer mes preferences</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): string {
+  const firstName = p.userName?.split(' ')[0] || 'Parieur';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
+      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">Acces Full Access suspendu</h1>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:32px">
+      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
+      <p style="margin:0 0 20px;color:#a0aec0;font-size:14px;line-height:1.6">
+        Votre acces <strong style="color:#fff">Full Access AlgoPronos AI</strong> a ete suspendu par notre equipe.
+      </p>
+
+      ${p.reason ? `
+      <div style="background:#0f0f1a;border-radius:12px;padding:16px;margin-bottom:20px;border-left:3px solid #7c3aed">
+        <p style="margin:0 0 4px;color:#a78bfa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Motif</p>
+        <p style="margin:0;color:#e2e8f0;font-size:14px;line-height:1.5">${p.reason}</p>
+      </div>` : ''}
+
+      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
+        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment reactiver votre acces</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">1. Configurez votre compte depuis notre plateforme</p>
+        <p style="margin:0 0 8px;color:#a0aec0;font-size:13px;line-height:1.5">La configuration doit etre faite depuis AlgoPronos. C'est cette etape qui permet a notre algorithme d'activer l'optimisation IA sur votre compte. Les comptes existants ne sont souvent pas reconnus.</p>
+        <p style="margin:0;color:#e2e8f0;font-size:13px">2. Soumettez votre ID bookmaker pour validation</p>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center">
+        <a href="${appUrl}/compte-optimise-ia"
+           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:15px">
+          Reactiver mon acces
+        </a>
+        <p style="margin:16px 0 0;color:#6b7280;font-size:12px">
+          Des questions ? Repondez directement a cet email.
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
+      <p style="margin:0;color:#4a4a6a;font-size:11px">
+        AlgoPronos AI — Optimisation des paris sportifs par intelligence artificielle.<br>
+        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gerer mes preferences</a>
       </p>
     </div>
   </div>
@@ -415,7 +455,7 @@ export async function sendRejectionEmail(p: ActivationPayload & { reason?: strin
     const { error } = await resend.emails.send({
       from,
       to: p.userEmail,
-      subject: '❌ Demande d\'accès rejetée — AlgoPronos AI',
+      subject: 'Votre demande d\'acces Full Access AlgoPronos AI',
       replyTo,
       html: buildRejectionEmailHtml(p),
       text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre demande d'accès Full Access AlgoPronos AI n'a pas pu être validée.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour obtenir votre accès :\n1. Créez un compte optimisé IA : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia\n2. Soumettez votre ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
@@ -473,88 +513,6 @@ export async function notifyRejection(p: ActivationPayload & { reason?: string }
   return { email: emailOk, whatsapp: false };
 }
 
-function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): string {
-  const firstName = p.userName?.split(' ')[0] || 'Parieur';
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
-  const createAccountUrl = `${appUrl}/compte-optimise-ia`;
-
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
-  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
-
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#7c2d12,#991b1b);padding:28px 32px">
-      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
-      <h1 style="margin:8px 0 0;font-size:20px;color:#fff;font-weight:700">⚠️ Accès Full Access révoqué</h1>
-    </div>
-
-    <!-- Body -->
-    <div style="padding:32px">
-      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
-      <p style="margin:0 0 20px;color:#a0aec0;font-size:14px;line-height:1.6">
-        Votre accès <strong style="color:#fff">Full Access AlgoPronos AI</strong> a été suspendu par notre équipe de modération.
-      </p>
-
-      ${p.reason ? `
-      <div style="background:#ef444411;border:1px solid #ef444433;border-radius:10px;padding:16px;margin-bottom:20px">
-        <p style="margin:0 0 6px;color:#ef4444;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px">Motif de la suspension</p>
-        <p style="margin:0;color:#fca5a5;font-size:14px;line-height:1.5">${p.reason}</p>
-      </div>` : ''}
-
-      <!-- Steps to reactivate -->
-      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
-        <p style="margin:0 0 14px;color:#7c3aed;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment réactiver votre accès</p>
-
-        <!-- Step 1 -->
-        <div style="display:flex;gap:12px;margin-bottom:14px">
-          <div style="width:28px;height:28px;border-radius:50%;background:#7c3aed22;border:1px solid #7c3aed55;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-align:center;line-height:28px">
-            <span style="color:#a78bfa;font-weight:700;font-size:13px">1</span>
-          </div>
-          <div style="flex:1">
-            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Configurez votre compte bookmaker optimisé IA</p>
-            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">La configuration doit être faite <strong style="color:#e2e8f0">depuis notre plateforme</strong>. C'est cette étape qui permet à notre algorithme d'activer l'optimisation IA sur votre compte bookmaker. Les comptes existants ne sont souvent pas optimisés IA et ne peuvent donc pas être reconnus par notre système.</p>
-            <a href="${createAccountUrl}"
-               style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:12px">
-              ⚡ Configurer mon compte optimisé IA →
-            </a>
-          </div>
-        </div>
-
-        <!-- Step 2 -->
-        <div style="display:flex;gap:12px">
-          <div style="width:28px;height:28px;border-radius:50%;background:#06b6d422;border:1px solid #06b6d455;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-align:center;line-height:28px">
-            <span style="color:#67e8f9;font-weight:700;font-size:13px">2</span>
-          </div>
-          <div style="flex:1">
-            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Soumettez votre nouvel ID bookmaker</p>
-            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Une fois le compte créé, revenez sur AlgoPronos AI et soumettez votre ID pour validation.</p>
-            <a href="${appUrl}/unlock-vip"
-               style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:600;font-size:12px">
-              Soumettre ma demande →
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <p style="margin:0;color:#6b7280;font-size:12px;text-align:center">
-        Des questions ? Répondez directement à cet email.
-      </p>
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
-      <p style="margin:0;color:#4a4a6a;font-size:11px">
-        AlgoPronos AI — <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Paramètres</a>
-      </p>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
 export async function sendRevocationEmail(p: ActivationPayload & { reason?: string }): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) return false;
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -564,7 +522,7 @@ export async function sendRevocationEmail(p: ActivationPayload & { reason?: stri
     const { error } = await resend.emails.send({
       from,
       to: p.userEmail,
-      subject: '⚠️ Accès Full Access révoqué — AlgoPronos AI',
+      subject: 'Information importante concernant votre acces AlgoPronos AI',
       replyTo,
       html: buildRevocationEmailHtml(p),
       text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour réactiver votre accès :\n1. Créez un compte optimisé IA : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia\n2. Soumettez votre nouvel ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
@@ -580,6 +538,86 @@ export async function sendRevocationEmail(p: ActivationPayload & { reason?: stri
 export async function notifyRevocation(p: ActivationPayload & { reason?: string }) {
   const emailOk = await sendRevocationEmail(p);
   return { email: emailOk, whatsapp: false };
+}
+
+function buildUpgradeInvitationEmailHtml(p: ActivationPayload): string {
+  const firstName = p.userName?.split(' ')[0] || 'Parieur';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
+      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">Debloquez le Full Access gratuitement</h1>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:32px">
+      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
+      <p style="margin:0 0 20px;color:#a0aec0;font-size:14px;line-height:1.6">
+        Vous utilisez AlgoPronos AI en acces de base. En configurant un compte bookmaker optimise IA,
+        vous debloquez l'ensemble des fonctionnalites <strong style="color:#fff">gratuitement</strong>.
+      </p>
+
+      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
+        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ce que vous debloquez</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">Analyses IA illimitees — sans quota journalier</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">Probabilites du modele et value bets visibles</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">Bankroll IA personnalise sur chaque ticket</p>
+        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">Bouclier 20 Matchs — remboursement si 1 erreur sur 20</p>
+        <p style="margin:0;color:#e2e8f0;font-size:13px">Garantie Matchs Nuls — 100% si 2 nuls perdants</p>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center">
+        <a href="${appUrl}/compte-optimise-ia"
+           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:15px">
+          Configurer mon compte optimise IA
+        </a>
+        <p style="margin:16px 0 0;color:#6b7280;font-size:12px">
+          La configuration prend moins de 5 minutes et l'acces est active immediatement.
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
+      <p style="margin:0;color:#4a4a6a;font-size:11px">
+        AlgoPronos AI — Optimisation des paris sportifs par intelligence artificielle.<br>
+        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gerer mes preferences</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export async function sendUpgradeInvitationEmail(p: ActivationPayload): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const replyTo = 'support@algopronos.com';
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: p.userEmail,
+      subject: 'Debloquez le Full Access AlgoPronos AI gratuitement',
+      replyTo,
+      html: buildUpgradeInvitationEmailHtml(p),
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVous utilisez AlgoPronos AI en acces de base. En configurant un compte bookmaker optimise IA, vous debloquez toutes les fonctionnalites gratuitement.\n\nConfigurez votre compte : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia`,
+    });
+    if (error) { console.error('[Notification] Upgrade invitation email error:', error); return false; }
+    return true;
+  } catch (err) {
+    console.error('[Notification] Upgrade invitation email failed:', err);
+    return false;
+  }
 }
 
 export async function sendConfirmationEmail(email: string, userName?: string): Promise<boolean> {
