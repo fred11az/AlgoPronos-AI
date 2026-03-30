@@ -333,10 +333,12 @@ function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): st
       </div>` : ''}
 
       <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
-        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment obtenir votre accès</p>
-        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">1. Configurez votre compte depuis notre plateforme</p>
-        <p style="margin:0 0 8px;color:#a0aec0;font-size:13px;line-height:1.5">La configuration doit être faite depuis AlgoPronos. C'est cette étape qui permet à notre algorithme d'activer l'optimisation IA sur votre compte. Les comptes existants ne sont souvent pas reconnus.</p>
-        <p style="margin:0;color:#e2e8f0;font-size:13px">2. Soumettez votre ID bookmaker pour validation</p>
+        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment obtenir votre acces</p>
+        <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">1. Configurez votre compte depuis notre plateforme</p>
+        <p style="margin:0 0 16px;color:#a0aec0;font-size:13px;line-height:1.6">La configuration doit etre faite depuis AlgoPronos. C'est cette etape qui permet a notre algorithme d'activer l'optimisation IA sur votre compte. Les comptes existants ne sont souvent pas reconnus.</p>
+        <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">2. Suivez les etapes et creez un nouveau compte de jeu apres la synchronisation.</p>
+        <p style="margin:0 0 16px;color:#a0aec0;font-size:13px;line-height:1.6"> </p>
+        <p style="margin:0;color:#e2e8f0;font-size:13px;font-weight:600">3. Revenez dans votre compte sur AlgoPronos et soumettez votre nouveau ID bookmaker pour validation.</p>
       </div>
 
       <!-- CTA -->
@@ -395,9 +397,11 @@ function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): s
 
       <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
         <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment reactiver votre acces</p>
-        <p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">1. Configurez votre compte depuis notre plateforme</p>
-        <p style="margin:0 0 8px;color:#a0aec0;font-size:13px;line-height:1.5">La configuration doit etre faite depuis AlgoPronos. C'est cette etape qui permet a notre algorithme d'activer l'optimisation IA sur votre compte. Les comptes existants ne sont souvent pas reconnus.</p>
-        <p style="margin:0;color:#e2e8f0;font-size:13px">2. Soumettez votre ID bookmaker pour validation</p>
+        <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">1. Configurez votre compte depuis notre plateforme</p>
+        <p style="margin:0 0 16px;color:#a0aec0;font-size:13px;line-height:1.6">La configuration doit etre faite depuis AlgoPronos. C'est cette etape qui permet a notre algorithme d'activer l'optimisation IA sur votre compte. Les comptes existants ne sont souvent pas reconnus.</p>
+        <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">2. Suivez les etapes et creez un nouveau compte de jeu apres la synchronisation.</p>
+        <p style="margin:0 0 16px;color:#a0aec0;font-size:13px;line-height:1.6"> </p>
+        <p style="margin:0;color:#e2e8f0;font-size:13px;font-weight:600">3. Revenez dans votre compte sur AlgoPronos et soumettez votre nouveau ID bookmaker pour validation.</p>
       </div>
 
       <!-- CTA -->

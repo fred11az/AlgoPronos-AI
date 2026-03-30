@@ -56,6 +56,35 @@ export function DashboardShell({ user, children, isAdmin = false }: DashboardShe
     };
   }, [mobileMenuOpen]);
 
+  // Écoute les changements de tier en temps réel (révocation / activation admin)
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`profile-tier-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newTier = (payload.new as { tier: string | null }).tier ?? null;
+          const oldTier = user.tier ?? null;
+          if (newTier !== oldTier) {
+            router.refresh();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.tier, router]);
+
   // Gestion de la déconnexion
   const handleSignOut = useCallback(async () => {
     if (isSigningOut) return; // Prevent double-click
