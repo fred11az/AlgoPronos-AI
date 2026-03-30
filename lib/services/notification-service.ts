@@ -448,6 +448,7 @@ export async function notifyRejection(p: ActivationPayload & { reason?: string }
 function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): string {
   const firstName = p.userName?.split(' ')[0] || 'Parieur';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+  const affiliateUrl = process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599';
 
   return `
 <!DOCTYPE html>
@@ -475,20 +476,44 @@ function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): s
         <p style="margin:0;color:#fca5a5;font-size:14px;line-height:1.5">${p.reason}</p>
       </div>` : ''}
 
-      <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.6">
-        Si vous pensez qu'il s'agit d'une erreur ou si votre situation a changé,
-        vous pouvez soumettre une nouvelle demande de vérification.
-      </p>
+      <!-- Steps to reactivate -->
+      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
+        <p style="margin:0 0 14px;color:#7c3aed;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment réactiver votre accès</p>
 
-      <div style="text-align:center">
-        <a href="${appUrl}/unlock-vip"
-           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-weight:600;font-size:14px">
-          Soumettre une nouvelle demande
-        </a>
-        <p style="margin:14px 0 0;color:#6b7280;font-size:12px">
-          Des questions ? Répondez directement à cet email.
-        </p>
+        <!-- Step 1 -->
+        <div style="display:flex;gap:12px;margin-bottom:14px">
+          <div style="width:28px;height:28px;border-radius:50%;background:#7c3aed22;border:1px solid #7c3aed55;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-align:center;line-height:28px">
+            <span style="color:#a78bfa;font-weight:700;font-size:13px">1</span>
+          </div>
+          <div style="flex:1">
+            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Créez un compte bookmaker optimisé IA</p>
+            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Utilisez notre lien partenaire pour créer un nouveau compte 1xBet optimisé. Les comptes existants ou créés hors de ce lien ne sont pas éligibles.</p>
+            <a href="${affiliateUrl}"
+               style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:12px">
+              ⚡ Créer mon compte 1xBet optimisé →
+            </a>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div style="display:flex;gap:12px">
+          <div style="width:28px;height:28px;border-radius:50%;background:#06b6d422;border:1px solid #06b6d455;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-align:center;line-height:28px">
+            <span style="color:#67e8f9;font-weight:700;font-size:13px">2</span>
+          </div>
+          <div style="flex:1">
+            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Soumettez votre nouvel ID bookmaker</p>
+            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Une fois le compte créé, revenez sur AlgoPronos AI et soumettez votre ID pour validation.</p>
+            <a href="${appUrl}/unlock-vip"
+               style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:600;font-size:12px">
+              Soumettre ma demande →
+            </a>
+          </div>
+        </div>
       </div>
+
+      <p style="margin:0;color:#6b7280;font-size:12px;text-align:center">
+        Des questions ? Répondez directement à cet email.
+      </p>
     </div>
 
     <!-- Footer -->
@@ -514,7 +539,7 @@ export async function sendRevocationEmail(p: ActivationPayload & { reason?: stri
       subject: '⚠️ Votre accès Full Access AlgoPronos AI a été suspendu',
       replyTo,
       html: buildRevocationEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nVous pouvez soumettre une nouvelle demande ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
+      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nPour réactiver votre accès :\n1. Créez un compte 1xBet via notre lien partenaire : ${process.env.NEXT_PUBLIC_1XBET_AFFILIATE_URL || 'https://refpa14435.com/L?tag=d_5346138m_1599c_&site=5346138&ad=1599'}\n2. Soumettez votre nouvel ID ici : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/unlock-vip`,
     });
     if (error) { console.error('[Notification] Revocation email error:', error); return false; }
     return true;
