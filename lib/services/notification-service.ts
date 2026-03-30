@@ -343,11 +343,11 @@ function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): st
             <span style="color:#a78bfa;font-weight:700;font-size:13px">1</span>
           </div>
           <div style="flex:1">
-            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Créez un compte bookmaker optimisé IA</p>
-            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Le compte doit être créé <strong style="color:#e2e8f0">depuis notre plateforme</strong> via le lien partenaire ci-dessous. C'est ce processus qui permet à notre système d'enregistrer l'optimisation IA sur votre compte. Les comptes existants ou créés hors de ce lien ne sont pas pris en compte.</p>
+            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Configurez votre compte bookmaker optimisé IA</p>
+            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">La configuration doit être faite <strong style="color:#e2e8f0">depuis notre plateforme</strong>. C'est cette étape qui permet à notre algorithme d'activer l'optimisation IA sur votre compte bookmaker. Les comptes existants ne sont souvent pas optimisés IA et ne peuvent donc pas être reconnus par notre système.</p>
             <a href="${createAccountUrl}"
                style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:12px">
-              ⚡ Créer mon compte optimisé IA →
+              ⚡ Configurer mon compte optimisé IA →
             </a>
           </div>
         </div>
@@ -359,7 +359,7 @@ function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): st
           </div>
           <div style="flex:1">
             <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Soumettez votre ID bookmaker</p>
-            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Une fois le compte créé, revenez sur AlgoPronos AI et soumettez votre ID pour validation.</p>
+            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Une fois votre compte configuré, revenez sur AlgoPronos AI et soumettez votre ID pour validation.</p>
             <a href="${appUrl}/unlock-vip"
                style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:600;font-size:12px">
               Soumettre ma demande →
@@ -514,11 +514,11 @@ function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): s
             <span style="color:#a78bfa;font-weight:700;font-size:13px">1</span>
           </div>
           <div style="flex:1">
-            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Créez un compte bookmaker optimisé IA</p>
-            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">Le compte doit être créé <strong style="color:#e2e8f0">depuis notre plateforme</strong> via le lien partenaire ci-dessous. C'est ce processus qui permet à notre système d'enregistrer l'optimisation IA sur votre compte. Les comptes existants ou créés hors de ce lien ne sont pas pris en compte.</p>
+            <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">Configurez votre compte bookmaker optimisé IA</p>
+            <p style="margin:0 0 8px;color:#a0aec0;font-size:12px;line-height:1.5">La configuration doit être faite <strong style="color:#e2e8f0">depuis notre plateforme</strong>. C'est cette étape qui permet à notre algorithme d'activer l'optimisation IA sur votre compte bookmaker. Les comptes existants ne sont souvent pas optimisés IA et ne peuvent donc pas être reconnus par notre système.</p>
             <a href="${createAccountUrl}"
                style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;text-decoration:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:12px">
-              ⚡ Créer mon compte optimisé IA →
+              ⚡ Configurer mon compte optimisé IA →
             </a>
           </div>
         </div>
