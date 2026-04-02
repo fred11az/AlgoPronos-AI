@@ -16,6 +16,7 @@ import {
   X,
   UserPlus,
   ShieldCheck,
+  Newspaper,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -24,6 +25,7 @@ const adminNavItems = [
   { label: 'Vérifications VIP', href: '/admin/verifications',  icon: CheckCircle },
   { label: 'IDs Bookmakers',    href: '/admin/bookmakers',     icon: ShieldCheck },
   { label: 'Tickets IA',        href: '/admin/tickets',        icon: Ticket },
+  { label: 'Actualités',        href: '/admin/actualites',     icon: Newspaper },
   { label: 'Analytics',         href: '/admin/analytics',      icon: BarChart3 },
   { label: 'Paramètres',        href: '/admin/settings',       icon: Settings },
 ];
