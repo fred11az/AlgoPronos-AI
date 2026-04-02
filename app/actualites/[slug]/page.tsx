@@ -14,6 +14,10 @@ import {
   Star,
   Newspaper,
   ArrowLeft,
+  Brain,
+  CheckCircle2,
+  Lock,
+  Rocket,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { worldCupMatches, formatWorldCupDate } from '@/lib/worldcup2026';
@@ -276,34 +280,74 @@ export default async function ArticlePage({
               )}
             </div>
 
-            {/* ── Mid-article CTA (conversion) ── */}
-            <div className="bg-gradient-to-br from-primary/20 to-secondary/10 rounded-2xl border border-primary/30 p-6 mb-8 shadow-lg shadow-primary/5">
-              <div className="flex items-start gap-4">
-                <div className="bg-primary p-2.5 rounded-xl shadow-lg shadow-primary/30 shrink-0">
-                  <Zap className="h-5 w-5 text-white fill-white" />
+            {/* ── Mid-article CTA — Compte Optimisé IA (conversion principale) ── */}
+            <div className="rounded-2xl overflow-hidden mb-8 shadow-2xl shadow-primary/10 border border-primary/30">
+              {/* Header badge */}
+              <div className="bg-gradient-to-r from-primary to-secondary px-6 py-3 flex items-center gap-3">
+                <Brain className="h-5 w-5 text-white shrink-0" />
+                <span className="text-white text-xs font-black uppercase tracking-widest">
+                  Compte Optimisé IA — AlgoPronos × 1xBet
+                </span>
+                <span className="ml-auto text-[10px] font-black text-white/80 bg-white/10 px-2 py-0.5 rounded-full">
+                  100% GRATUIT
+                </span>
+              </div>
+
+              <div className="bg-gradient-to-br from-primary/15 to-secondary/10 p-6">
+                <h3 className="text-xl font-black text-white mb-2 leading-tight">
+                  C'est quoi le Compte Optimisé IA ?
+                </h3>
+                <p className="text-sm text-text-secondary leading-relaxed mb-5">
+                  C'est un compte 1xBet créé via AlgoPronos avec le code{' '}
+                  <span className="font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded font-mono">ALGOPRONOS</span>.
+                  Il synchronise votre compte bookmaker avec notre algorithme IA — vous recevez
+                  chaque jour le ticket optimal, les value bets détectés et les analyses xG.
+                  C'est le seul système qui combine un compte bookmaker et une IA exclusive dès
+                  l'inscription.
+                </p>
+
+                {/* Benefits grid */}
+                <div className="grid grid-cols-2 gap-2 mb-5">
+                  {[
+                    { icon: Zap,          text: 'Ticket IA quotidien' },
+                    { icon: TrendingUp,   text: 'Value bets détectés' },
+                    { icon: Brain,        text: 'Analyses xG en temps réel' },
+                    { icon: Star,         text: 'Bonus majoré 200%' },
+                    { icon: CheckCircle2, text: 'Gratuit — sans abonnement' },
+                    { icon: Lock,         text: 'Code ALGOPRONOS obligatoire' },
+                  ].map(({ icon: Icon, text }) => (
+                    <div key={text} className="flex items-center gap-2 text-xs text-text-secondary">
+                      <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>{text}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-base font-black text-white mb-1">
-                    Générez votre ticket IA pour la Coupe du Monde 2026
-                  </h3>
-                  <p className="text-sm text-text-secondary mb-4 leading-relaxed">
-                    Notre algorithme analyse en temps réel les cotes et statistiques pour identifier les meilleurs value bets du Mondial 2026.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <Button variant="gradient" className="h-10 px-5 font-black text-xs uppercase tracking-wider rounded-xl gap-2 shadow-md shadow-primary/20" asChild>
-                      <Link href="/">
-                        <Zap className="h-4 w-4" />
-                        Ticket IA gratuit
-                      </Link>
-                    </Button>
-                    <Button variant="outline" className="h-10 px-5 font-bold text-xs uppercase tracking-wider rounded-xl gap-2 border-white/20 hover:border-primary/30" asChild>
-                      <Link href={BOOKMAKER_URL} target="_blank" rel="noopener noreferrer">
-                        Parier sur 1xBet
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    variant="gradient"
+                    className="flex-1 h-12 font-black text-sm uppercase tracking-wider rounded-xl gap-2 shadow-xl shadow-primary/20"
+                    asChild
+                  >
+                    <Link href="/compte-optimise-ia">
+                      <Rocket className="h-4 w-4" />
+                      Créer mon Compte Optimisé IA
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-12 px-5 font-bold text-xs uppercase tracking-wider rounded-xl gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                    asChild
+                  >
+                    <Link href="/">
+                      <Zap className="h-4 w-4" />
+                      Ticket IA gratuit
+                    </Link>
+                  </Button>
                 </div>
+                <p className="text-[10px] text-text-muted text-center mt-3 italic">
+                  Saisissez le code ALGOPRONOS lors de votre inscription 1xBet pour activer l'optimisation IA.
+                </p>
               </div>
             </div>
 
@@ -366,33 +410,76 @@ export default async function ArticlePage({
           {/* ── Sidebar ── */}
           <aside className="space-y-6">
 
-            {/* 1xBet CTA */}
-            <div className="bg-surface rounded-2xl border border-surface-light p-6 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-secondary" />
-              <Star className="h-6 w-6 text-yellow-400 fill-yellow-400 mb-3" />
-              <h3 className="text-base font-bold text-white mb-2">1xBet — Bonus 200%</h3>
-              <p className="text-xs text-text-muted leading-relaxed mb-4">
-                Profitez des meilleures cotes sur tous les matchs de la Coupe du Monde 2026. Code ALGO à l'inscription.
-              </p>
-              <Button variant="gradient" className="w-full h-11 font-black text-xs uppercase tracking-wide rounded-xl gap-2 shadow-lg shadow-primary/20" asChild>
-                <Link href={BOOKMAKER_URL} target="_blank" rel="noopener noreferrer">
-                  Ouvrir 1xBet
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+            {/* ── 1. Compte Optimisé IA — CTA principal sticky ── */}
+            <div className="bg-surface rounded-2xl border border-primary/30 overflow-hidden shadow-2xl shadow-primary/10 lg:sticky lg:top-6">
+              <div className="bg-gradient-to-r from-primary to-secondary px-4 py-2.5 flex items-center gap-2">
+                <Brain className="h-4 w-4 text-white shrink-0" />
+                <span className="text-white text-[10px] font-black uppercase tracking-widest flex-1">
+                  Compte Optimisé IA
+                </span>
+                <span className="text-[9px] font-black text-white/80 bg-white/15 px-2 py-0.5 rounded-full">GRATUIT</span>
+              </div>
+              <div className="p-5">
+                <h3 className="text-base font-black text-white mb-1 leading-snug">
+                  Accédez à l'IA AlgoPronos
+                </h3>
+                <p className="text-xs text-text-secondary leading-relaxed mb-4">
+                  Créez votre compte 1xBet avec le code{' '}
+                  <span className="font-mono font-black text-primary">ALGOPRONOS</span> et
+                  débloquez : ticket IA quotidien, value bets, analyses xG — le tout gratuitement.
+                </p>
+
+                {/* Mini benefits */}
+                <ul className="space-y-1.5 mb-5">
+                  {[
+                    'Ticket IA chaque jour',
+                    'Value bets détectés auto',
+                    'Bonus 200% à l\'inscription',
+                    '100% gratuit, sans abonnement',
+                  ].map((b) => (
+                    <li key={b} className="flex items-center gap-2 text-[11px] text-text-secondary">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+
+                <Button
+                  variant="gradient"
+                  className="w-full h-12 font-black text-xs uppercase tracking-wider rounded-xl gap-2 shadow-xl shadow-primary/20"
+                  asChild
+                >
+                  <Link href="/compte-optimise-ia">
+                    <Rocket className="h-4 w-4" />
+                    Créer mon Compte IA
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full h-9 mt-2 font-bold text-[11px] uppercase tracking-wide rounded-xl gap-2 border-white/10 text-text-muted hover:text-primary hover:border-primary/30"
+                  asChild
+                >
+                  <Link href={BOOKMAKER_URL} target="_blank" rel="noopener noreferrer">
+                    Ou ouvrir 1xBet directement
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </Button>
+              </div>
             </div>
 
-            {/* Ticket IA CTA */}
-            <div className="bg-gradient-to-br from-primary/20 to-secondary/10 rounded-2xl border border-primary/30 p-6 shadow-lg">
-              <Zap className="h-7 w-7 text-primary fill-primary/20 mb-3" />
-              <h3 className="text-base font-bold text-white mb-2">Ticket IA Mondial 2026</h3>
+            {/* ── 2. Ticket IA du jour ── */}
+            <div className="bg-gradient-to-br from-primary/15 to-secondary/5 rounded-2xl border border-primary/20 p-5 shadow-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="h-5 w-5 text-primary fill-primary/20" />
+                <h3 className="text-sm font-bold text-white">Ticket IA du jour</h3>
+              </div>
               <p className="text-xs text-text-secondary leading-relaxed mb-4">
-                Algorithme IA : value bets, cotes optimisées, analyse xG sur chaque match du Mondial.
+                Générez gratuitement votre combiné optimisé par l'algorithme pour les matchs du jour.
               </p>
-              <Button variant="gradient" className="w-full h-11 font-black text-xs uppercase tracking-wide rounded-xl gap-2" asChild>
+              <Button variant="gradient" className="w-full h-10 font-black text-xs uppercase tracking-wide rounded-xl gap-2" asChild>
                 <Link href="/">
                   <Zap className="h-4 w-4" />
-                  Générer mon ticket
+                  Mon ticket gratuit
                 </Link>
               </Button>
             </div>

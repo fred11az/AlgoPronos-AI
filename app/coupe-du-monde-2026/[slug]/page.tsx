@@ -19,6 +19,9 @@ import {
   Star,
   TrendingUp,
   Target,
+  Brain,
+  CheckCircle2,
+  Rocket,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -345,22 +348,48 @@ export default async function WorldCupMatchPage({
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Bookmaker CTA */}
-            <div className="bg-surface rounded-3xl border border-surface-light p-6 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-yellow-400" />
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" />
-                <h3 className="text-base font-bold text-white">Parier sur le Mondial</h3>
+            {/* ── Compte Optimisé IA — CTA n°1 ── */}
+            <div className="bg-surface rounded-2xl border border-primary/30 overflow-hidden shadow-2xl shadow-primary/10 lg:sticky lg:top-6">
+              <div className="bg-gradient-to-r from-primary to-secondary px-4 py-2.5 flex items-center gap-2">
+                <Brain className="h-4 w-4 text-white" />
+                <span className="text-white text-[10px] font-black uppercase tracking-widest flex-1">Compte Optimisé IA</span>
+                <span className="text-[9px] font-black text-white/80 bg-white/15 px-2 py-0.5 rounded-full">GRATUIT</span>
               </div>
-              <p className="text-xs text-text-muted mb-5 leading-relaxed">
-                1xBet propose les meilleures cotes sur tous les matchs de la Coupe du Monde 2026. Bonus 200% à l'inscription avec le code ALGO.
-              </p>
-              <Link href={BOOKMAKER_URL} target="_blank" rel="noopener noreferrer">
-                <Button variant="gradient" className="w-full h-11 font-bold uppercase text-xs tracking-wide rounded-xl gap-2">
-                  <span>Ouvrir 1xBet</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
+              <div className="p-5">
+                <h3 className="text-sm font-black text-white mb-1 leading-snug">
+                  Pariez sur {match.homeTeam} vs {match.awayTeam} avec l'IA
+                </h3>
+                <p className="text-xs text-text-secondary leading-relaxed mb-3">
+                  Créez votre compte 1xBet avec le code{' '}
+                  <span className="font-mono font-black text-primary">ALGOPRONOS</span> pour
+                  accéder aux analyses IA, tickets quotidiens et value bets du Mondial 2026.
+                </p>
+                <ul className="space-y-1.5 mb-4">
+                  {[
+                    'Ticket IA quotidien',
+                    'Value bets détectés auto',
+                    'Bonus 200% majoré',
+                    '100% gratuit',
+                  ].map((b) => (
+                    <li key={b} className="flex items-center gap-2 text-[11px] text-text-secondary">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/compte-optimise-ia">
+                  <Button variant="gradient" className="w-full h-11 font-black text-xs uppercase tracking-wider rounded-xl gap-2 shadow-xl shadow-primary/20 mb-2">
+                    <Rocket className="h-4 w-4" />
+                    Créer mon Compte IA
+                  </Button>
+                </Link>
+                <Link href={BOOKMAKER_URL} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="w-full h-9 font-bold text-[11px] uppercase tracking-wide rounded-xl gap-2 border-white/10 text-text-muted hover:text-primary hover:border-primary/30">
+                    Ouvrir 1xBet directement
+                    <ArrowRight className="h-3 w-3" />
+                  </Button>
+                </Link>
+              </div>
             </div>
 
             {/* Toutes les équipes du groupe */}

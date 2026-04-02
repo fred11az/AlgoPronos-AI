@@ -10,6 +10,9 @@ import {
   Zap,
   TrendingUp,
   Clock,
+  Brain,
+  CheckCircle2,
+  Rocket,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { worldCupMatches, formatWorldCupDate } from '@/lib/worldcup2026';
@@ -373,17 +376,46 @@ export default async function ActualitesPage() {
               </Link>
             </div>
 
-            {/* Ticket IA CTA */}
-            <div className="bg-gradient-to-br from-primary/20 to-secondary/10 rounded-2xl border border-primary/30 p-6 shadow-lg">
-              <Zap className="h-8 w-8 text-primary fill-primary/20 mb-3" />
-              <h3 className="text-base font-bold text-white mb-2">Ticket IA Gratuit</h3>
+            {/* Compte Optimisé IA CTA — conversion principale */}
+            <div className="bg-surface rounded-2xl border border-primary/30 overflow-hidden shadow-2xl shadow-primary/10">
+              <div className="bg-gradient-to-r from-primary to-secondary px-4 py-2.5 flex items-center gap-2">
+                <Brain className="h-4 w-4 text-white" />
+                <span className="text-white text-[10px] font-black uppercase tracking-widest flex-1">Compte Optimisé IA</span>
+                <span className="text-[9px] font-black text-white/80 bg-white/15 px-2 py-0.5 rounded-full">GRATUIT</span>
+              </div>
+              <div className="p-5">
+                <h3 className="text-sm font-black text-white mb-1">Accédez à l'IA AlgoPronos</h3>
+                <p className="text-xs text-text-secondary leading-relaxed mb-3">
+                  Compte 1xBet + code <span className="font-mono font-black text-primary">ALGOPRONOS</span> = ticket IA quotidien, value bets, analyses xG. Gratuit.
+                </p>
+                <ul className="space-y-1 mb-4">
+                  {['Ticket IA chaque jour', 'Value bets auto', 'Bonus 200%'].map((b) => (
+                    <li key={b} className="flex items-center gap-2 text-[11px] text-text-secondary">
+                      <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/compte-optimise-ia">
+                  <Button variant="gradient" className="w-full h-11 font-black text-xs uppercase tracking-wide rounded-xl gap-2 shadow-lg shadow-primary/20">
+                    <Rocket className="h-4 w-4" />
+                    Créer mon Compte IA
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Ticket IA du jour */}
+            <div className="bg-gradient-to-br from-primary/15 to-secondary/5 rounded-2xl border border-primary/20 p-5 shadow-lg">
+              <Zap className="h-7 w-7 text-primary fill-primary/20 mb-2" />
+              <h3 className="text-sm font-bold text-white mb-2">Ticket IA du jour</h3>
               <p className="text-xs text-text-secondary leading-relaxed mb-4">
-                Générez votre ticket de paris optimisé par IA pour le Mondial 2026. Analyse value betting en temps réel.
+                Combiné optimisé par l'algorithme pour les matchs du jour.
               </p>
               <Link href="/">
-                <Button variant="gradient" className="w-full h-11 font-black text-xs uppercase tracking-wide rounded-xl gap-2 shadow-lg shadow-primary/20">
+                <Button variant="gradient" className="w-full h-10 font-black text-xs uppercase tracking-wide rounded-xl gap-2">
                   <Zap className="h-4 w-4" />
-                  Générer mon ticket
+                  Mon ticket gratuit
                 </Button>
               </Link>
             </div>
