@@ -721,7 +721,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
       if (cached) {
         const ageSeconds = (Date.now() - new Date(cached.fetched_at).getTime()) / 1000;
-        if (ageSeconds < 21600) {
+        if (ageSeconds < 3600) { // 1h — was 6h, reduced to ensure fresh data on hourly cron
           const events = cached.data as any[];
           console.log(`[OddsAPI] Cache HIT for ${date} (${events.length} events, key=${cached.cache_key})`);
           this.hydrateOddsMap(events, oddsMap);

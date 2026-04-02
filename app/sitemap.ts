@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { createClient } from '@/lib/supabase/server';
+import { worldCupMatches } from '@/lib/worldcup2026';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://algopronos.com';
 
@@ -9,10 +10,22 @@ const COUNTRY_SLUGS = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Coupe du Monde 2026 — individual match pages
+  const worldCupMatchPages: MetadataRoute.Sitemap = worldCupMatches.map((m) => ({
+    url: `${BASE_URL}/coupe-du-monde-2026/${m.slug}`,
+    lastModified: new Date(m.date),
+    changeFrequency: 'weekly' as const,
+    priority: 0.85,
+  }));
+
   const staticPages: MetadataRoute.Sitemap = [
     { url: BASE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
     { url: `${BASE_URL}/pronostics`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.95 },
     { url: `${BASE_URL}/matchs`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    // Coupe du Monde 2026
+    { url: `${BASE_URL}/coupe-du-monde-2026`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.95 },
+    { url: `${BASE_URL}/actualites`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    // Concepts
     { url: `${BASE_URL}/concept-montante`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.85 },
     { url: `${BASE_URL}/concept-optimus`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.85 },
     { url: `${BASE_URL}/compte-optimise-ia`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.92 },
@@ -22,6 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly' as const,
       priority: 0.8,
     })),
+    ...worldCupMatchPages,
   ];
 
   try {

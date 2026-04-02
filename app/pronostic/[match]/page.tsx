@@ -122,24 +122,28 @@ export async function generateMetadata({
   });
 
   return {
-    title: `Pronostic ${home_team} vs ${away_team} — ${dateFormatted} | AlgoPronos`,
-    description: `Analyse IA et Pronostic pour ${home_team} vs ${away_team} (${league}). Obtenez votre Compte Optimisé IA AlgoPronos pour débloquer l'analyse xG et les value bets sur ce match.`,
+    title: `${home_team} vs ${away_team} — Pronostic IA | AlgoPronos`,
+    description: `Analyse IA du match ${home_team} vs ${away_team} le ${dateFormatted}. Value bets, cotes, statistiques.`,
     keywords: [
       `pronostic ${home_team.toLowerCase()} ${away_team.toLowerCase()}`,
       `${home_team.toLowerCase()} vs ${away_team.toLowerCase()}`,
       `pronostic ${league.toLowerCase()}`,
+      'value bet ia',
+      'cotes football',
+      'statistiques match',
       'compte optimisé IA',
       'algo pronos ia',
-      '1xbet pronostic', // SEO Keyword as requested
+      '1xbet pronostic',
       'analyse football ia',
     ].join(', '),
     alternates: {
       canonical: `https://algopronos.com/pronostic/${slug}`,
     },
     openGraph: {
-      title: `Pronostic IA : ${home_team} vs ${away_team}`,
-      description: `${prediction} — Probabilité ${probability}% — Analyse AlgoPronos`,
+      title: `${home_team} vs ${away_team} — Pronostic IA`,
+      description: `Analyse IA du match ${home_team} vs ${away_team} le ${dateFormatted}. Value bets, cotes, statistiques.`,
       type: 'article',
+      url: `https://algopronos.com/pronostic/${slug}`,
     },
   };
 }
