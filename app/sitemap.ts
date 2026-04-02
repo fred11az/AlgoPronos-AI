@@ -55,7 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.85,
     }));
 
-    const [matchesResult1, matchesResult2, leaguesResult, teamsResult] = await Promise.all([
+    const [matchesResult1, matchesResult2, matchesResult3, leaguesResult, teamsResult1, teamsResult2] = await Promise.all([
       supabase
         .from('match_predictions')
         .select('slug, created_at')
@@ -68,17 +68,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .range(1000, 1999),
       supabase
         .from('match_predictions')
+        .select('slug, created_at')
+        .order('match_date', { ascending: false })
+        .range(2000, 2999),
+      // All leagues — rich content pages deserve indexing
+      supabase
+        .from('match_predictions')
         .select('league_slug')
-        .limit(1000),
+        .limit(5000),
+      // All teams batch 1 — rich content pages deserve indexing
       supabase
         .from('match_predictions')
         .select('home_team_slug, away_team_slug')
-        .limit(1000),
+        .range(0, 2499),
+      // All teams batch 2
+      supabase
+        .from('match_predictions')
+        .select('home_team_slug, away_team_slug')
+        .range(2500, 4999),
     ]);
 
     const matchPages: MetadataRoute.Sitemap = [
       ...(matchesResult1.data || []),
       ...(matchesResult2.data || []),
+      ...(matchesResult3.data || []),
     ].map((m) => ({
       url: `${BASE_URL}/pronostic/${m.slug}`,
       lastModified: new Date(m.created_at || new Date()),
@@ -96,8 +109,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
 
     const allTeamSlugs = [
-      ...((teamsResult.data || []).map((t) => t.home_team_slug)),
-      ...((teamsResult.data || []).map((t) => t.away_team_slug)),
+      ...((teamsResult1.data || []).map((t) => t.home_team_slug)),
+      ...((teamsResult1.data || []).map((t) => t.away_team_slug)),
+      ...((teamsResult2.data || []).map((t) => t.home_team_slug)),
+      ...((teamsResult2.data || []).map((t) => t.away_team_slug)),
     ];
     const teamPages: MetadataRoute.Sitemap = Array.from(new Set(allTeamSlugs)).map((slug) => ({
       url: `${BASE_URL}/equipe/${slug}`,
