@@ -386,7 +386,7 @@ export default async function ActualitesPage() {
               <div className="p-5">
                 <h3 className="text-sm font-black text-white mb-1">Accédez à l'IA AlgoPronos</h3>
                 <p className="text-xs text-text-secondary leading-relaxed mb-3">
-                  Compte 1xBet + code <span className="font-mono font-black text-primary">ALGOPRONOS</span> = ticket IA quotidien, value bets, analyses xG. Gratuit.
+                  Compte bookmaker créé via AlgoPronos = ticket IA quotidien, value bets, analyses xG. Gratuit.
                 </p>
                 <ul className="space-y-1 mb-4">
                   {['Ticket IA chaque jour', 'Value bets auto', 'Bonus 200%'].map((b) => (

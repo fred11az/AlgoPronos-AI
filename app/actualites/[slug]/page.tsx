@@ -298,12 +298,10 @@ export default async function ArticlePage({
                   C'est quoi le Compte Optimisé IA ?
                 </h3>
                 <p className="text-sm text-text-secondary leading-relaxed mb-5">
-                  C'est un compte 1xBet créé via AlgoPronos avec le code{' '}
-                  <span className="font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded font-mono">ALGOPRONOS</span>.
-                  Il synchronise votre compte bookmaker avec notre algorithme IA — vous recevez
-                  chaque jour le ticket optimal, les value bets détectés et les analyses xG.
-                  C'est le seul système qui combine un compte bookmaker et une IA exclusive dès
-                  l'inscription.
+                  C'est un compte bookmaker créé exclusivement via AlgoPronos, synchronisé
+                  avec notre algorithme IA dès l'inscription. Chaque jour vous recevez le
+                  ticket optimal, les value bets détectés et les analyses xG — c'est le seul
+                  système qui combine un compte bookmaker et une IA exclusive.
                 </p>
 
                 {/* Benefits grid */}
@@ -312,9 +310,9 @@ export default async function ArticlePage({
                     { icon: Zap,          text: 'Ticket IA quotidien' },
                     { icon: TrendingUp,   text: 'Value bets détectés' },
                     { icon: Brain,        text: 'Analyses xG en temps réel' },
-                    { icon: Star,         text: 'Bonus majoré 200%' },
+                    { icon: Star,         text: 'Bonus majoré' },
                     { icon: CheckCircle2, text: 'Gratuit — sans abonnement' },
-                    { icon: Lock,         text: 'Code ALGOPRONOS obligatoire' },
+                    { icon: Lock,         text: 'Accès exclusif AlgoPronos' },
                   ].map(({ icon: Icon, text }) => (
                     <div key={text} className="flex items-center gap-2 text-xs text-text-secondary">
                       <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -345,9 +343,6 @@ export default async function ArticlePage({
                     </Link>
                   </Button>
                 </div>
-                <p className="text-[10px] text-text-muted text-center mt-3 italic">
-                  Saisissez le code ALGOPRONOS lors de votre inscription 1xBet pour activer l'optimisation IA.
-                </p>
               </div>
             </div>
 
@@ -424,9 +419,8 @@ export default async function ArticlePage({
                   Accédez à l'IA AlgoPronos
                 </h3>
                 <p className="text-xs text-text-secondary leading-relaxed mb-4">
-                  Créez votre compte 1xBet avec le code{' '}
-                  <span className="font-mono font-black text-primary">ALGOPRONOS</span> et
-                  débloquez : ticket IA quotidien, value bets, analyses xG — le tout gratuitement.
+                  Créez votre compte bookmaker via AlgoPronos et débloquez : ticket IA
+                  quotidien, value bets, analyses xG — le tout gratuitement.
                 </p>
 
                 {/* Mini benefits */}

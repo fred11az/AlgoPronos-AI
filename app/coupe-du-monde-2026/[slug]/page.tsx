@@ -360,9 +360,8 @@ export default async function WorldCupMatchPage({
                   Pariez sur {match.homeTeam} vs {match.awayTeam} avec l'IA
                 </h3>
                 <p className="text-xs text-text-secondary leading-relaxed mb-3">
-                  Créez votre compte 1xBet avec le code{' '}
-                  <span className="font-mono font-black text-primary">ALGOPRONOS</span> pour
-                  accéder aux analyses IA, tickets quotidiens et value bets du Mondial 2026.
+                  Créez votre compte bookmaker via AlgoPronos pour accéder aux analyses IA,
+                  tickets quotidiens et value bets du Mondial 2026.
                 </p>
                 <ul className="space-y-1.5 mb-4">
                   {[
