@@ -267,7 +267,7 @@ export default async function ActualitesPage() {
             {articles.map((article, i) => (
               <article
                 key={article.id}
-                className={`bg-surface rounded-2xl border border-surface-light overflow-hidden shadow-lg hover:border-primary/20 transition-colors ${
+                className={`bg-surface rounded-2xl border border-surface-light overflow-hidden shadow-lg hover:border-primary/20 transition-colors group ${
                   i === 0 ? 'ring-1 ring-amber-500/20' : ''
                 }`}
               >
@@ -291,9 +291,11 @@ export default async function ActualitesPage() {
                       {formatArticleDate(article.published_at)}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-white leading-snug mb-2 hover:text-primary transition-colors cursor-pointer">
-                    {article.title}
-                  </h3>
+                  <Link href={`/actualites/${article.slug}`}>
+                    <h3 className="text-lg font-bold text-white leading-snug mb-2 group-hover:text-primary transition-colors cursor-pointer">
+                      {article.title}
+                    </h3>
+                  </Link>
                   <p className="text-sm text-text-secondary leading-relaxed mb-4">
                     {article.summary}
                   </p>
@@ -309,10 +311,10 @@ export default async function ActualitesPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-text-muted">Par {article.author}</span>
                     <Link
-                      href={`/coupe-du-monde-2026`}
+                      href={`/actualites/${article.slug}`}
                       className="flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
                     >
-                      Voir les matchs
+                      Lire l'article
                       <ArrowRight className="h-3 w-3" />
                     </Link>
                   </div>

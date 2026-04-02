@@ -598,7 +598,7 @@ export default function ArticlesManager({ initialArticles }: Props) {
                   {/* Preview in new tab (published only) */}
                   {article.status === 'published' && (
                     <a
-                      href="/actualites"
+                      href={`/actualites/${article.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Voir sur le site"

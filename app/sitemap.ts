@@ -41,6 +41,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const supabase = await createClient();
 
+    // News articles — individual pages
+    const { data: newsData } = await supabase
+      .from('news_articles')
+      .select('slug, published_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false });
+
+    const newsPages: MetadataRoute.Sitemap = (newsData ?? []).map((n) => ({
+      url: `${BASE_URL}/actualites/${n.slug}`,
+      lastModified: new Date(n.published_at),
+      changeFrequency: 'weekly' as const,
+      priority: 0.85,
+    }));
+
     const [matchesResult1, matchesResult2, leaguesResult, teamsResult] = await Promise.all([
       supabase
         .from('match_predictions')
@@ -92,7 +106,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
-    return [...staticPages, ...matchPages, ...leaguePages, ...teamPages];
+    return [...staticPages, ...newsPages, ...matchPages, ...leaguePages, ...teamPages];
   } catch {
     return staticPages;
   }
