@@ -1,10 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/matchs/refresh",
-      "schedule": "0 * * * *"
-    },
-    {
       "path": "/api/pronostics/generate",
       "schedule": "0 5 * * *"
     },
@@ -15,10 +11,6 @@
     {
       "path": "/api/weekly/generate",
       "schedule": "0 19 * * 0"
-    },
-    {
-      "path": "/api/cron/resolve-tickets",
-      "schedule": "30 14 * * *"
     },
     {
       "path": "/api/cron/resolve-tickets",
