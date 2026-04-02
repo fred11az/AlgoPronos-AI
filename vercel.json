@@ -14,10 +14,6 @@
     },
     {
       "path": "/api/cron/resolve-tickets",
-      "schedule": "30 14 * * *"
-    },
-    {
-      "path": "/api/cron/resolve-tickets",
       "schedule": "30 22 * * *"
     },
     {
