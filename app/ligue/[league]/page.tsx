@@ -13,6 +13,8 @@ interface PredictionSummary {
   slug: string;
   home_team: string;
   away_team: string;
+  home_team_slug: string;
+  away_team_slug: string;
   league: string;
   match_date: string;
   match_time: string;
