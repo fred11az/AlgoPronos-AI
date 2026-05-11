@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
 import { matchService } from '@/lib/services/match-service';
 import { fetchStatsForMatches, type MatchStats } from '@/lib/services/stats-service';
+import { callVenice, parseAIJson } from '@/lib/services/venice-ai';
 
 export const dynamic = 'force-dynamic';
 
@@ -212,38 +213,120 @@ function buildOptimusCombo<T extends OptimusCandidate>(pool: T[]): T[] {
   return best;
 }
 
-// ─── Groq analysis ────────────────────────────────────────────────────────────
+// ─── AI analysis (Venice → Groq fallback) ────────────────────────────────────
 
-async function callGroq(prompt: string): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return '';
+async function callAIForTicket(prompt: string): Promise<string> {
+  const system = 'Tu es AlgoPronos AI, analyste sportif expert. Génère une analyse courte et percutante pour le Ticket IA du Jour. Réponds UNIQUEMENT en JSON valide.';
 
+  // Venice AI (primary)
+  if (process.env.VENICE_API_KEY) {
+    try {
+      return await callVenice(system, prompt, { maxTokens: 800, temperature: 0.4 });
+    } catch (err: any) {
+      console.warn('[ticket-du-jour] Venice AI failed:', err.message);
+    }
+  }
+
+  // Groq (fallback)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) return '';
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: 'Tu es AlgoPronos AI, analyste sportif expert. Génère une analyse courte et percutante pour le Ticket IA du Jour. Réponds UNIQUEMENT en JSON valide.' },
+          { role: 'system', content: system },
           { role: 'user', content: prompt },
         ],
         temperature: 0.5,
-        max_tokens: 600,
+        max_tokens: 800,
       }),
       signal: AbortSignal.timeout(20000),
     });
-
     if (!response.ok) return '';
-    const buffer = await response.arrayBuffer();
-    const text = new TextDecoder('utf-8').decode(buffer);
-    const data = JSON.parse(text);
+    const data = await response.json();
     return data.choices?.[0]?.message?.content || '';
   } catch {
     return '';
+  }
+}
+
+// ─── Venice AI: full ticket generation (picks + analysis in one call) ────────
+
+interface VeniceTicketPick {
+  matchId: string;
+  type: string;
+  value: string;
+  odds: number;
+  reasoning: string;
+}
+
+async function generateTicketWithVenice(
+  matches: Array<{ id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds: { home: number; draw: number; away: number } }>,
+  statsMap: Map<string, MatchStats>,
+  count: number,
+): Promise<{ picks: VeniceTicketPick[]; summary: string; confidence: string; tip: string } | null> {
+  if (!process.env.VENICE_API_KEY) return null;
+
+  const matchesContext = matches.map((m, i) => {
+    const stats = statsMap.get(m.id);
+    const odds = stats?.realOdds ?? m.odds;
+    const dc1X = Math.round((odds.home * odds.draw / (odds.home + odds.draw)) * 100) / 100;
+    const dcX2 = Math.round((odds.draw * odds.away / (odds.draw + odds.away)) * 100) / 100;
+
+    let text = `[${i+1}] ID:${m.id} | ${m.homeTeam} vs ${m.awayTeam} | ${m.league} | ${m.date} ${m.time}`;
+    text += `\n  1X2 → Dom:${odds.home} | Nul:${odds.draw} | Ext:${odds.away}`;
+    text += `\n  DC → 1X:${dc1X} | X2:${dcX2}`;
+    text += `\n  Prob.impl. → Dom:${Math.round(100/odds.home)}% | Nul:${Math.round(100/odds.draw)}% | Ext:${Math.round(100/odds.away)}%`;
+
+    if (stats?.homeForm) {
+      const diff = (stats.homeForm.goalsFor - stats.homeForm.goalsAgainst).toFixed(1);
+      text += `\n  ${m.homeTeam}: ${stats.homeForm.form} | ${stats.homeForm.goalsFor.toFixed(1)} buts/m | diff ${diff}`;
+    }
+    if (stats?.awayForm) {
+      const diff = (stats.awayForm.goalsFor - stats.awayForm.goalsAgainst).toFixed(1);
+      text += `\n  ${m.awayTeam}: ${stats.awayForm.form} | ${stats.awayForm.goalsFor.toFixed(1)} buts/m | diff ${diff}`;
+    }
+    if (stats?.advice) text += `\n  Conseil API: "${stats.advice}"`;
+
+    return text;
+  }).join('\n\n');
+
+  const system = `Tu es AlgoPronos AI, expert en paris sportifs. Génère le Ticket IA du Jour: ${count} sélections sûres et justifiées pour les parieurs d'Afrique de l'Ouest.
+Coupe du Monde 2026 approche — favorise les équipes en forme.
+Règles: cotes 1.40-2.10, préfère Double Chance sur matchs serrés, justifie avec la forme. JSON uniquement.`;
+
+  const user = `MATCHS DISPONIBLES:
+${matchesContext}
+
+Choisis exactement ${count} picks sûrs (cotes 1.40-2.10, favoris, Double Chance bienvenue).
+
+JSON:
+{
+  "picks": [
+    {
+      "matchId": "ID_EXACT",
+      "type": "1X2",
+      "value": "1",
+      "odds": 1.75,
+      "reasoning": "2 phrases spécifiques: forme, avantage terrain, contexte."
+    }
+  ],
+  "summary": "2 phrases sur le ticket du jour. Cite 1+ équipe concrète.",
+  "confidence": "Évaluation de la fiabilité globale en 1 phrase.",
+  "tip": "1 conseil pratique pour le parieur."
+}`;
+
+  try {
+    const content = await callVenice(system, user, { maxTokens: 1500, temperature: 0.25 });
+    const parsed = parseAIJson<{ picks: VeniceTicketPick[]; summary: string; confidence: string; tip: string }>(content);
+    if (!parsed?.picks?.length) return null;
+    return parsed;
+  } catch (err: any) {
+    console.warn('[ticket-du-jour] Venice ticket generation failed:', err.message);
+    return null;
   }
 }
 
@@ -590,6 +673,7 @@ export async function GET(req: Request) {
 
     let picks: any[];
     let dataSource: string;
+    let analysis: object = {};
 
     if (futurePreds.length >= DAILY_MATCH_COUNT) {
       // Build picks directly from pre-computed predictions — no live API call
@@ -660,20 +744,59 @@ export async function GET(req: Request) {
         process.env.API_FOOTBALL_KEY
       ).catch(() => new Map<string, MatchStats>());
 
-      picks = selected.map(m => {
-        const pick = pickForMatch(
-          { ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } },
-          statsMap.get(m.id)
-        );
-        return {
-          matchId: m.id,
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          league: m.league,
-          kickoffTime: `${m.date} ${m.time}`.trim(),
-          selection: pick,
-        };
-      });
+      // Try Venice AI for pick selection first
+      const veniceTicket = await generateTicketWithVenice(
+        selected.map(m => ({ ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } })),
+        statsMap,
+        DAILY_MATCH_COUNT,
+      );
+
+      if (veniceTicket) {
+        picks = veniceTicket.picks
+          .filter(p => selected.find(m => m.id === p.matchId))
+          .map(p => {
+            const m = selected.find(m => m.id === p.matchId)!;
+            return {
+              matchId: p.matchId,
+              homeTeam: m.homeTeam,
+              awayTeam: m.awayTeam,
+              league: m.league,
+              kickoffTime: `${m.date} ${m.time}`.trim(),
+              selection: {
+                type: p.type,
+                value: p.value,
+                odds: p.odds,
+                reasoning: p.reasoning || null,
+                impliedPct: Math.round((1 / p.odds) * 100),
+                modelPct: null,
+                valueEdge: null,
+              },
+            };
+          });
+        // Store Venice analysis for step 5
+        if (picks.length >= DAILY_MATCH_COUNT) {
+          analysis = { summary: veniceTicket.summary, confidence: veniceTicket.confidence, tip: veniceTicket.tip, poweredBy: 'venice-ai' };
+        }
+        console.log(`[ticket-du-jour] Venice AI generated ${picks.length} picks`);
+      }
+
+      // Fallback to deterministic picks if Venice failed or returned too few
+      if (!veniceTicket || picks.length < DAILY_MATCH_COUNT) {
+        picks = selected.map(m => {
+          const pick = pickForMatch(
+            { ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } },
+            statsMap.get(m.id)
+          );
+          return {
+            matchId: m.id,
+            homeTeam: m.homeTeam,
+            awayTeam: m.awayTeam,
+            league: m.league,
+            kickoffTime: `${m.date} ${m.time}`.trim(),
+            selection: pick,
+          };
+        });
+      }
       dataSource = available.some(m => m.id.startsWith('apif-')) ? 'api-football' : 'the-odds-api';
     }
 
@@ -689,21 +812,23 @@ export async function GET(req: Request) {
       }, 0) / picks.length
     );
 
-    // ── 5. Groq analysis (optional) ──────────────────────────────────────────
-    let analysis: object = {};
-    try {
-      const picksText = picks.map((p, i) =>
-        `Match ${i + 1}: ${p.homeTeam} vs ${p.awayTeam} (${p.league})\n  Sélection: ${p.selection.value} @ ${p.selection.odds} (${p.selection.type})`
-      ).join('\n\n');
+    // ── 5. AI analysis (Venice AI → Groq fallback) ──────────────────────────
+    // Skip if Venice already provided analysis (from pick generation step)
+    if (!('poweredBy' in analysis)) {
+      try {
+        const picksText = picks.map((p, i) =>
+          `Match ${i + 1}: ${p.homeTeam} vs ${p.awayTeam} (${p.league})\n  Sélection: ${p.selection.value} @ ${p.selection.odds} (${p.selection.type})`
+        ).join('\n\n');
 
-      const prompt = `Analyse le Ticket IA du Jour AlgoPronos avec ces ${picks.length} sélections (cote totale: ${totalOdds}):\n\n${picksText}\n\nRéponds avec ce JSON:\n{"summary": "2 phrases max sur ce ticket du jour", "confidence": "phrase sur la confiance globale", "tip": "1 conseil clé pour le parieur"}`;
+        const prompt = `Analyse le Ticket IA du Jour AlgoPronos avec ces ${picks.length} sélections (cote totale: ${totalOdds}):\n\n${picksText}\n\nRéponds avec ce JSON:\n{"summary": "2 phrases max sur ce ticket du jour", "confidence": "phrase sur la confiance globale", "tip": "1 conseil clé pour le parieur"}`;
 
-      const raw = await callGroq(prompt);
-      const stripped = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
-      if (jsonMatch) analysis = JSON.parse(jsonMatch[0]);
-    } catch {
-      // Silent fail — ticket still saved without AI analysis
+        const raw = await callAIForTicket(prompt);
+        const stripped = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+        const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+        if (jsonMatch) analysis = JSON.parse(jsonMatch[0]);
+      } catch {
+        // Silent fail — ticket still saved without AI analysis
+      }
     }
 
     // ── 6. Save to DB ────────────────────────────────────────────────────────
