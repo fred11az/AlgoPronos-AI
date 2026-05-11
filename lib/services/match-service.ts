@@ -102,8 +102,8 @@ class MatchService {
   }
 
   /**
-   * Use OpenRouter/OpenClaw to search the web for matches and odds in a segmented way.
-   * Expanded segments for 100% coverage.
+   * Use AI (Venice web search → Gemini → OpenRouter → OpenClaw) to find matches.
+   * Venice AI with enable_web_search:on is the primary fallback after The Odds API.
    */
   private async searchMatchesWithAI(date: string, sport: string): Promise<RealMatch[]> {
     console.log(`[MatchService] Starting MULTI-SEGMENT AI search for ${sport} on ${date}...`);
@@ -118,20 +118,28 @@ class MatchService {
         { name: 'Amériques', prompt: `Matchs de football RÉELS: MLS, Bresil Série A, Argentine pour le ${date}.` }
       ];
     } else if (sport === 'tennis') {
-      segments = [
-        { name: 'ATP/WTA', prompt: `Tous les matchs de Tennis RÉELS pour le ${date} (ATP, WTA, Challenger).` }
-      ];
+      segments = [{ name: 'ATP/WTA', prompt: `Tous les matchs de Tennis RÉELS pour le ${date} (ATP, WTA, Challenger).` }];
     } else if (sport === 'basketball') {
-      segments = [
-        { name: 'NBA/Euro', prompt: `Tous les matchs de Basket-ball RÉELS pour le ${date} (NBA, EuroLeague, Championnats nationaux).` }
-      ];
+      segments = [{ name: 'NBA/Euro', prompt: `Tous les matchs de Basket-ball RÉELS pour le ${date} (NBA, EuroLeague, Championnats nationaux).` }];
     } else {
-      segments = [
-        { name: 'Autres', prompt: `Tous les événements sportifs majeurs RÉELS (${sport}) pour le ${date} (ex: UFC, MMA, Rugby).` }
-      ];
+      segments = [{ name: 'Autres', prompt: `Tous les événements sportifs majeurs RÉELS (${sport}) pour le ${date} (ex: UFC, MMA, Rugby).` }];
     }
 
-    // Run all segments in parallel for speed
+    // Venice AI with web search: fetch ALL segments in a single call (faster, cheaper)
+    if (process.env.VENICE_API_KEY) {
+      try {
+        const veniceMatches = await this.fetchVeniceAllSegments(date, segments, sport);
+        if (veniceMatches.length > 0) {
+          console.log(`[MatchService] Venice AI web search: ${veniceMatches.length} matches found for ${date}`);
+          return veniceMatches;
+        }
+        console.warn('[MatchService] Venice AI returned 0 matches — falling back to OpenClaw/Gemini');
+      } catch (err: any) {
+        console.warn('[MatchService] Venice AI search failed:', err.message, '— falling back');
+      }
+    }
+
+    // Fallback: Gemini/OpenRouter/OpenClaw segments in parallel
     const segmentResults = await Promise.all(
       segments.map(segment => {
         console.log(`[MatchService] Querying segment: ${segment.name}...`);
@@ -144,14 +152,124 @@ class MatchService {
     const uniqueMatchesMap = new Map();
     allMatches.forEach(m => {
       const key = `${m.homeTeam}-${m.awayTeam}-${m.time}-${sport}`.toLowerCase().replace(/\s/g, '');
-      if (!uniqueMatchesMap.has(key)) {
-        uniqueMatchesMap.set(key, m);
-      }
+      if (!uniqueMatchesMap.has(key)) uniqueMatchesMap.set(key, m);
     });
 
     const finalMatches = Array.from(uniqueMatchesMap.values());
     console.log(`[MatchService] Total unique matches found (${sport}): ${finalMatches.length}`);
     return finalMatches;
+  }
+
+  /**
+   * Venice AI with enable_web_search:on — searches the web for all match segments in one call.
+   * Returns structured RealMatch[] cached for 12h by the caller.
+   */
+  private async fetchVeniceAllSegments(
+    date: string,
+    segments: { name: string; prompt: string }[],
+    sport: string,
+  ): Promise<RealMatch[]> {
+    const apiKey = process.env.VENICE_API_KEY;
+    if (!apiKey) throw new Error('No VENICE_API_KEY');
+
+    const segmentList = segments.map(s => `- ${s.name}: ${s.prompt}`).join('\n');
+    const today = new Date().toISOString().split('T')[0];
+
+    const system = `Tu es un expert en collecte de données sportives en temps réel.
+Utilise ta recherche web pour trouver les matchs RÉELS du ${date}.
+RÈGLES ABSOLUES:
+- Recherche uniquement des matchs RÉELS programmés pour le ${date}
+- Ne pas inventer de matchs — seulement ceux réellement planifiés
+- Si un match n'a pas de cotes disponibles, mets odds:null
+- Réponds UNIQUEMENT avec un tableau JSON valide. Zéro texte avant ou après.`;
+
+    const user = `Recherche tous les matchs de ${sport} du ${date} dans ces catégories:
+${segmentList}
+
+Pour chaque match trouvé, retourne:
+[
+  {
+    "homeTeam": "Nom exact équipe domicile",
+    "awayTeam": "Nom exact équipe extérieur",
+    "league": "Nom exact de la ligue/compétition",
+    "country": "Pays",
+    "time": "HH:mm",
+    "odds": { "home": 2.10, "draw": 3.40, "away": 3.20 }
+  }
+]
+
+Si pas de cotes disponibles: "odds": null
+Recherche sur flashscore.com, sofascore.com, ou google sport pour le ${date}.`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+    try {
+      const res = await fetch('https://api.venice.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.VENICE_MODEL || 'llama-3.3-70b',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+          temperature: 0.1,
+          max_tokens: 4000,
+          venice_parameters: {
+            enable_web_search: 'on',
+          },
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Venice AI ${res.status}: ${err.substring(0, 150)}`);
+      }
+
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content?.trim() || '';
+      if (!content) return [];
+
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.warn('[MatchService] Venice AI: no JSON array in response');
+        return [];
+      }
+
+      const results: any[] = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(results)) return [];
+
+      return results
+        .filter(r => r.homeTeam && r.awayTeam && r.league)
+        .map(r => ({
+          id: `venice-${date}-${Math.random().toString(36).substr(2, 9)}`,
+          homeTeam: String(r.homeTeam).trim(),
+          awayTeam: String(r.awayTeam).trim(),
+          league: String(r.league).trim(),
+          leagueCode: this.inferLeagueCode(r.league, r.country),
+          country: String(r.country || '').trim(),
+          date,
+          time: String(r.time || '00:00').trim(),
+          status: 'scheduled' as const,
+          sport: sport as any,
+          odds: (r.odds && Number(r.odds.home) > 0) ? {
+            home: Number(r.odds.home),
+            draw: r.odds.draw ? Number(r.odds.draw) : undefined,
+            away: Number(r.odds.away),
+          } : undefined,
+        }));
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') throw new Error('Venice AI search timeout (45s)');
+      throw err;
+    }
   }
 
   private async fetchOpenClawSegment(date: string, regionalPrompt: string, sport: string = 'football'): Promise<RealMatch[]> {
