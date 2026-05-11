@@ -5,6 +5,7 @@ import { fetchStatsForMatches, type MatchStats } from '@/lib/services/stats-serv
 import { callVenice, parseAIJson } from '@/lib/services/venice-ai';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 

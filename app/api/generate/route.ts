@@ -9,6 +9,9 @@ import { createHash } from 'crypto';
 import { cacheGet, cacheSet, cacheDel, buildCombineCacheKey, CACHE_TTL } from '@/lib/services/redis-cache';
 import { callVenice, parseAIJson, getVeniceModel } from '@/lib/services/venice-ai';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface SelectedMatch {
