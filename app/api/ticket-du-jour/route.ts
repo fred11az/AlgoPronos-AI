@@ -671,8 +671,8 @@ export async function GET(req: Request) {
 
     console.log(`[ticket-du-jour][classic] match_predictions: ${predPool?.length ?? 0} trouvées, ${futurePreds.length} à venir`);
 
-    let picks: any[];
-    let dataSource: string;
+    let picks: any[] = [];
+    let dataSource: string = 'unknown';
     let analysis: object = {};
 
     if (futurePreds.length >= DAILY_MATCH_COUNT) {
