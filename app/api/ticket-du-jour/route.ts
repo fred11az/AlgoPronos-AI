@@ -151,7 +151,7 @@ function mapPickDisplay(predType: string): { type: string; value: string } {
 // 3. Cote combinée dans [5.0, 8.0], maximise avg value_edge, préfère 3 picks
 
 interface OptimusCandidate {
-  league_code: string;
+  league_code: string | undefined;
   value_edge: number | null;
   recommended_odds: number;
   prediction_type: string;
