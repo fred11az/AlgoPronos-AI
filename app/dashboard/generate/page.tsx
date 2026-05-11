@@ -51,6 +51,12 @@ interface FootballMatch {
 
 const leagueCategories = [
   {
+    name: 'Coupe du Monde 2026',
+    leagues: [
+      { code: 'WC', name: 'Coupe du Monde FIFA', country: 'International', flag: '🏆' },
+    ],
+  },
+  {
     name: 'Europe - Top 5',
     leagues: [
       { code: 'PL', name: 'Premier League', country: 'Angleterre', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },

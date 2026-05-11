@@ -416,6 +416,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     if (l.includes('CONFERENCE LEAGUE') || l === 'UECL') return 'ECL';
 
     // ── Other European leagues (unambiguous names) ───────────────────────────
+    if (l.includes('WORLD CUP') || l.includes('COUPE DU MONDE') || l === 'FIFA WORLD CUP') return 'WC';
     if (l === 'PRIMEIRA LIGA' || l === 'LIGA NOS' || l === 'LIGA PORTUGAL') return 'PT1';
     if (l === 'LIGA PORTUGAL 2' || l === 'SEGUNDA LIGA') return 'PT2';
     if (l === 'EREDIVISIE' || l === 'DUTCH EREDIVISIE') return 'NL1';
@@ -797,6 +798,8 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
     'soccer_argentina_primera_division': { name: 'Primera División',       code: 'AR1', country: 'Argentine' },
     'soccer_colombia_primera_a':         { name: 'Primera A',              code: 'CO1', country: 'Colombie' },
     'soccer_chile_primera_division':     { name: 'Primera División',       code: 'CL1', country: 'Chili' },
+    // Coupe du Monde FIFA 2026
+    'soccer_fifa_world_cup':             { name: 'Coupe du Monde FIFA',    code: 'WC',  country: 'International' },
     // Asie-Pacifique
     'soccer_japan_j_league':             { name: 'J1 League',              code: 'JP1', country: 'Japon' },
     'soccer_south_korea_kleague1':       { name: 'K League 1',             code: 'KR1', country: 'Corée du Sud' },
