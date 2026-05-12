@@ -7,6 +7,10 @@ import { fetchStatsForMatches, type MatchStats } from '@/lib/services/stats-serv
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 import { cacheGet, cacheSet, cacheDel, buildCombineCacheKey, CACHE_TTL } from '@/lib/services/redis-cache';
+import { callVenice, parseAIJson, getVeniceModel } from '@/lib/services/venice-ai';
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -55,7 +59,7 @@ function isNewDay(lastDate: string | null | undefined): boolean {
 // ─── Cache key ────────────────────────────────────────────────────────────────
 
 // Increment this when prompts change significantly — forces cache invalidation
-const PROMPT_VERSION = 6; // 2026-03-22: fix balanced odds filter + adaptive target + confidence
+const PROMPT_VERSION = 7; // 2026-05: Venice AI replaces deterministic algorithm — AI selects + explains picks
 
 function generateCacheKey(params: CombineParameters): string {
   const normalized = {
@@ -72,7 +76,7 @@ function generateCacheKey(params: CombineParameters): string {
   return createHash('sha256').update(JSON.stringify(normalized)).digest('hex').substring(0, 16);
 }
 
-// ─── AI Call Selector (Groq or OpenClaw) ─────────────────────────────────────
+// ─── AI Call Selector (Venice → Groq → OpenClaw) ─────────────────────────────
 async function callAI(
   systemPrompt: string,
   userPrompt: string,
@@ -82,103 +86,261 @@ async function callAI(
   const ocUrl = process.env.OPENCLAW_GATEWAY_URL;
   const ocToken = process.env.OPENCLAW_GATEWAY_TOKEN;
 
-  async function tryGroq(): Promise<string> {
-    const groqKey = process.env.GROQ_API_KEY;
-    if (!groqKey) throw new Error('No GROQ_API_KEY');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+  // Venice AI (primary — user has credits)
+  if (process.env.VENICE_API_KEY) {
     try {
+      console.log('[callAI] Trying Venice AI...');
+      const result = await callVenice(systemPrompt, userPrompt, { maxTokens, temperature: 0.4 });
+      console.log('[callAI] Venice AI OK');
+      return result;
+    } catch (err: any) {
+      console.warn('[callAI] Venice AI failed:', err.message, '— Trying Groq...');
+    }
+  }
+
+  // Groq (fallback)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    try {
+      console.log('[callAI] Trying Groq...');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${groqKey}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
           temperature: 0.4,
           max_tokens: maxTokens,
         }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Groq error ${response.status}: ${err.substring(0, 100)}`);
-      }
+      if (!response.ok) throw new Error(`Groq ${response.status}`);
       const data = await response.json();
-      return data.choices?.[0]?.message?.content || '';
+      const text = data.choices?.[0]?.message?.content || '';
+      console.log('[callAI] Groq OK');
+      return text;
     } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (err.name === 'AbortError') throw new Error('Groq timeout (30s)');
-      throw err;
+      console.warn('[callAI] Groq failed:', err.message);
     }
   }
 
-  async function tryOpenClaw(): Promise<string> {
-    if (!ocUrl) throw new Error('No OPENCLAW_GATEWAY_URL');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    try {
-      const response = await fetch(ocUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(ocToken ? { 'Authorization': `Bearer ${ocToken}` } : {}),
-        },
-        body: JSON.stringify({
-          model: 'openclaw',
-          messages: [
-            { role: 'system', content: systemPrompt + '\nIMPORTANT: All data is provided. DO NOT PERFORM ANY EXTERNAL SEARCH. Use only provided context.' },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature: 0.4,
-          max_tokens: maxTokens,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`OpenClaw error ${response.status}: ${err.substring(0, 100)}`);
-      }
-      const data = await response.json();
-      return data.choices[0]?.message?.content || '';
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (err.name === 'AbortError') throw new Error('OpenClaw timeout (30s)');
-      throw err;
-    }
-  }
-
-  // Try Groq first, then OpenClaw, then give up gracefully
-  try {
-    console.log('[callAI] Trying Groq...');
-    const result = await tryGroq();
-    console.log('[callAI] Groq OK');
-    return result;
-  } catch (err: any) {
-    console.warn('[callAI] Groq failed:', err.message, '— Trying OpenClaw fallback...');
-  }
-
+  // OpenClaw (last resort)
   if (ocUrl) {
     try {
       console.log('[callAI] Trying OpenClaw...');
-      const result = await tryOpenClaw();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const response = await fetch(ocUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(ocToken ? { 'Authorization': `Bearer ${ocToken}` } : {}) },
+        body: JSON.stringify({
+          model: 'openclaw',
+          messages: [
+            { role: 'system', content: systemPrompt + '\nIMPORTANT: Use only provided context. No external search.' },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.4, max_tokens: maxTokens,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) throw new Error(`OpenClaw ${response.status}`);
+      const data = await response.json();
       console.log('[callAI] OpenClaw OK');
-      return result;
+      return data.choices[0]?.message?.content || '';
     } catch (err: any) {
-      console.warn('[callAI] OpenClaw also failed:', err.message);
+      console.warn('[callAI] OpenClaw failed:', err.message);
     }
   }
 
-  // All AI services failed — return empty to allow coupon without analysis
-  console.error('[callAI] All AI services failed. Returning empty analysis.');
+  console.error('[callAI] All AI providers failed.');
   return '';
+}
+
+// ─── AI-driven pick selection (Venice AI replaces the deterministic algorithm) ─
+
+interface AIPickResult {
+  finalMatches: object[];
+  analysis: object;
+  totalOdds: number;
+  probability: number;
+}
+
+interface VenicePicksResponse {
+  picks: Array<{
+    matchId: string;
+    type: string;
+    value: string;
+    odds: number;
+    reasoning: string;
+  }>;
+  summary: string;
+  keyFactors: string[];
+  riskAssessment: string;
+}
+
+async function selectPicksWithVenice(
+  matches: Array<{ id: string; homeTeam: string; awayTeam: string; league: string; country: string; date: string; time: string; odds?: { home: number; draw: number; away: number } | null }>,
+  statsMap: Map<string, MatchStats>,
+  params: CombineParameters,
+): Promise<AIPickResult | null> {
+  if (!process.env.VENICE_API_KEY) return null;
+
+  const riskLabel = { safe: 'SÉCURISÉ', balanced: 'ÉQUILIBRÉ', risky: 'RISQUÉ' }[params.riskLevel];
+  const riskGuide = {
+    safe:     'Choisis des favoris solides. Préfère Double Chance (1X ou X2). Cotes entre 1.10 et 2.20. Priorité sécurité absolue.',
+    balanced: 'Équilibre risque/rendement. Mélange 1X2 et Double Chance. Cherche la valeur (cote bookmaker sous-évaluée). Cotes 1.30-4.00.',
+    risky:    'Recherche les coups surprises et value bets. Cotes 2.50+. Sélections directes (1X2), pas Double Chance. Potentiel de gain max.',
+  }[params.riskLevel];
+
+  const matchesContext = matches.map((m, i) => {
+    const stats = statsMap.get(m.id);
+    const odds = isValidOdds(stats?.realOdds) ? stats!.realOdds! : isValidOdds(m.odds) ? m.odds! : null;
+
+    let text = `[Match ${i + 1}] ID:${m.id} | ${m.homeTeam} vs ${m.awayTeam} | ${m.league} | ${m.date} ${m.time}`;
+
+    if (odds) {
+      const dc1X = computeDCOdds(odds.home, odds.draw);
+      const dcX2 = computeDCOdds(odds.draw, odds.away);
+      text += `\n  Cotes 1X2 → Domicile:${odds.home} | Nul:${odds.draw} | Extérieur:${odds.away}`;
+      text += `\n  Double Chance → 1X:${dc1X} | X2:${dcX2}`;
+      text += `\n  Probabilités implicites → Dom:${Math.round(100/odds.home)}% | Nul:${Math.round(100/odds.draw)}% | Ext:${Math.round(100/odds.away)}%`;
+    } else {
+      text += '\n  ⚠️ Cotes indisponibles — ne pas sélectionner';
+    }
+
+    if (stats?.homeForm) {
+      const diff = (stats.homeForm.goalsFor - stats.homeForm.goalsAgainst).toFixed(1);
+      text += `\n  ${m.homeTeam}: forme=${stats.homeForm.form} | moy.buts=${stats.homeForm.goalsFor.toFixed(1)} | diff=${diff}`;
+    }
+    if (stats?.awayForm) {
+      const diff = (stats.awayForm.goalsFor - stats.awayForm.goalsAgainst).toFixed(1);
+      text += `\n  ${m.awayTeam}: forme=${stats.awayForm.form} | moy.buts=${stats.awayForm.goalsFor.toFixed(1)} | diff=${diff}`;
+    }
+    if (stats?.over25Odds) text += `\n  Over 2.5: cote ${stats.over25Odds}`;
+    if (stats?.bttsOdds)   text += `\n  BTTS Oui: cote ${stats.bttsOdds}`;
+    if (stats?.advice)     text += `\n  Conseil API: "${stats.advice}"`;
+
+    return text;
+  }).join('\n\n');
+
+  const system = `Tu es AlgoPronos AI, analyste expert en paris sportifs pour l'Afrique de l'Ouest.
+Contexte: Coupe du Monde 2026 FIFA approche — les équipes nationales jouent leurs dernières qualifications.
+
+MISSION: Analyser les matchs fournis et sélectionner exactement ${params.matchCount} pick(s) optimal(-aux) pour un coupon ${riskLabel}.
+
+RÈGLES IMPÉRATIVES:
+1. Utilise UNIQUEMENT les cotes fournies — ne les invente jamais
+2. Ne sélectionne QUE des matchs avec des cotes disponibles
+3. ${riskGuide}
+4. Pour chaque pick: type = "1X2" | "Double Chance" | "Over/Under" | "BTTS" et value = "1"|"X"|"2"|"1X"|"X2"|"Over 2.5"|"Under 2.5"|"Oui"|"Non"
+5. Les odds dans ta réponse doivent correspondre EXACTEMENT aux cotes données
+6. Raisonnement SPÉCIFIQUE: forme réelle des équipes, avantage terrain, contexte championnat
+7. INTERDIT: inventer des classements, citer des % de probabilité, être générique
+8. Réponds UNIQUEMENT en JSON valide — zéro texte avant ou après`;
+
+  const user = `MATCHS DISPONIBLES:
+${matchesContext}
+
+Sélectionne exactement ${params.matchCount} pick(s) (profil: ${riskLabel}).
+
+JSON de réponse:
+{
+  "picks": [
+    {
+      "matchId": "ID_EXACT_DU_MATCH",
+      "type": "1X2",
+      "value": "1",
+      "odds": 1.75,
+      "reasoning": "2-3 phrases d'analyse spécifique. Cite la forme, le contexte, l'avantage identifié. Concis et percutant."
+    }
+  ],
+  "summary": "Résumé global en 2 phrases. Cite au moins 1 équipe concrète et l'atout principal du coupon.",
+  "keyFactors": ["facteur clé 1", "facteur clé 2", "facteur clé 3"],
+  "riskAssessment": "Identification du match le plus incertain et pourquoi en 1 phrase."
+}`;
+
+  try {
+    console.log(`[Venice picks] Calling Venice AI (${getVeniceModel()}) for ${params.matchCount} picks (${riskLabel})...`);
+    const content = await callVenice(system, user, { maxTokens: 2500, temperature: 0.25 });
+    const parsed = parseAIJson<VenicePicksResponse>(content);
+
+    if (!parsed?.picks || !Array.isArray(parsed.picks) || parsed.picks.length === 0) {
+      console.warn('[Venice picks] Invalid or empty picks in response');
+      return null;
+    }
+
+    // Validate each pick against real match data and fix odds if drifted
+    const finalMatchesList: object[] = [];
+    for (const pick of parsed.picks.slice(0, params.matchCount)) {
+      const match = matches.find(m => m.id === pick.matchId);
+      if (!match) {
+        console.warn(`[Venice picks] Unknown matchId: ${pick.matchId}`);
+        continue;
+      }
+
+      const stats = statsMap.get(match.id);
+      const realOdds = isValidOdds(stats?.realOdds) ? stats!.realOdds! : isValidOdds(match.odds) ? match.odds! : null;
+      if (!realOdds) continue;
+
+      // Snap odds to actual bookmaker value if AI drifted
+      let confirmedOdds = pick.odds;
+      if (pick.type === '1X2') {
+        const expected = pick.value === '1' ? realOdds.home : pick.value === 'X' ? realOdds.draw : realOdds.away;
+        if (Math.abs(expected - pick.odds) > 0.3) confirmedOdds = expected;
+      } else if (pick.type === 'Double Chance') {
+        const dc1X = computeDCOdds(realOdds.home, realOdds.draw);
+        const dcX2 = computeDCOdds(realOdds.draw, realOdds.away);
+        confirmedOdds = pick.value === '1X' ? dc1X : dcX2;
+      }
+
+      const impliedPct = Math.round((1 / confirmedOdds) * 100);
+      finalMatchesList.push({
+        matchId: match.id,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        league: match.league,
+        kickoffTime: `${match.date} ${match.time}`.trim(),
+        selection: {
+          type: pick.type,
+          value: pick.value,
+          odds: confirmedOdds,
+          reasoning: pick.reasoning || null,
+          impliedPct,
+          modelPct: null,
+          valueEdge: null,
+        },
+      });
+    }
+
+    if (finalMatchesList.length === 0) return null;
+
+    const totalOdds = Math.round(
+      (finalMatchesList as any[]).reduce((acc, m) => acc * m.selection.odds, 1) * 100
+    ) / 100;
+    const probability = Math.round(
+      (finalMatchesList as any[]).reduce((acc, m) => acc + m.selection.impliedPct, 0) / finalMatchesList.length
+    );
+
+    console.log(`[Venice picks] Generated ${finalMatchesList.length} picks. Total odds: ${totalOdds}`);
+    return {
+      finalMatches: finalMatchesList,
+      analysis: {
+        summary: parsed.summary || '',
+        keyFactors: parsed.keyFactors || [],
+        riskAssessment: parsed.riskAssessment || '',
+        poweredBy: 'venice-ai',
+      },
+      totalOdds,
+      probability,
+    };
+  } catch (err: any) {
+    console.error('[Venice picks] Failed:', err.message);
+    return null;
+  }
 }
 
 
@@ -719,46 +881,30 @@ export async function POST(request: Request) {
     const statsCount = Array.from(statsMap.values()).filter(s => s.dataSource === 'api-football').length;
     console.log(`[stats-service] Real stats fetched for ${statsCount}/${matchesForAnalysis.length} matches`);
 
-    // ── Algorithm: deterministic pick selection ─────────────────────────────────
-    const algorithmPicks = pickBestMarkets(
-      matchesForAnalysis,
-      params.riskLevel,
-      statsMap,
-      params.oddsRange,
-    );
-
-    // ── Safe totals calculation (Common for both Visitor and Member) ─────────────
+    // ── Visitor: deterministic picks only (no AI cost) ──────────────────────────
+    let finalMatches: object[];
+    let analysis: object;
     let totalOdds = 1.0;
     let probability = 50;
 
-    if (algorithmPicks.length > 0) {
-      totalOdds = algorithmPicks.reduce((acc, p) => {
-        const o = Number(p.selection.odds);
-        return acc * (isNaN(o) || o < 1 ? 1 : o);
-      }, 1.0);
-
-      // Confiance = moyenne des probabilités modèle par sélection (ou implicites si pas de modèle)
-      // On N'utilise PAS le produit (qui donne ~1% pour 4 matchs) mais la MOYENNE par pick
-      const avgProb = algorithmPicks.reduce((acc, p) => {
-        const modelPct = p.selection.modelPct;
-        const pct = (modelPct !== null && modelPct > 0) ? modelPct : Number(p.selection.impliedPct);
-        return acc + (isNaN(pct) || pct <= 0 ? 50 : pct);
-      }, 0) / algorithmPicks.length;
-
-      totalOdds = Math.round(totalOdds * 100) / 100;
-      probability = Math.round(avgProb);
-    }
-
-    // Safety final fallback
-    if (isNaN(totalOdds) || totalOdds < 1) totalOdds = 1.0;
-    if (isNaN(probability) || probability <= 0) probability = 1;
-
-    // ── Build coupon ─────────────────────────────────────────────────────────────
-    let finalMatches: object[];
-    let analysis: object;
-
     if (isVisitor) {
-      // Visitor: return coupon without calling Groq (save quota + cost)
+      const algorithmPicks = pickBestMarkets(matchesForAnalysis, params.riskLevel, statsMap, params.oddsRange);
+
+      if (algorithmPicks.length > 0) {
+        totalOdds = Math.round(algorithmPicks.reduce((acc, p) => {
+          const o = Number(p.selection.odds);
+          return acc * (isNaN(o) || o < 1 ? 1 : o);
+        }, 1.0) * 100) / 100;
+        const avgProb = algorithmPicks.reduce((acc, p) => {
+          const pct = (p.selection.modelPct && p.selection.modelPct > 0) ? p.selection.modelPct : p.selection.impliedPct;
+          return acc + (isNaN(pct) || pct <= 0 ? 50 : pct);
+        }, 0) / algorithmPicks.length;
+        probability = Math.round(avgProb);
+      }
+
+      if (isNaN(totalOdds) || totalOdds < 1) totalOdds = 1.0;
+      if (isNaN(probability) || probability <= 0) probability = 50;
+
       finalMatches = algorithmPicks.map(p => ({
         matchId: p.matchId,
         homeTeam: p.homeTeam,
@@ -775,57 +921,80 @@ export async function POST(request: Request) {
         },
       }));
       analysis = { visitor: true };
+
     } else {
-      // Registered/verified: AI explains pre-selected picks
-      const useOptimized = isVerified;
-      const maxTokens = Math.min(600 + algorithmPicks.length * (useOptimized ? 350 : 180), useOptimized ? 4000 : 2000);
-      const { system, user: userMsg } = buildExplainPrompt(algorithmPicks, statsMap, useOptimized, params.riskLevel);
+      // Registered/verified: Venice AI selects AND explains picks
+      console.log(`[generate] Calling Venice AI for AI-driven pick selection (${params.riskLevel})...`);
+      const veniceResult = await selectPicksWithVenice(matchesForAnalysis, statsMap, params);
 
-      console.log(`[generate] Calling Gemini for reasoning...`);
-      const responseText = await callAI(system, userMsg, 'gemini-2.0-flash', maxTokens);
-      console.log(`[generate] AI response received (${responseText.length} chars)`);
-      
-      // Graceful parse — if AI returned nothing or invalid JSON, build coupon without analysis
-      let aiData: any = { analyses: [], summary: '', keyFactors: [], riskAssessment: '' };
-      if (responseText.length > 10) {
-        try {
-          const stripped = responseText.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-          const jsonMatch = stripped.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            aiData = JSON.parse(jsonMatch[0]);
-          } else {
-            console.warn('[generate] Could not extract JSON from AI response. Using empty analysis.');
-          }
-        } catch (parseErr) {
-          console.warn('[generate] Failed to parse AI JSON. Using empty analysis.', parseErr);
+      if (veniceResult) {
+        // Venice AI succeeded — use AI picks directly
+        finalMatches = veniceResult.finalMatches;
+        analysis = veniceResult.analysis;
+        totalOdds = veniceResult.totalOdds;
+        probability = veniceResult.probability;
+        console.log(`[generate] Venice AI picks OK — ${finalMatches.length} picks, total odds: ${totalOdds}`);
+      } else {
+        // Fallback: deterministic algorithm + AI explanation
+        console.warn('[generate] Venice AI failed — falling back to deterministic algorithm + Groq explanation');
+        const algorithmPicks = pickBestMarkets(matchesForAnalysis, params.riskLevel, statsMap, params.oddsRange);
+
+        if (algorithmPicks.length > 0) {
+          totalOdds = Math.round(algorithmPicks.reduce((acc, p) => {
+            const o = Number(p.selection.odds);
+            return acc * (isNaN(o) || o < 1 ? 1 : o);
+          }, 1.0) * 100) / 100;
+          const avgProb = algorithmPicks.reduce((acc, p) => {
+            const pct = (p.selection.modelPct && p.selection.modelPct > 0) ? p.selection.modelPct : p.selection.impliedPct;
+            return acc + (isNaN(pct) || pct <= 0 ? 50 : pct);
+          }, 0) / algorithmPicks.length;
+          probability = Math.round(avgProb);
         }
+        if (isNaN(totalOdds) || totalOdds < 1) totalOdds = 1.0;
+        if (isNaN(probability) || probability <= 0) probability = 50;
+
+        const useOptimized = isVerified;
+        const maxTokens = Math.min(600 + algorithmPicks.length * (useOptimized ? 350 : 180), useOptimized ? 4000 : 2000);
+        const { system, user: userMsg } = buildExplainPrompt(algorithmPicks, statsMap, useOptimized, params.riskLevel);
+        const responseText = await callAI(system, userMsg, 'llama-3.3-70b', maxTokens);
+
+        let aiData: any = { analyses: [], summary: '', keyFactors: [], riskAssessment: '' };
+        if (responseText.length > 10) {
+          try {
+            const stripped = responseText.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+            const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+            if (jsonMatch) aiData = JSON.parse(jsonMatch[0]);
+          } catch {
+            console.warn('[generate] Failed to parse fallback AI JSON');
+          }
+        }
+
+        const analysesMap = new Map<string, string>(
+          (aiData.analyses || []).map((a: { matchId: string; reasoning: string }) => [a.matchId, a.reasoning])
+        );
+
+        finalMatches = algorithmPicks.map(p => ({
+          matchId: p.matchId,
+          homeTeam: p.homeTeam,
+          awayTeam: p.awayTeam,
+          league: p.league,
+          kickoffTime: p.kickoffTime,
+          selection: {
+            type: p.selection.type,
+            value: p.selection.value,
+            odds: Number(p.selection.odds) || 1.0,
+            reasoning: analysesMap.get(p.matchId) || null,
+            impliedPct: p.selection.impliedPct,
+            modelPct: p.selection.modelPct,
+            valueEdge: p.selection.valueEdge,
+          },
+        }));
+        analysis = {
+          summary: aiData.summary || '',
+          keyFactors: aiData.keyFactors || [],
+          riskAssessment: aiData.riskAssessment || '',
+        };
       }
-
-      const analysesMap = new Map<string, string>(
-        (aiData.analyses || []).map((a: { matchId: string; reasoning: string }) => [a.matchId, a.reasoning])
-      );
-
-      finalMatches = algorithmPicks.map(p => ({
-        matchId: p.matchId,
-        homeTeam: p.homeTeam,
-        awayTeam: p.awayTeam,
-        league: p.league,
-        kickoffTime: p.kickoffTime,
-        selection: {
-          type: p.selection.type,
-          value: p.selection.value,
-          odds: Number(p.selection.odds) || 1.0,
-          reasoning: analysesMap.get(p.matchId) || null,
-          impliedPct: p.selection.impliedPct,
-          modelPct: p.selection.modelPct,
-          valueEdge: p.selection.valueEdge,
-        },
-      }));
-      analysis = {
-        summary: aiData.summary || '',
-        keyFactors: aiData.keyFactors || [],
-        riskAssessment: aiData.riskAssessment || '',
-      };
     }
 
     // ── Save to DB ─────────────────────────────────────────────────────────────

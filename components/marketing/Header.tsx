@@ -4,16 +4,15 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/shared/Logo';
-import { Menu, X, Sparkles, LogIn, MessageCircle } from 'lucide-react';
+import { Menu, X, Sparkles, LogIn, MessageCircle, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { label: 'Comment ça marche', href: '/#how-it-works' },
+  { label: 'Coupe du Monde 2026', href: '/coupe-du-monde-2026', wc: true },
   { label: 'Matchs du jour', href: '/matchs' },
   { label: 'Pronostics', href: '/pronostics' },
   { label: 'Performance', href: '/performance' },
   { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
-  { label: 'Bookmakers', href: '/#bookmakers' },
   { label: 'Flux Live', href: '/matchs#live-flux', live: true },
 ];
 
@@ -35,21 +34,16 @@ export function Header() {
                 href={item.href}
                 className="text-text-secondary hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
               >
+                {(item as any).wc && <Trophy className="h-3.5 w-3.5 text-yellow-400" />}
                 {item.label === 'Compte optimisé IA' && <Sparkles className="h-3.5 w-3.5 text-primary" />}
-                {item.label}
+                <span className={(item as any).wc ? 'text-yellow-400 font-semibold' : ''}>{item.label}</span>
+                {(item as any).wc && (
+                  <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.6rem', fontWeight: 800, padding: '2px 5px', borderRadius: '4px', letterSpacing: '0.5px' }}>
+                    J-31
+                  </span>
+                )}
                 {item.live && (
-                  <span
-                    style={{
-                      background: '#e53e3e',
-                      color: '#fff',
-                      fontSize: '0.6rem',
-                      fontWeight: 800,
-                      padding: '2px 5px',
-                      borderRadius: '4px',
-                      letterSpacing: '0.5px',
-                      animation: 'livePulse 1.5s ease-in-out infinite',
-                    }}
-                  >
+                  <span style={{ background: '#e53e3e', color: '#fff', fontSize: '0.6rem', fontWeight: 800, padding: '2px 5px', borderRadius: '4px', letterSpacing: '0.5px', animation: 'livePulse 1.5s ease-in-out infinite' }}>
                     LIVE
                   </span>
                 )}
@@ -113,9 +107,13 @@ export function Header() {
               onClick={() => setMobileMenuOpen(false)}
             >
               <div className="flex items-center gap-1.5">
+                {(item as any).wc && <Trophy className="h-3.5 w-3.5 text-yellow-400" />}
                 {item.label === 'Compte optimisé IA' && <Sparkles className="h-3.5 w-3.5 text-primary" />}
-                {item.label}
+                <span className={(item as any).wc ? 'text-yellow-400 font-semibold' : ''}>{item.label}</span>
               </div>
+              {(item as any).wc && (
+                <span className="bg-yellow-400 text-black text-[10px] font-extrabold px-1.5 py-0.5 rounded">J-31</span>
+              )}
               {item.live && (
                 <span className="bg-[#e53e3e] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded animate-pulse">
                   LIVE

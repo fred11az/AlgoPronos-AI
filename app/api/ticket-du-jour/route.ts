@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
 import { matchService } from '@/lib/services/match-service';
 import { fetchStatsForMatches, type MatchStats } from '@/lib/services/stats-service';
+import { callVenice, parseAIJson } from '@/lib/services/venice-ai';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -150,7 +152,7 @@ function mapPickDisplay(predType: string): { type: string; value: string } {
 // 3. Cote combinée dans [5.0, 8.0], maximise avg value_edge, préfère 3 picks
 
 interface OptimusCandidate {
-  league_code: string;
+  league_code: string | undefined;
   value_edge: number | null;
   recommended_odds: number;
   prediction_type: string;
@@ -212,38 +214,265 @@ function buildOptimusCombo<T extends OptimusCandidate>(pool: T[]): T[] {
   return best;
 }
 
-// ─── Groq analysis ────────────────────────────────────────────────────────────
+// ─── AI analysis (Venice → Groq fallback) ────────────────────────────────────
 
-async function callGroq(prompt: string): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return '';
+async function callAIForTicket(prompt: string): Promise<string> {
+  const system = 'Tu es AlgoPronos AI, analyste sportif expert. Génère une analyse courte et percutante pour le Ticket IA du Jour. Réponds UNIQUEMENT en JSON valide.';
 
+  // Venice AI (primary)
+  if (process.env.VENICE_API_KEY) {
+    try {
+      return await callVenice(system, prompt, { maxTokens: 800, temperature: 0.4 });
+    } catch (err: any) {
+      console.warn('[ticket-du-jour] Venice AI failed:', err.message);
+    }
+  }
+
+  // Groq (fallback)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) return '';
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: 'Tu es AlgoPronos AI, analyste sportif expert. Génère une analyse courte et percutante pour le Ticket IA du Jour. Réponds UNIQUEMENT en JSON valide.' },
+          { role: 'system', content: system },
           { role: 'user', content: prompt },
         ],
         temperature: 0.5,
-        max_tokens: 600,
+        max_tokens: 800,
       }),
       signal: AbortSignal.timeout(20000),
     });
-
     if (!response.ok) return '';
-    const buffer = await response.arrayBuffer();
-    const text = new TextDecoder('utf-8').decode(buffer);
-    const data = JSON.parse(text);
+    const data = await response.json();
     return data.choices?.[0]?.message?.content || '';
   } catch {
     return '';
+  }
+}
+
+// ─── Venice AI: full ticket generation (picks + analysis in one call) ────────
+
+interface VeniceTicketPick {
+  matchId: string;
+  type: string;
+  value: string;
+  odds: number;
+  reasoning: string;
+}
+
+async function generateTicketWithVenice(
+  matches: Array<{ id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds: { home: number; draw: number; away: number } }>,
+  statsMap: Map<string, MatchStats>,
+  count: number,
+): Promise<{ picks: VeniceTicketPick[]; summary: string; confidence: string; tip: string } | null> {
+  if (!process.env.VENICE_API_KEY) return null;
+
+  const matchesContext = matches.map((m, i) => {
+    const stats = statsMap.get(m.id);
+    const odds = stats?.realOdds ?? m.odds;
+    const dc1X = Math.round((odds.home * odds.draw / (odds.home + odds.draw)) * 100) / 100;
+    const dcX2 = Math.round((odds.draw * odds.away / (odds.draw + odds.away)) * 100) / 100;
+
+    let text = `[${i+1}] ID:${m.id} | ${m.homeTeam} vs ${m.awayTeam} | ${m.league} | ${m.date} ${m.time}`;
+    text += `\n  1X2 → Dom:${odds.home} | Nul:${odds.draw} | Ext:${odds.away}`;
+    text += `\n  DC → 1X:${dc1X} | X2:${dcX2}`;
+    text += `\n  Prob.impl. → Dom:${Math.round(100/odds.home)}% | Nul:${Math.round(100/odds.draw)}% | Ext:${Math.round(100/odds.away)}%`;
+
+    if (stats?.homeForm) {
+      const diff = (stats.homeForm.goalsFor - stats.homeForm.goalsAgainst).toFixed(1);
+      text += `\n  ${m.homeTeam}: ${stats.homeForm.form} | ${stats.homeForm.goalsFor.toFixed(1)} buts/m | diff ${diff}`;
+    }
+    if (stats?.awayForm) {
+      const diff = (stats.awayForm.goalsFor - stats.awayForm.goalsAgainst).toFixed(1);
+      text += `\n  ${m.awayTeam}: ${stats.awayForm.form} | ${stats.awayForm.goalsFor.toFixed(1)} buts/m | diff ${diff}`;
+    }
+    if (stats?.advice) text += `\n  Conseil API: "${stats.advice}"`;
+
+    return text;
+  }).join('\n\n');
+
+  const system = `Tu es AlgoPronos AI, expert en paris sportifs. Génère le Ticket IA du Jour: ${count} sélections sûres et justifiées pour les parieurs d'Afrique de l'Ouest.
+Coupe du Monde 2026 approche — favorise les équipes en forme.
+Règles: cotes 1.40-2.10, préfère Double Chance sur matchs serrés, justifie avec la forme. JSON uniquement.`;
+
+  const user = `MATCHS DISPONIBLES:
+${matchesContext}
+
+Choisis exactement ${count} picks sûrs (cotes 1.40-2.10, favoris, Double Chance bienvenue).
+
+JSON:
+{
+  "picks": [
+    {
+      "matchId": "ID_EXACT",
+      "type": "1X2",
+      "value": "1",
+      "odds": 1.75,
+      "reasoning": "2 phrases spécifiques: forme, avantage terrain, contexte."
+    }
+  ],
+  "summary": "2 phrases sur le ticket du jour. Cite 1+ équipe concrète.",
+  "confidence": "Évaluation de la fiabilité globale en 1 phrase.",
+  "tip": "1 conseil pratique pour le parieur."
+}`;
+
+  try {
+    const content = await callVenice(system, user, { maxTokens: 1500, temperature: 0.25 });
+    const parsed = parseAIJson<{ picks: VeniceTicketPick[]; summary: string; confidence: string; tip: string }>(content);
+    if (!parsed?.picks?.length) return null;
+    return parsed;
+  } catch (err: any) {
+    console.warn('[ticket-du-jour] Venice ticket generation failed:', err.message);
+    return null;
+  }
+}
+
+// ─── Venice AI: Optimus ticket (2-4 value bets, total odds ~5.00) ─────────────
+
+interface OptimusPredRow {
+  slug: string;
+  home_team: string;
+  away_team: string;
+  league: string;
+  league_code?: string;
+  match_date: string;
+  match_time?: string;
+  recommended_odds: number;
+  prediction_type: string;
+  probability: number;
+  value_edge: number | null;
+  odds_home?: number | null;
+  odds_draw?: number | null;
+  odds_away?: number | null;
+}
+
+interface VeniceOptimusPick {
+  matchId: string;
+  type: string;
+  value: string;
+  odds: number;
+  reasoning: string;
+}
+
+async function generateOptimusWithVenice(
+  pool: OptimusPredRow[],
+): Promise<{ picks: VeniceOptimusPick[]; summary: string; confidence: string; tip: string } | null> {
+  if (!process.env.VENICE_API_KEY || pool.length < 2) return null;
+
+  const poolContext = pool.map((m, i) => {
+    const oddsLine = m.odds_home
+      ? `Cotes 1X2 → Dom:${m.odds_home} | Nul:${m.odds_draw ?? '?'} | Ext:${m.odds_away}`
+      : `Cote recommandée: ${m.recommended_odds}`;
+    const edge = m.value_edge != null ? ` | Value edge: +${m.value_edge}%` : '';
+    return `[${i+1}] ID:${m.slug} | ${m.home_team} vs ${m.away_team} | ${m.league}
+  ${oddsLine}${edge}
+  Proba modèle: ${m.probability}% | Prédiction algo: ${m.prediction_type}`;
+  }).join('\n\n');
+
+  const system = `Tu es AlgoPronos AI, expert en paris sportifs à valeur ajoutée (value betting).
+MISSION OPTIMUS: Sélectionner un combo de 2 à 4 picks avec une cote totale entre 4.50 et 8.00.
+Priorité absolue: les picks avec le meilleur value edge (modèle > bookmaker).
+Coupe du Monde 2026 approche — favorise les équipes nationales en bonne forme.
+Règles: max 1 pick par championnat, cotes individuelles 1.50-3.50, justifie chaque pick. JSON uniquement.`;
+
+  const user = `POOL DE PRÉDICTIONS DISPONIBLES (${pool.length} matchs):
+${poolContext}
+
+Sélectionne 2 à 4 picks pour un combo OPTIMUS (cote totale cible: 5.00 à 7.00).
+Maximise le value edge total. Diversifie les ligues.
+
+JSON:
+{
+  "picks": [
+    {
+      "matchId": "ID_EXACT_DU_MATCH",
+      "type": "1X2",
+      "value": "1",
+      "odds": 2.10,
+      "reasoning": "2 phrases: pourquoi ce pick a de la valeur. Cite forme ou contexte spécifique."
+    }
+  ],
+  "summary": "2 phrases sur le combo Optimus. Cite l'atout value bet principal.",
+  "confidence": "Niveau de confiance et value edge moyen en 1 phrase.",
+  "tip": "1 conseil pour optimiser la mise sur ce combo."
+}`;
+
+  try {
+    const content = await callVenice(system, user, { maxTokens: 1500, temperature: 0.2 });
+    const parsed = parseAIJson<{ picks: VeniceOptimusPick[]; summary: string; confidence: string; tip: string }>(content);
+    if (!parsed?.picks?.length || parsed.picks.length < 2) return null;
+    return parsed;
+  } catch (err: any) {
+    console.warn('[ticket-du-jour] Venice Optimus failed:', err.message);
+    return null;
+  }
+}
+
+// ─── Venice AI: Montante ticket (1 ultra-safe pick) ───────────────────────────
+
+interface VeniceMonantePick {
+  matchId: string;
+  type: string;
+  value: string;
+  odds: number;
+  reasoning: string;
+}
+
+async function generateMontanteWithVenice(
+  matches: Array<{ id: string; homeTeam: string; awayTeam: string; league: string; date: string; time: string; odds: { home: number; draw: number; away: number } }>,
+  statsMap: Map<string, MatchStats>,
+): Promise<{ pick: VeniceMonantePick; summary: string; confidence: string } | null> {
+  if (!process.env.VENICE_API_KEY || matches.length === 0) return null;
+
+  const matchesContext = matches.map((m, i) => {
+    const stats = statsMap.get(m.id);
+    const odds = stats?.realOdds ?? m.odds;
+    const dc1X = Math.round((odds.home * odds.draw / (odds.home + odds.draw)) * 100) / 100;
+    const dcX2 = Math.round((odds.draw * odds.away / (odds.draw + odds.away)) * 100) / 100;
+
+    let text = `[${i+1}] ID:${m.id} | ${m.homeTeam} vs ${m.awayTeam} | ${m.league}`;
+    text += `\n  1X2 → Dom:${odds.home} | Nul:${odds.draw} | Ext:${odds.away}`;
+    text += `\n  Double Chance → 1X:${dc1X} | X2:${dcX2}`;
+    text += `\n  Prob.impl.DC → 1X:${Math.round(100/dc1X)}% | X2:${Math.round(100/dcX2)}%`;
+    if (stats?.homeForm) text += `\n  ${m.homeTeam}: ${stats.homeForm.form} | ${stats.homeForm.goalsFor.toFixed(1)} buts/m`;
+    if (stats?.awayForm) text += `\n  ${m.awayTeam}: ${stats.awayForm.form} | ${stats.awayForm.goalsFor.toFixed(1)} buts/m`;
+    return text;
+  }).join('\n\n');
+
+  const system = `Tu es AlgoPronos AI, expert en stratégie de paris à progression (Montante/Martingale).
+MISSION MONTANTE: Trouver le SEUL pick le plus sûr de la journée. Priorité absolue: sécurité maximale.
+Règles: Double Chance obligatoire (1X ou X2), cote entre 1.10 et 1.60, équipe avec forme solide (W dans les 3 derniers). JSON uniquement.`;
+
+  const user = `MATCHS DISPONIBLES:
+${matchesContext}
+
+Choisis UN SEUL pick MONTANTE ultra-sécurisé (Double Chance, cote 1.10-1.60).
+
+JSON:
+{
+  "pick": {
+    "matchId": "ID_EXACT",
+    "type": "Double Chance",
+    "value": "1X",
+    "odds": 1.25,
+    "reasoning": "2 phrases: pourquoi c'est le pick le plus sûr du jour. Cite la forme récente."
+  },
+  "summary": "1-2 phrases présentant ce pick Montante à l'utilisateur.",
+  "confidence": "Niveau de sécurité en 1 phrase (ex: très haute sécurité, 80%+ de probabilité)."
+}`;
+
+  try {
+    const content = await callVenice(system, user, { maxTokens: 800, temperature: 0.15 });
+    const parsed = parseAIJson<{ pick: VeniceMonantePick; summary: string; confidence: string }>(content);
+    if (!parsed?.pick?.matchId) return null;
+    return parsed;
+  } catch (err: any) {
+    console.warn('[ticket-du-jour] Venice Montante failed:', err.message);
+    return null;
   }
 }
 
@@ -352,7 +581,7 @@ export async function GET(req: Request) {
             return pickValue === '1' ? 'home' : pickValue === '2' ? 'away' : 'draw';
           };
 
-          const syntheticPool: OptimusCandidate[] = avail.map(m => {
+          const syntheticPool: OptimusPredRow[] = avail.map(m => {
             const pick = pickForMatch(
               { ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } },
               fallbackStatsMap.get(m.id)
@@ -370,21 +599,50 @@ export async function GET(req: Request) {
               prediction_type: toPredType(pick.type, pick.value),
               probability: pick.modelPct ?? pick.impliedPct,
               value_edge: pick.valueEdge ?? 0,
+              odds_home: m.odds!.home,
+              odds_draw: m.odds!.draw || 3.3,
+              odds_away: m.odds!.away,
             };
           });
 
-          const optimusSelected = buildOptimusCombo(syntheticPool);
-          const totalOdds = Math.round(optimusSelected.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
-          const confidencePct = Math.round(optimusSelected.reduce((acc, m) => acc + (m.probability || 60), 0) / optimusSelected.length);
-          const optimusPicks = optimusSelected.map(m => {
-            const { type, value } = mapPickDisplay(m.prediction_type);
-            return {
-              matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team,
-              league: m.league, kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
-              selection: { type, value, odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
-            };
-          });
-          const optimusTicket = { date: today, type: 'optimus', matches: optimusPicks, total_odds: totalOdds, confidence_pct: confidencePct, risk_level: 'balanced', analysis: {}, status: 'pending' };
+          // Try Venice AI first for intelligent value bet selection
+          const veniceResultF = await generateOptimusWithVenice(syntheticPool);
+          let optimusPicks: any[];
+          let totalOdds: number;
+          let confidencePct: number;
+          let optAnalysisF: object = {};
+
+          if (veniceResultF) {
+            const matchMapF = new Map(syntheticPool.map(m => [m.slug, m]));
+            const validPicksF = veniceResultF.picks.filter(p => matchMapF.has(p.matchId));
+            if (validPicksF.length >= 2) {
+              optimusPicks = validPicksF.map(p => {
+                const m = matchMapF.get(p.matchId)!;
+                return {
+                  matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team,
+                  league: m.league, kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
+                  selection: { type: p.type, value: p.value, odds: p.odds, impliedPct: Math.round((1 / (p.odds || 2)) * 100) },
+                  reasoning: p.reasoning,
+                };
+              });
+              totalOdds = Math.round(validPicksF.reduce((acc, p) => acc * (p.odds || 1), 1) * 100) / 100;
+              confidencePct = Math.round(validPicksF.map(p => matchMapF.get(p.matchId)!.probability || 60).reduce((a, b) => a + b, 0) / validPicksF.length);
+              optAnalysisF = { summary: veniceResultF.summary, confidence: veniceResultF.confidence, tip: veniceResultF.tip, source: 'venice' };
+            } else {
+              // Venice returned non-matching IDs — fall back to deterministic
+              const sel = buildOptimusCombo(syntheticPool);
+              totalOdds = Math.round(sel.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+              confidencePct = Math.round(sel.reduce((acc, m) => acc + (m.probability || 60), 0) / sel.length);
+              optimusPicks = sel.map(m => { const { type, value } = mapPickDisplay(m.prediction_type); return { matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team, league: m.league, kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(), selection: { type, value, odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) } }; });
+            }
+          } else {
+            const sel = buildOptimusCombo(syntheticPool);
+            totalOdds = Math.round(sel.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+            confidencePct = Math.round(sel.reduce((acc, m) => acc + (m.probability || 60), 0) / sel.length);
+            optimusPicks = sel.map(m => { const { type, value } = mapPickDisplay(m.prediction_type); return { matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team, league: m.league, kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(), selection: { type, value, odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) } }; });
+          }
+
+          const optimusTicket = { date: today, type: 'optimus', matches: optimusPicks, total_odds: totalOdds, confidence_pct: confidencePct, risk_level: 'balanced', analysis: optAnalysisF, status: 'pending' };
           let { data: savedOptimusF, error: optimusErrorF } = await adminSupabase.from('daily_ticket').upsert(optimusTicket, { onConflict: 'date,type' }).select().single();
           if (optimusErrorF && (optimusErrorF.code === 'PGRST204' || optimusErrorF.message?.includes('type'))) {
             const { type: _t, ...noType } = optimusTicket;
@@ -427,28 +685,71 @@ export async function GET(req: Request) {
         );
       }
 
-      const optimusSelected = buildOptimusCombo(futurePool.map(m => ({
-        ...m,
+      // Try Venice AI first for intelligent value bet selection
+      const veniceOptimus = await generateOptimusWithVenice(futurePool.map(m => ({
+        slug: m.slug,
+        home_team: m.home_team,
+        away_team: m.away_team,
+        league: m.league,
         league_code: m.league_code || 'TOP',
-        value_edge: m.value_edge ?? 0,
+        match_date: m.match_date,
+        match_time: m.match_time,
         recommended_odds: m.recommended_odds || 1.5,
         prediction_type: m.prediction_type || 'home',
+        probability: m.probability || 60,
+        value_edge: m.value_edge ?? 0,
+        odds_home: m.odds_home ?? null,
+        odds_draw: m.odds_draw ?? null,
+        odds_away: m.odds_away ?? null,
       })));
 
-      const totalOdds = Math.round(optimusSelected.reduce((acc, m) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
-      const confidencePct = Math.round(optimusSelected.reduce((acc, m) => acc + (m.probability || 60), 0) / optimusSelected.length);
+      let optimusPicks: any[];
+      let optimusAnalysis: object = {};
 
-      const optimusPicks = optimusSelected.map(m => {
-        const { type, value } = mapPickDisplay(m.prediction_type);
-        return {
-          matchId: m.slug,
-          homeTeam: m.home_team,
-          awayTeam: m.away_team,
-          league: m.league,
-          kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
-          selection: { type, value, odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
-        };
-      });
+      if (veniceOptimus) {
+        // Venice AI selected picks
+        optimusPicks = veniceOptimus.picks
+          .filter(p => futurePool.find(m => m.slug === p.matchId))
+          .map(p => {
+            const m = futurePool.find(m => m.slug === p.matchId)!;
+            return {
+              matchId: p.matchId,
+              homeTeam: m.home_team,
+              awayTeam: m.away_team,
+              league: m.league,
+              kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
+              selection: {
+                type: p.type,
+                value: p.value,
+                odds: p.odds,
+                reasoning: p.reasoning,
+                impliedPct: Math.round((1 / p.odds) * 100),
+              },
+            };
+          });
+        optimusAnalysis = { summary: veniceOptimus.summary, confidence: veniceOptimus.confidence, tip: veniceOptimus.tip, poweredBy: 'venice-ai' };
+        console.log(`[ticket-du-jour] Venice Optimus: ${optimusPicks.length} picks sélectionnés`);
+      } else {
+        // Fallback to deterministic algorithm
+        const optimusSelected = buildOptimusCombo(futurePool.map(m => ({
+          ...m,
+          league_code: m.league_code || 'TOP',
+          value_edge: m.value_edge ?? 0,
+          recommended_odds: m.recommended_odds || 1.5,
+          prediction_type: m.prediction_type || 'home',
+        })));
+        optimusPicks = optimusSelected.map(m => {
+          const { type, value } = mapPickDisplay(m.prediction_type);
+          return {
+            matchId: m.slug, homeTeam: m.home_team, awayTeam: m.away_team,
+            league: m.league, kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
+            selection: { type, value, odds: m.recommended_odds, impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100) },
+          };
+        });
+      }
+
+      const totalOdds = Math.round(optimusPicks.reduce((acc, m) => acc * (m.selection.odds || 1), 1) * 100) / 100;
+      const confidencePct = Math.round(optimusPicks.reduce((acc, m) => acc + (m.selection.impliedPct || 60), 0) / optimusPicks.length);
 
       const optimusTicket = {
         date: today,
@@ -457,7 +758,7 @@ export async function GET(req: Request) {
         total_odds: totalOdds,
         confidence_pct: confidencePct,
         risk_level: 'balanced',
-        analysis: {},
+        analysis: optimusAnalysis,
         status: 'pending',
       };
 
@@ -506,46 +807,73 @@ export async function GET(req: Request) {
         process.env.API_FOOTBALL_KEY
       ).catch(() => new Map<string, MatchStats>());
 
-      // Find the safest Double Chance pick across all available matches
-      let safestMatch = montAvail[0];
-      let safestPick = pickForMatch(
-        { ...montAvail[0], odds: { home: montAvail[0].odds!.home, draw: montAvail[0].odds!.draw || 3.3, away: montAvail[0].odds!.away } },
-        montStatsMap.get(montAvail[0].id)
+      // Venice AI: find the single safest pick with reasoning
+      const vMontante = await generateMontanteWithVenice(
+        montAvail.map(m => ({ ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } })),
+        montStatsMap,
       );
 
-      for (const m of montAvail.slice(1)) {
-        const stats = montStatsMap.get(m.id);
-        const ho = m.odds!.home, dr = m.odds!.draw || 3.3, aw = m.odds!.away;
-        // For montante, always compute the best Double Chance pick (1X or X2)
-        const dc1X = computeDCOdds(ho, dr);
-        const dcX2 = computeDCOdds(dr, aw);
-        // Pick the safer DC (higher implied probability = lower odds)
-        const dcOdds = dc1X <= dcX2 ? dc1X : dcX2;
-        const dcValue = dc1X <= dcX2 ? '1X' : 'X2';
-        const dcImplied = Math.round((1 / dcOdds) * 100);
-        const dcModelPct = stats
-          ? (dcValue === '1X' ? stats.homePct + stats.drawPct : stats.drawPct + stats.awayPct)
-          : null;
+      let montMatch: typeof montAvail[0];
+      let montSelection: object;
+      let montAnalysis: object = {};
 
-        if (dcImplied > safestPick.impliedPct) {
-          safestMatch = m;
-          safestPick = { type: 'Double Chance', value: dcValue, odds: dcOdds, impliedPct: dcImplied, modelPct: dcModelPct, valueEdge: null, reasoning: null };
+      if (vMontante) {
+        const found = montAvail.find(m => m.id === vMontante.pick.matchId);
+        if (found) {
+          montMatch = found;
+          montSelection = {
+            type: vMontante.pick.type,
+            value: vMontante.pick.value,
+            odds: vMontante.pick.odds,
+            reasoning: vMontante.pick.reasoning,
+            impliedPct: Math.round((1 / vMontante.pick.odds) * 100),
+            modelPct: null, valueEdge: null,
+          };
+          montAnalysis = { summary: vMontante.summary, confidence: vMontante.confidence, poweredBy: 'venice-ai' };
+          console.log(`[ticket-du-jour] Venice Montante: ${found.homeTeam} vs ${found.awayTeam} — ${vMontante.pick.value} @ ${vMontante.pick.odds}`);
+        } else {
+          vMontante.pick.matchId; // log hint
+          console.warn('[ticket-du-jour] Venice Montante: matchId not found, using fallback');
         }
+      }
+
+      // Fallback to deterministic if Venice failed or returned unknown matchId
+      if (!vMontante || !montMatch!) {
+        montMatch = montAvail[0];
+        let safestPick = pickForMatch(
+          { ...montAvail[0], odds: { home: montAvail[0].odds!.home, draw: montAvail[0].odds!.draw || 3.3, away: montAvail[0].odds!.away } },
+          montStatsMap.get(montAvail[0].id)
+        );
+        for (const m of montAvail.slice(1)) {
+          const stats = montStatsMap.get(m.id);
+          const ho = m.odds!.home, dr = m.odds!.draw || 3.3, aw = m.odds!.away;
+          const dc1X = computeDCOdds(ho, dr);
+          const dcX2 = computeDCOdds(dr, aw);
+          const dcOdds = dc1X <= dcX2 ? dc1X : dcX2;
+          const dcValue = dc1X <= dcX2 ? '1X' : 'X2';
+          const dcImplied = Math.round((1 / dcOdds) * 100);
+          const dcModelPct = stats ? (dcValue === '1X' ? stats.homePct + stats.drawPct : stats.drawPct + stats.awayPct) : null;
+          if (dcImplied > safestPick.impliedPct) {
+            montMatch = m;
+            safestPick = { type: 'Double Chance', value: dcValue, odds: dcOdds, impliedPct: dcImplied, modelPct: dcModelPct, valueEdge: null, reasoning: null };
+          }
+        }
+        montSelection = safestPick;
       }
 
       const montTicket = {
         date: today,
         type: 'montante',
         matches: [{
-          matchId: safestMatch.id,
-          homeTeam: safestMatch.homeTeam,
-          awayTeam: safestMatch.awayTeam,
-          league: safestMatch.league,
-          kickoffTime: `${safestMatch.date} ${safestMatch.time}`.trim(),
-          selection: safestPick,
+          matchId: montMatch!.id,
+          homeTeam: montMatch!.homeTeam,
+          awayTeam: montMatch!.awayTeam,
+          league: montMatch!.league,
+          kickoffTime: `${montMatch!.date} ${montMatch!.time}`.trim(),
+          selection: montSelection!,
         }],
-        total_odds: safestPick.odds,
-        confidence_pct: safestPick.modelPct ?? safestPick.impliedPct,
+        total_odds: (montSelection! as any).odds,
+        confidence_pct: (montSelection! as any).modelPct ?? (montSelection! as any).impliedPct,
         risk_level: 'low',
         analysis: {},
         status: 'pending',
@@ -588,8 +916,9 @@ export async function GET(req: Request) {
 
     console.log(`[ticket-du-jour][classic] match_predictions: ${predPool?.length ?? 0} trouvées, ${futurePreds.length} à venir`);
 
-    let picks: any[];
-    let dataSource: string;
+    let picks: any[] = [];
+    let dataSource: string = 'unknown';
+    let analysis: object = {};
 
     if (futurePreds.length >= DAILY_MATCH_COUNT) {
       // Build picks directly from pre-computed predictions — no live API call
@@ -660,20 +989,59 @@ export async function GET(req: Request) {
         process.env.API_FOOTBALL_KEY
       ).catch(() => new Map<string, MatchStats>());
 
-      picks = selected.map(m => {
-        const pick = pickForMatch(
-          { ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } },
-          statsMap.get(m.id)
-        );
-        return {
-          matchId: m.id,
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          league: m.league,
-          kickoffTime: `${m.date} ${m.time}`.trim(),
-          selection: pick,
-        };
-      });
+      // Try Venice AI for pick selection first
+      const veniceTicket = await generateTicketWithVenice(
+        selected.map(m => ({ ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } })),
+        statsMap,
+        DAILY_MATCH_COUNT,
+      );
+
+      if (veniceTicket) {
+        picks = veniceTicket.picks
+          .filter(p => selected.find(m => m.id === p.matchId))
+          .map(p => {
+            const m = selected.find(m => m.id === p.matchId)!;
+            return {
+              matchId: p.matchId,
+              homeTeam: m.homeTeam,
+              awayTeam: m.awayTeam,
+              league: m.league,
+              kickoffTime: `${m.date} ${m.time}`.trim(),
+              selection: {
+                type: p.type,
+                value: p.value,
+                odds: p.odds,
+                reasoning: p.reasoning || null,
+                impliedPct: Math.round((1 / p.odds) * 100),
+                modelPct: null,
+                valueEdge: null,
+              },
+            };
+          });
+        // Store Venice analysis for step 5
+        if (picks.length >= DAILY_MATCH_COUNT) {
+          analysis = { summary: veniceTicket.summary, confidence: veniceTicket.confidence, tip: veniceTicket.tip, poweredBy: 'venice-ai' };
+        }
+        console.log(`[ticket-du-jour] Venice AI generated ${picks.length} picks`);
+      }
+
+      // Fallback to deterministic picks if Venice failed or returned too few
+      if (!veniceTicket || picks.length < DAILY_MATCH_COUNT) {
+        picks = selected.map(m => {
+          const pick = pickForMatch(
+            { ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } },
+            statsMap.get(m.id)
+          );
+          return {
+            matchId: m.id,
+            homeTeam: m.homeTeam,
+            awayTeam: m.awayTeam,
+            league: m.league,
+            kickoffTime: `${m.date} ${m.time}`.trim(),
+            selection: pick,
+          };
+        });
+      }
       dataSource = available.some(m => m.id.startsWith('apif-')) ? 'api-football' : 'the-odds-api';
     }
 
@@ -689,21 +1057,23 @@ export async function GET(req: Request) {
       }, 0) / picks.length
     );
 
-    // ── 5. Groq analysis (optional) ──────────────────────────────────────────
-    let analysis: object = {};
-    try {
-      const picksText = picks.map((p, i) =>
-        `Match ${i + 1}: ${p.homeTeam} vs ${p.awayTeam} (${p.league})\n  Sélection: ${p.selection.value} @ ${p.selection.odds} (${p.selection.type})`
-      ).join('\n\n');
+    // ── 5. AI analysis (Venice AI → Groq fallback) ──────────────────────────
+    // Skip if Venice already provided analysis (from pick generation step)
+    if (!('poweredBy' in analysis)) {
+      try {
+        const picksText = picks.map((p, i) =>
+          `Match ${i + 1}: ${p.homeTeam} vs ${p.awayTeam} (${p.league})\n  Sélection: ${p.selection.value} @ ${p.selection.odds} (${p.selection.type})`
+        ).join('\n\n');
 
-      const prompt = `Analyse le Ticket IA du Jour AlgoPronos avec ces ${picks.length} sélections (cote totale: ${totalOdds}):\n\n${picksText}\n\nRéponds avec ce JSON:\n{"summary": "2 phrases max sur ce ticket du jour", "confidence": "phrase sur la confiance globale", "tip": "1 conseil clé pour le parieur"}`;
+        const prompt = `Analyse le Ticket IA du Jour AlgoPronos avec ces ${picks.length} sélections (cote totale: ${totalOdds}):\n\n${picksText}\n\nRéponds avec ce JSON:\n{"summary": "2 phrases max sur ce ticket du jour", "confidence": "phrase sur la confiance globale", "tip": "1 conseil clé pour le parieur"}`;
 
-      const raw = await callGroq(prompt);
-      const stripped = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
-      if (jsonMatch) analysis = JSON.parse(jsonMatch[0]);
-    } catch {
-      // Silent fail — ticket still saved without AI analysis
+        const raw = await callAIForTicket(prompt);
+        const stripped = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+        const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+        if (jsonMatch) analysis = JSON.parse(jsonMatch[0]);
+      } catch {
+        // Silent fail — ticket still saved without AI analysis
+      }
     }
 
     // ── 6. Save to DB ────────────────────────────────────────────────────────

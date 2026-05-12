@@ -13,6 +13,9 @@ import { matchService, type RealMatch } from '@/lib/services/match-service';
 import { fetchMatchStats } from '@/lib/services/stats-service';
 import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/slugify';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface PredictionRow {
