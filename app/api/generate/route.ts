@@ -76,88 +76,27 @@ function generateCacheKey(params: CombineParameters): string {
   return createHash('sha256').update(JSON.stringify(normalized)).digest('hex').substring(0, 16);
 }
 
-// ─── AI Call Selector (Venice → Groq → OpenClaw) ─────────────────────────────
+// ─── Venice-only AI Call ─────────────────────────────────────────────────────
 async function callAI(
   systemPrompt: string,
   userPrompt: string,
   _model: string,
   maxTokens: number,
 ): Promise<string> {
-  const ocUrl = process.env.OPENCLAW_GATEWAY_URL;
-  const ocToken = process.env.OPENCLAW_GATEWAY_TOKEN;
-
-  // Venice AI (primary — user has credits)
-  if (process.env.VENICE_API_KEY) {
-    try {
-      console.log('[callAI] Trying Venice AI...');
-      const result = await callVenice(systemPrompt, userPrompt, { maxTokens, temperature: 0.4 });
-      console.log('[callAI] Venice AI OK');
-      return result;
-    } catch (err: any) {
-      console.warn('[callAI] Venice AI failed:', err.message, '— Trying Groq...');
-    }
+  if (!process.env.VENICE_API_KEY) {
+    console.error('[callAI] VENICE_API_KEY is missing. Venice is the only configured AI provider.');
+    return '';
   }
 
-  // Groq (fallback)
-  const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey) {
-    try {
-      console.log('[callAI] Trying Groq...');
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-          temperature: 0.4,
-          max_tokens: maxTokens,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (!response.ok) throw new Error(`Groq ${response.status}`);
-      const data = await response.json();
-      const text = data.choices?.[0]?.message?.content || '';
-      console.log('[callAI] Groq OK');
-      return text;
-    } catch (err: any) {
-      console.warn('[callAI] Groq failed:', err.message);
-    }
+  try {
+    console.log('[callAI] Using Venice AI only...');
+    const result = await callVenice(systemPrompt, userPrompt, { maxTokens, temperature: 0.4 });
+    console.log('[callAI] Venice AI OK');
+    return result;
+  } catch (err: any) {
+    console.error('[callAI] Venice AI failed:', err?.message || err);
+    return '';
   }
-
-  // OpenClaw (last resort)
-  if (ocUrl) {
-    try {
-      console.log('[callAI] Trying OpenClaw...');
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-      const response = await fetch(ocUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(ocToken ? { 'Authorization': `Bearer ${ocToken}` } : {}) },
-        body: JSON.stringify({
-          model: 'openclaw',
-          messages: [
-            { role: 'system', content: systemPrompt + '\nIMPORTANT: Use only provided context. No external search.' },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature: 0.4, max_tokens: maxTokens,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (!response.ok) throw new Error(`OpenClaw ${response.status}`);
-      const data = await response.json();
-      console.log('[callAI] OpenClaw OK');
-      return data.choices[0]?.message?.content || '';
-    } catch (err: any) {
-      console.warn('[callAI] OpenClaw failed:', err.message);
-    }
-  }
-
-  console.error('[callAI] All AI providers failed.');
-  return '';
 }
 
 // ─── AI-driven pick selection (Venice AI replaces the deterministic algorithm) ─
@@ -936,7 +875,7 @@ export async function POST(request: Request) {
         console.log(`[generate] Venice AI picks OK — ${finalMatches.length} picks, total odds: ${totalOdds}`);
       } else {
         // Fallback: deterministic algorithm + AI explanation
-        console.warn('[generate] Venice AI failed — falling back to deterministic algorithm + Groq explanation');
+        console.warn('[generate] Venice AI failed — falling back to deterministic algorithm + Venice explanation only');
         const algorithmPicks = pickBestMarkets(matchesForAnalysis, params.riskLevel, statsMap, params.oddsRange);
 
         if (algorithmPicks.length > 0) {
@@ -956,7 +895,7 @@ export async function POST(request: Request) {
         const useOptimized = isVerified;
         const maxTokens = Math.min(600 + algorithmPicks.length * (useOptimized ? 350 : 180), useOptimized ? 4000 : 2000);
         const { system, user: userMsg } = buildExplainPrompt(algorithmPicks, statsMap, useOptimized, params.riskLevel);
-        const responseText = await callAI(system, userMsg, 'llama-3.3-70b', maxTokens);
+        const responseText = await callAI(system, userMsg, 'venice', maxTokens);
 
         let aiData: any = { analyses: [], summary: '', keyFactors: [], riskAssessment: '' };
         if (responseText.length > 10) {
@@ -965,7 +904,7 @@ export async function POST(request: Request) {
             const jsonMatch = stripped.match(/\{[\s\S]*\}/);
             if (jsonMatch) aiData = JSON.parse(jsonMatch[0]);
           } catch {
-            console.warn('[generate] Failed to parse fallback AI JSON');
+            console.warn('[generate] Failed to parse Venice AI JSON');
           }
         }
 
