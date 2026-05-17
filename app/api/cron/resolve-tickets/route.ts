@@ -279,7 +279,6 @@ export async function GET(req: NextRequest) {
 
 async function notifyUsers(
   supabase: any,
-    supabase: any,
   ticket: DailyTicket,
   status: string,
 ) {
