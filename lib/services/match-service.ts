@@ -1,4 +1,5 @@
 import { createAdminClient } from '../supabase/server';
+import { cachedFetch } from './api/footballApi';
 
 export interface RealMatch {
   id: string;
@@ -749,18 +750,68 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    */
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
-      const { events, oddsMap } = await this.fetchOddsFromTheOddsAPI(date);
+      // 1. Fixtures from API-Football v3
+      const data = await cachedFetch<any>('/fixtures', { date }, 43200);
 
-      if (events.length === 0) {
-        console.warn(`[MatchService] The Odds API returned 0 events for ${date} — check THE_ODDS_API_KEY and credit balance.`);
+      if (!Array.isArray(data?.response)) {
+        console.warn(`[MatchService] No fixtures from API-Football for ${date}. Response:`, JSON.stringify(data).substring(0, 300));
         return [];
       }
 
-      const matches = this.buildMatchesFromOddsEvents(events, oddsMap);
-      console.log(`[MatchService] Built ${matches.length} fixtures from The Odds API for ${date}`);
-      return matches;
+      console.log(`[MatchService] API-Football returned ${data.response.length} fixtures for ${date}`);
+
+      const rawMatches = data.response.map((f: any) => {
+        const leagueId = Number(f.league?.id);
+        const leagueName: string = f.league?.name ?? '';
+        const leagueCountry: string = f.league?.country ?? '';
+
+        const leagueInfo: { name: string; country: string } =
+          MatchService.LEAGUE_ID_TO_INFO[leagueId]
+          ?? (() => {
+            const code = leagueName ? this.inferLeagueCode(leagueName) : 'TOP';
+            return (code !== 'TOP' && MatchService.LEAGUE_CODE_TO_INFO[code])
+              ? MatchService.LEAGUE_CODE_TO_INFO[code]
+              : { name: leagueName || `Unknown (id=${leagueId})`, country: leagueCountry };
+          })();
+
+        let matchTime = '00:00';
+        if (f.fixture?.date) {
+          const d = new Date(f.fixture.date);
+          matchTime = d.toISOString().substring(11, 16);
+        }
+
+        return { raw: f, leagueInfo, leagueId, matchTime, homeTeam: f.teams?.home?.name ?? 'Unknown', awayTeam: f.teams?.away?.name ?? 'Unknown' };
+      });
+
+      // 2. Real bookmaker odds from The Odds API (cotes only)
+      const oddsMap = await this.fetchOddsFromTheOddsAPI(date);
+      console.log(`[MatchService] Odds source: TheOddsAPI (${oddsMap.size} events with real odds)`);
+
+      // 3. Combine fixtures + odds
+      return rawMatches.map((m: { raw: any; leagueInfo: { name: string; country: string }; leagueId: number; matchTime: string; homeTeam: string; awayTeam: string }) => {
+        const odds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap) ?? undefined;
+        const code = MatchService.LEAGUE_ID_TO_CODE[m.leagueId]
+          ?? this.inferLeagueCode(m.leagueInfo.name, m.leagueInfo.country);
+        const knownInfo = code !== 'TOP' ? MatchService.LEAGUE_CODE_TO_INFO[code] : null;
+        const finalCountry = m.leagueInfo.country || (knownInfo?.country ?? '');
+        const statusShort: string = m.raw.fixture?.status?.short ?? 'NS';
+
+        return {
+          id: `apif-${m.raw.fixture?.id ?? Math.random()}`,
+          homeTeam: m.homeTeam,
+          awayTeam: m.awayTeam,
+          league: m.leagueInfo.name,
+          leagueCode: code,
+          country: finalCountry,
+          date,
+          time: m.matchTime,
+          status: this.mapStatus(statusShort),
+          sport: 'football',
+          odds,
+        };
+      });
     } catch (err) {
-      console.error('[MatchService] fetchFootballFromAPI failed:', err);
+      console.error('[MatchService] API fetch failed:', err);
       return [];
     }
   }
@@ -815,16 +866,13 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    * Returns raw events (for fixture building) + the extended odds map.
    * Cached in api_cache for 6 hours.
    */
-  private async fetchOddsFromTheOddsAPI(date: string): Promise<{
-    events: any[];
-    oddsMap: Map<string, NonNullable<RealMatch['odds']>>;
-  }> {
+  private async fetchOddsFromTheOddsAPI(date: string): Promise<Map<string, NonNullable<RealMatch['odds']>>> {
     const apiKey = process.env.THE_ODDS_API_KEY;
     const oddsMap = new Map<string, NonNullable<RealMatch['odds']>>();
 
     if (!apiKey) {
       console.warn('[OddsAPI] THE_ODDS_API_KEY not set — skipping real odds fetch.');
-      return { events: [], oddsMap };
+      return oddsMap;
     }
 
     const supabase = createAdminClient();
@@ -846,7 +894,7 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
           const events = cached.data as any[];
           console.log(`[OddsAPI] Cache HIT for ${date} (${events.length} events, key=${cached.cache_key})`);
           this.hydrateOddsMap(events, oddsMap);
-          return { events, oddsMap };
+          return oddsMap;
         }
       }
     } catch { /* cache miss */ }
@@ -913,13 +961,11 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
     this.hydrateOddsMap(allEvents, oddsMap);
     console.log(`[OddsAPI] ${oddsMap.size} matches avec cotes complètes chargés pour ${date}.`);
-    return { events: allEvents, oddsMap };
+    return oddsMap;
   }
 
   /**
-   * Convert The Odds API events → RealMatch[].
-   * Uses the sport_key to determine league name + code, and the
-   * oddsMap (already averaged across bookmakers) for all odds fields.
+   * (Kept for reference — no longer used in main flow)
    */
   private buildMatchesFromOddsEvents(
     events: any[],
