@@ -174,6 +174,7 @@ export async function PATCH(req: NextRequest) {
   let updatedMatches = ticket.matches;
   if (scores && scores.length > 0) {
     updatedMatches = (ticket.matches || []).map((m: any, i: number) => ({
+        updatedMatches = (ticket.matches || []).map((m: any, i: number) => ({
       ...m,
       score: scores[i] || null,
     }));
@@ -215,6 +216,7 @@ export async function PATCH(req: NextRequest) {
 
     if (profiles && profiles.length > 0) {
       const matches: TicketMatch[] = (ticket.matches || []).map((m: any) => ({
+            const matches: TicketMatch[] = (ticket.matches || []).map((m: any) => ({
         // Tickets IA stockent homeTeam/awayTeam (camelCase), tickets admin stockent home_team/away_team
         home_team: m.home_team || m.homeTeam || '',
         away_team: m.away_team || m.awayTeam || '',
