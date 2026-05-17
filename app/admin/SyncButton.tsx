@@ -2,14 +2,18 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Check, Calendar } from 'lucide-react';
+import { RefreshCw, Check, Calendar, Zap, TrendingUp, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+type TicketType = 'classic' | 'optimus' | 'montante';
 
 export function SyncButton() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [loadingProno, setLoadingProno] = useState(false);
   const [doneProno, setDoneProno] = useState(false);
+  const [loadingTicket, setLoadingTicket] = useState<TicketType | null>(null);
+  const [doneTicket, setDoneTicket] = useState<TicketType | null>(null);
 
   const handleSync = async () => {
     setLoading(true);
@@ -48,6 +52,25 @@ export function SyncButton() {
     }
   };
 
+  const handleGenerateTicket = async (type: TicketType) => {
+    setLoadingTicket(type);
+    setDoneTicket(null);
+    const labels: Record<TicketType, string> = { classic: 'Classique', optimus: 'Optimus', montante: 'Montante' };
+    const toastId = toast.loading(`Génération Ticket ${labels[type]}... (20-40s)`);
+    try {
+      const res = await fetch(`/api/admin/generate-ticket?type=${type}`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Échec de la génération');
+      setDoneTicket(type);
+      toast.success(`✅ Ticket ${labels[type]} généré !`, { id: toastId, duration: 5000 });
+      setTimeout(() => setDoneTicket(null), 3000);
+    } catch (err: any) {
+      toast.error('Erreur : ' + err.message, { id: toastId });
+    } finally {
+      setLoadingTicket(null);
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-3">
       <Button
@@ -72,11 +95,56 @@ export function SyncButton() {
         className="gap-2"
       >
         {loadingProno ? (
-          <><RefreshCw className="h-4 w-4 animate-spin" />Génération en cours... (30-60s)</>
+          <><RefreshCw className="h-4 w-4 animate-spin" />Génération en cours...</>
         ) : doneProno ? (
           <><Check className="h-4 w-4" />Pronostics générés</>
         ) : (
-          <><Calendar className="h-4 w-4" />Générer Pronostics 7 jours</>
+          <><Calendar className="h-4 w-4" />Pronostics 7 jours</>
+        )}
+      </Button>
+
+      <Button
+        onClick={() => handleGenerateTicket('classic')}
+        disabled={!!loadingTicket}
+        variant={doneTicket === 'classic' ? 'success' : 'outline'}
+        className="gap-2"
+      >
+        {loadingTicket === 'classic' ? (
+          <><RefreshCw className="h-4 w-4 animate-spin" />Classique...</>
+        ) : doneTicket === 'classic' ? (
+          <><Check className="h-4 w-4" />Classique OK</>
+        ) : (
+          <><Zap className="h-4 w-4" />Ticket Classique</>
+        )}
+      </Button>
+
+      <Button
+        onClick={() => handleGenerateTicket('optimus')}
+        disabled={!!loadingTicket}
+        variant={doneTicket === 'optimus' ? 'success' : 'outline'}
+        className="gap-2"
+      >
+        {loadingTicket === 'optimus' ? (
+          <><RefreshCw className="h-4 w-4 animate-spin" />Optimus...</>
+        ) : doneTicket === 'optimus' ? (
+          <><Check className="h-4 w-4" />Optimus OK</>
+        ) : (
+          <><TrendingUp className="h-4 w-4" />Ticket Optimus</>
+        )}
+      </Button>
+
+      <Button
+        onClick={() => handleGenerateTicket('montante')}
+        disabled={!!loadingTicket}
+        variant={doneTicket === 'montante' ? 'success' : 'outline'}
+        className="gap-2"
+      >
+        {loadingTicket === 'montante' ? (
+          <><RefreshCw className="h-4 w-4 animate-spin" />Montante...</>
+        ) : doneTicket === 'montante' ? (
+          <><Check className="h-4 w-4" />Montante OK</>
+        ) : (
+          <><Shield className="h-4 w-4" />Ticket Montante</>
         )}
       </Button>
     </div>

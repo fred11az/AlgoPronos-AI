@@ -377,12 +377,13 @@ async function generateOptimusWithVenice(
 MISSION OPTIMUS: Sélectionner un combo de 2 à 4 picks avec une cote totale entre 4.50 et 8.00.
 Priorité absolue: les picks avec le meilleur value edge (modèle > bookmaker).
 Coupe du Monde 2026 approche — favorise les équipes nationales en bonne forme.
-Règles: max 1 pick par championnat, cotes individuelles 1.50-3.50, justifie chaque pick. JSON uniquement.`;
+CONTRAINTES ABSOLUES: max 1 pick par championnat, cote individuelle OBLIGATOIREMENT entre 1.50 et 2.00 (INTERDIT de dépasser 2.00 par pick), justifie chaque pick. JSON uniquement.`;
 
   const user = `POOL DE PRÉDICTIONS DISPONIBLES (${pool.length} matchs):
 ${poolContext}
 
 Sélectionne 2 à 4 picks pour un combo OPTIMUS (cote totale cible: 5.00 à 7.00).
+RAPPEL IMPÉRATIF: chaque cote individuelle doit être entre 1.50 et 2.00 maximum.
 Maximise le value edge total. Diversifie les ligues.
 
 JSON:
@@ -443,14 +444,14 @@ async function generateMontanteWithVenice(
     return text;
   }).join('\n\n');
 
-  const system = `Tu es AlgoPronos AI, expert en stratégie de paris à progression (Montante/Martingale).
+  const system = `Tu es AlgoPronos AI, expert en stratégie de paris à progression (Montante / Snowball).
 MISSION MONTANTE: Trouver le SEUL pick le plus sûr de la journée. Priorité absolue: sécurité maximale.
-Règles: Double Chance obligatoire (1X ou X2), cote entre 1.10 et 1.60, équipe avec forme solide (W dans les 3 derniers). JSON uniquement.`;
+CONTRAINTES ABSOLUES: type = "Double Chance" UNIQUEMENT (1X ou X2), cote OBLIGATOIREMENT entre 1.10 et 1.50 (INTERDIT de dépasser 1.50), équipe avec forme solide (W dans les 3 derniers). JSON uniquement.`;
 
   const user = `MATCHS DISPONIBLES:
 ${matchesContext}
 
-Choisis UN SEUL pick MONTANTE ultra-sécurisé (Double Chance, cote 1.10-1.60).
+Choisis UN SEUL pick MONTANTE ultra-sécurisé (Double Chance, cote 1.10-1.50 maximum).
 
 JSON:
 {
@@ -612,9 +613,28 @@ export async function GET(req: Request) {
           let confidencePct: number;
           let optAnalysisF: object = {};
 
+          const OPTIMUS_MIN = 1.50;
+          const OPTIMUS_MAX = 2.00;
+
           if (veniceResultF) {
             const matchMapF = new Map(syntheticPool.map(m => [m.slug, m]));
-            const validPicksF = veniceResultF.picks.filter(p => matchMapF.has(p.matchId));
+            const validPicksF = veniceResultF.picks
+              .filter(p => matchMapF.has(p.matchId))
+              .map(p => {
+                // Enforce individual odds range [1.50, 2.00]
+                if (p.odds >= OPTIMUS_MIN && p.odds <= OPTIMUS_MAX) return p;
+                const m = matchMapF.get(p.matchId)!;
+                const candidates = [
+                  { type: '1X2', value: '1', odds: m.odds_home ?? 0 },
+                  { type: '1X2', value: 'X', odds: m.odds_draw ?? 0 },
+                  { type: '1X2', value: '2', odds: m.odds_away ?? 0 },
+                ].filter(c => c.odds >= OPTIMUS_MIN && c.odds <= OPTIMUS_MAX);
+                if (candidates.length === 0) return p; // keep as-is — no valid alt
+                const mid = (OPTIMUS_MIN + OPTIMUS_MAX) / 2;
+                const best = candidates.reduce((a, b) => Math.abs(a.odds - mid) < Math.abs(b.odds - mid) ? a : b);
+                console.warn(`[ticket-du-jour][optimus] Odds override: ${m.home_team} vs ${m.away_team} — ${p.odds} → ${best.odds}`);
+                return { ...p, type: best.type, value: best.value, odds: best.odds };
+              });
             if (validPicksF.length >= 2) {
               optimusPicks = validPicksF.map(p => {
                 const m = matchMapF.get(p.matchId)!;
@@ -817,22 +837,40 @@ export async function GET(req: Request) {
       let montSelection: object;
       let montAnalysis: object = {};
 
+      const MONTANTE_MIN = 1.10;
+      const MONTANTE_MAX = 1.50;
+
       if (vMontante) {
         const found = montAvail.find(m => m.id === vMontante.pick.matchId);
         if (found) {
           montMatch = found;
+          // Enforce Double Chance + odds [1.10, 1.50]
+          let { type, value, odds } = vMontante.pick;
+          const ho = found.odds!.home, dr = found.odds!.draw || 3.3, aw = found.odds!.away;
+          const dc1X = computeDCOdds(ho, dr);
+          const dcX2 = computeDCOdds(dr, aw);
+          const isValidMontante = (type === 'Double Chance') && odds >= MONTANTE_MIN && odds <= MONTANTE_MAX;
+          if (!isValidMontante) {
+            // Force Double Chance within range
+            const dcCandidates = [
+              { value: '1X', odds: dc1X },
+              { value: 'X2', odds: dcX2 },
+            ].filter(c => c.odds >= MONTANTE_MIN && c.odds <= MONTANTE_MAX);
+            if (dcCandidates.length > 0) {
+              const best = dcCandidates.reduce((a, b) => a.odds < b.odds ? a : b); // safest = lowest odds
+              console.warn(`[ticket-du-jour][montante] Override: ${found.homeTeam} vs ${found.awayTeam} — ${type} ${value} @ ${odds} → DC ${best.value} @ ${best.odds}`);
+              type = 'Double Chance'; value = best.value; odds = best.odds;
+            }
+          }
           montSelection = {
-            type: vMontante.pick.type,
-            value: vMontante.pick.value,
-            odds: vMontante.pick.odds,
+            type, value, odds,
             reasoning: vMontante.pick.reasoning,
-            impliedPct: Math.round((1 / vMontante.pick.odds) * 100),
+            impliedPct: Math.round((1 / odds) * 100),
             modelPct: null, valueEdge: null,
           };
           montAnalysis = { summary: vMontante.summary, confidence: vMontante.confidence, poweredBy: 'venice-ai' };
-          console.log(`[ticket-du-jour] Venice Montante: ${found.homeTeam} vs ${found.awayTeam} — ${vMontante.pick.value} @ ${vMontante.pick.odds}`);
+          console.log(`[ticket-du-jour] Venice Montante: ${found.homeTeam} vs ${found.awayTeam} — ${value} @ ${odds}`);
         } else {
-          vMontante.pick.matchId; // log hint
           console.warn('[ticket-du-jour] Venice Montante: matchId not found, using fallback');
         }
       }
