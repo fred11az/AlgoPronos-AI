@@ -173,7 +173,6 @@ export async function PATCH(req: NextRequest) {
   // Injecter les scores dans chaque match si fournis
   let updatedMatches = ticket.matches;
   if (scores && scores.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updatedMatches = (ticket.matches || []).map((m: any, i: number) => ({
       ...m,
       score: scores[i] || null,
@@ -215,7 +214,6 @@ export async function PATCH(req: NextRequest) {
       .not('email', 'is', null);
 
     if (profiles && profiles.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const matches: TicketMatch[] = (ticket.matches || []).map((m: any) => ({
         // Tickets IA stockent homeTeam/awayTeam (camelCase), tickets admin stockent home_team/away_team
         home_team: m.home_team || m.homeTeam || '',

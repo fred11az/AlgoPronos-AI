@@ -278,7 +278,6 @@ export async function GET(req: NextRequest) {
 // ─── Notify users ─────────────────────────────────────────────────────────────
 
 async function notifyUsers(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   ticket: DailyTicket,
   status: string,
