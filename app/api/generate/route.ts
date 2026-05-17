@@ -129,10 +129,11 @@ async function selectPicksWithVenice(
   if (!process.env.VENICE_API_KEY) return null;
 
   const riskLabel = { safe: 'SÉCURISÉ', balanced: 'ÉQUILIBRÉ', risky: 'RISQUÉ' }[params.riskLevel];
+  const riskProfile = RISK_ODDS_PROFILE[params.riskLevel];
   const riskGuide = {
-    safe:     'Choisis des favoris solides. Préfère Double Chance (1X ou X2). Cotes entre 1.10 et 2.20. Priorité sécurité absolue.',
-    balanced: 'Équilibre risque/rendement. Mélange 1X2 et Double Chance. Cherche la valeur (cote bookmaker sous-évaluée). Cotes 1.30-4.00.',
-    risky:    'Recherche les coups surprises et value bets. Cotes 2.50+. Sélections directes (1X2), pas Double Chance. Potentiel de gain max.',
+    safe:     `PROFIL SÉCURISÉ — cote OBLIGATOIRE entre ${riskProfile.minOdds} et ${riskProfile.maxOdds}. Favoris ou Double Chance (1X / X2) uniquement. INTERDIT de dépasser ${riskProfile.maxOdds}.`,
+    balanced: `PROFIL ÉQUILIBRÉ — cote OBLIGATOIRE entre ${riskProfile.minOdds} et ${riskProfile.maxOdds}. Mélange 1X2 et Double Chance. Cherche la valeur.`,
+    risky:    `PROFIL RISQUÉ — cote OBLIGATOIRE >= ${riskProfile.minOdds}. Sélections directes 1X2 uniquement (1 ou X ou 2), pas de Double Chance. Vise les coups surprises.`,
   }[params.riskLevel];
 
   const matchesContext = matches.map((m, i) => {
@@ -175,11 +176,12 @@ RÈGLES IMPÉRATIVES:
 1. Utilise UNIQUEMENT les cotes fournies — ne les invente jamais
 2. Ne sélectionne QUE des matchs avec des cotes disponibles
 3. ${riskGuide}
-4. Pour chaque pick: type = "1X2" | "Double Chance" | "Over/Under" | "BTTS" et value = "1"|"X"|"2"|"1X"|"X2"|"Over 2.5"|"Under 2.5"|"Oui"|"Non"
-5. Les odds dans ta réponse doivent correspondre EXACTEMENT aux cotes données
-6. Raisonnement SPÉCIFIQUE: forme réelle des équipes, avantage terrain, contexte championnat
-7. INTERDIT: inventer des classements, citer des % de probabilité, être générique
-8. Réponds UNIQUEMENT en JSON valide — zéro texte avant ou après`;
+4. CONTRAINTE ABSOLUE DE COTE: chaque pick doit avoir une cote dans la plage ${riskProfile.minOdds}–${riskProfile.maxOdds === 20 ? '∞' : riskProfile.maxOdds}. Si aucune option d'un match ne rentre dans cette plage, passe au match suivant.
+5. Pour chaque pick: type = "1X2" | "Double Chance" | "Over/Under" | "BTTS" et value = "1"|"X"|"2"|"1X"|"X2"|"Over 2.5"|"Under 2.5"|"Oui"|"Non"
+6. Les odds dans ta réponse doivent correspondre EXACTEMENT aux cotes données
+7. Raisonnement SPÉCIFIQUE: forme réelle des équipes, avantage terrain, contexte championnat
+8. INTERDIT: inventer des classements, citer des % de probabilité, être générique
+9. Réponds UNIQUEMENT en JSON valide — zéro texte avant ou après`;
 
   const user = `MATCHS DISPONIBLES:
 ${matchesContext}
@@ -227,6 +229,8 @@ JSON de réponse:
 
       // Snap odds to actual bookmaker value if AI drifted
       let confirmedOdds = pick.odds;
+      let confirmedType = pick.type;
+      let confirmedValue = pick.value;
       if (pick.type === '1X2') {
         const expected = pick.value === '1' ? realOdds.home : pick.value === 'X' ? realOdds.draw : realOdds.away;
         if (Math.abs(expected - pick.odds) > 0.3) confirmedOdds = expected;
@@ -234,6 +238,32 @@ JSON de réponse:
         const dc1X = computeDCOdds(realOdds.home, realOdds.draw);
         const dcX2 = computeDCOdds(realOdds.draw, realOdds.away);
         confirmedOdds = pick.value === '1X' ? dc1X : dcX2;
+      }
+
+      // Enforce risk level — if Venice ignored the odds range, find the best valid alternative
+      const { minOdds, maxOdds } = riskProfile;
+      if (confirmedOdds < minOdds || confirmedOdds > maxOdds) {
+        const dc1X = computeDCOdds(realOdds.home, realOdds.draw);
+        const dcX2 = computeDCOdds(realOdds.draw, realOdds.away);
+        const candidates: Array<{ type: string; value: string; odds: number }> = [
+          { type: '1X2',         value: '1',  odds: realOdds.home },
+          { type: '1X2',         value: 'X',  odds: realOdds.draw },
+          { type: '1X2',         value: '2',  odds: realOdds.away },
+          { type: 'Double Chance', value: '1X', odds: dc1X },
+          { type: 'Double Chance', value: 'X2', odds: dcX2 },
+        ];
+        // Prefer the candidate closest to the center of the allowed range, within bounds
+        const inRange = candidates.filter(c => c.odds >= minOdds && c.odds <= maxOdds);
+        if (inRange.length > 0) {
+          const midRange = (minOdds + maxOdds) / 2;
+          const best = inRange.reduce((a, b) => Math.abs(a.odds - midRange) < Math.abs(b.odds - midRange) ? a : b);
+          console.warn(`[Venice picks] Risk override (${params.riskLevel}): ${match.homeTeam} vs ${match.awayTeam} — AI picked odds ${confirmedOdds} (out of [${minOdds}-${maxOdds}]), corrected to ${best.type} ${best.value} @ ${best.odds}`);
+          confirmedType  = best.type;
+          confirmedValue = best.value;
+          confirmedOdds  = best.odds;
+        } else {
+          console.warn(`[Venice picks] Risk override: no valid candidate found for ${match.homeTeam} vs ${match.awayTeam} (${params.riskLevel}) — keeping AI pick @ ${confirmedOdds}`);
+        }
       }
 
       const impliedPct = Math.round((1 / confirmedOdds) * 100);
@@ -244,8 +274,8 @@ JSON de réponse:
         league: match.league,
         kickoffTime: `${match.date} ${match.time}`.trim(),
         selection: {
-          type: pick.type,
-          value: pick.value,
+          type: confirmedType,
+          value: confirmedValue,
           odds: confirmedOdds,
           reasoning: pick.reasoning || null,
           impliedPct,
