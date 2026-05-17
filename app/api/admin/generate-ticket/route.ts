@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const res = await fetch(`${baseUrl}/api/ticket-du-jour?type=${type}&force=true`);
+  const res = await fetch(`${baseUrl}/api/ticket-du-jour?type=${type}`);
   const data = await res.json();
 
   if (!res.ok || !data?.ticket) {
