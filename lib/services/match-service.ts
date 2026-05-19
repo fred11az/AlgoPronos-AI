@@ -744,16 +744,124 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
 
   /**
    * Fetch football fixtures for a specific date.
-   * Primary source: The Odds API — every returned match has guaranteed odds.
+   * Primary source: API-Football (real fixtures, always available).
+   * Odds overlay: The Odds API (real bookmaker odds, where published).
    */
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
-      const { events, oddsMap } = await this.fetchOddsFromTheOddsAPI(date);
-      const matches = this.buildMatchesFromOddsEvents(events, oddsMap);
-      console.log(`[MatchService] The Odds API: ${matches.length} matches with guaranteed odds for ${date}`);
-      return matches;
+      // 1. Real fixtures from API-Football (available days in advance)
+      const apifMatches = await this.fetchFixturesFromAPIFootball(date);
+
+      // 2. Real odds from The Odds API (may not be published yet for future games)
+      const { events, oddsMap } = await this.fetchOddsFromTheOddsAPI(date).catch(() => ({
+        events: [] as any[],
+        oddsMap: new Map<string, NonNullable<RealMatch['odds']>>(),
+      }));
+
+      if (apifMatches.length > 0) {
+        // Overlay Odds API odds onto real fixtures where available
+        const merged = apifMatches.map((m) => {
+          const odds = this.lookupOdds(m.homeTeam, m.awayTeam, oddsMap) ?? undefined;
+          return odds ? { ...m, odds } : m;
+        });
+        const withOdds = merged.filter((m) => m.odds).length;
+        console.log(`[MatchService] API-Football: ${merged.length} fixtures, ${withOdds} with real odds for ${date}`);
+        return merged;
+      }
+
+      // Fallback: use The Odds API events directly if API-Football returned nothing
+      if (events.length > 0) {
+        const matches = this.buildMatchesFromOddsEvents(events, oddsMap);
+        console.log(`[MatchService] Odds API fallback: ${matches.length} matches for ${date}`);
+        return matches;
+      }
+
+      return [];
     } catch (err) {
       console.error('[MatchService] fetchFootballFromAPI failed:', err);
+      return [];
+    }
+  }
+
+  /** Priority league IDs → { name, country, code } for API-Football fixture mapping */
+  private static readonly APIF_LEAGUE_MAP: Record<number, { name: string; country: string }> = {
+    39:  { name: 'Premier League',         country: 'Angleterre' },
+    61:  { name: 'Ligue 1',                country: 'France' },
+    78:  { name: 'Bundesliga',             country: 'Allemagne' },
+    135: { name: 'Serie A',                country: 'Italie' },
+    140: { name: 'La Liga',                country: 'Espagne' },
+    2:   { name: 'UEFA Champions League',  country: 'Europe' },
+    3:   { name: 'UEFA Europa League',     country: 'Europe' },
+    848: { name: 'UEFA Conference League', country: 'Europe' },
+    94:  { name: 'Primeira Liga',          country: 'Portugal' },
+    88:  { name: 'Eredivisie',             country: 'Pays-Bas' },
+    197: { name: 'Süper Lig',              country: 'Turquie' },
+    144: { name: 'Pro League',             country: 'Belgique' },
+    207: { name: 'Scottish Premiership',   country: 'Écosse' },
+    71:  { name: 'Brasileirão',            country: 'Brésil' },
+    128: { name: 'Primera División',       country: 'Argentine' },
+    253: { name: 'MLS',                    country: 'États-Unis' },
+    262: { name: 'Liga MX',               country: 'Mexique' },
+    40:  { name: 'Championship',           country: 'Angleterre' },
+    62:  { name: 'Ligue 2',               country: 'France' },
+    79:  { name: '2. Bundesliga',          country: 'Allemagne' },
+    136: { name: 'Serie B',               country: 'Italie' },
+    141: { name: 'La Liga 2',             country: 'Espagne' },
+  };
+
+  private static readonly APIF_PRIORITY_IDS = new Set(Object.keys(MatchService.APIF_LEAGUE_MAP).map(Number));
+
+  /**
+   * Fetch real scheduled fixtures from API-Football for a given date.
+   * Returns matches without odds — caller overlays odds from The Odds API.
+   */
+  private async fetchFixturesFromAPIFootball(date: string): Promise<RealMatch[]> {
+    const apiKey = process.env.API_FOOTBALL_KEY;
+    if (!apiKey) {
+      console.warn('[MatchService] API_FOOTBALL_KEY not set — skipping fixture fetch');
+      return [];
+    }
+
+    try {
+      const res = await fetch(`https://v3.football.api-sports.io/fixtures?date=${date}`, {
+        headers: { 'x-apisports-key': apiKey },
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!res.ok) {
+        console.error(`[MatchService] API-Football /fixtures HTTP ${res.status}`);
+        return [];
+      }
+
+      const json = await res.json();
+      const fixtures: RawFixture[] = json?.response ?? [];
+
+      return fixtures
+        .filter((f) => {
+          const leagueId = f.league?.id;
+          const status = f.fixture?.status?.short;
+          return MatchService.APIF_PRIORITY_IDS.has(leagueId) && ['NS', 'TBD', 'PST'].includes(status);
+        })
+        .map((f): RealMatch => {
+          const leagueId = f.league.id;
+          const leagueInfo = MatchService.APIF_LEAGUE_MAP[leagueId];
+          const leagueCode = MatchService.LEAGUE_ID_TO_CODE[leagueId] ?? 'TOP';
+          const dt = new Date(f.fixture.date);
+          return {
+            id: `apif-${f.fixture.id}`,
+            homeTeam: f.teams.home.name,
+            awayTeam: f.teams.away.name,
+            league: leagueInfo?.name ?? f.league.name,
+            leagueCode,
+            country: leagueInfo?.country ?? f.league.country,
+            date: dt.toISOString().split('T')[0],
+            time: dt.toISOString().substring(11, 16),
+            status: 'scheduled',
+            sport: 'football',
+          };
+        });
+    } catch (err: any) {
+      console.error('[MatchService] fetchFixturesFromAPIFootball failed:', err.message);
       return [];
     }
   }
