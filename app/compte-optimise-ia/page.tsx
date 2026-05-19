@@ -492,7 +492,7 @@ export default function CompteOptimiseIAPage() {
 
                   {/* Pick example */}
                   <div className="p-5 space-y-3">
-                    <div className="text-xs text-text-muted uppercase font-medium tracking-wider">Dernier ticket généré</div>
+                    <div className="text-xs text-text-muted uppercase font-medium tracking-wider">Exemple de ticket IA</div>
                     {[
                       { match: 'Arsenal – Chelsea', pick: 'Arsenal Victoire', odds: '2.15', conf: 74 },
                       { match: 'Real Madrid – Barça', pick: '+2.5 buts', odds: '1.88', conf: 81 },
