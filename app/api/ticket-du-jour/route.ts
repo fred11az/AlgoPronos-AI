@@ -572,16 +572,19 @@ export async function GET(req: Request) {
           liveMatches = [...liveMatches, ...all];
         }
         const seen = new Set<string>();
-        const avail = liveMatches.filter(m => {
-          if (seen.has(m.id)) return false;
-          seen.add(m.id);
-          return m.status === 'scheduled' && m.odds;
-        }).slice(0, 10);
+        const avail = liveMatches
+          .filter(m => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return m.status === 'scheduled';
+          })
+          .map(m => ({ ...m, odds: m.odds ?? { home: 2.0, draw: 3.2, away: 3.5 } }))
+          .slice(0, 10);
 
         if (avail.length >= 2) {
           // Build synthetic pool using real pickForMatch() + stats (no random picks)
           const fallbackStatsMap = await fetchStatsForMatches(
-            avail.map(m => ({ ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away }, country: m.country })),
+            avail.map(m => ({ ...m, odds: { home: m.odds.home, draw: m.odds.draw || 3.3, away: m.odds.away }, country: m.country })),
             process.env.API_FOOTBALL_KEY
           ).catch(() => new Map<string, MatchStats>());
 
@@ -595,7 +598,7 @@ export async function GET(req: Request) {
 
           const syntheticPool: OptimusPredRow[] = avail.map(m => {
             const pick = pickForMatch(
-              { ...m, odds: { home: m.odds!.home, draw: m.odds!.draw || 3.3, away: m.odds!.away } },
+              { ...m, odds: { home: m.odds.home, draw: m.odds.draw || 3.3, away: m.odds.away } },
               fallbackStatsMap.get(m.id)
             );
             return {
@@ -611,9 +614,9 @@ export async function GET(req: Request) {
               prediction_type: toPredType(pick.type, pick.value),
               probability: pick.modelPct ?? pick.impliedPct,
               value_edge: pick.valueEdge ?? 0,
-              odds_home: m.odds!.home,
-              odds_draw: m.odds!.draw || 3.3,
-              odds_away: m.odds!.away,
+              odds_home: m.odds.home,
+              odds_draw: m.odds.draw || 3.3,
+              odds_away: m.odds.away,
             };
           });
 
