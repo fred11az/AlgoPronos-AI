@@ -58,3 +58,9 @@ temp
 service-account.json
 scripts/service-account.json
 *.json.json
+
+# Binary response artifacts
+*.bin
+
+# Browser session cookies
+cookies.txt

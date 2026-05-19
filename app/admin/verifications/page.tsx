@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,9 +64,7 @@ export default function VerificationsPage() {
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNotes, setRejectNotes] = useState('');
 
-  useEffect(() => { fetchVerifications(); }, [filter]);
-
-  async function fetchVerifications() {
+  const fetchVerifications = useCallback(async function fetchVerifications() {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/verifications?status=${filter}`);
@@ -78,7 +76,9 @@ export default function VerificationsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filter]);
+
+  useEffect(() => { fetchVerifications(); }, [fetchVerifications]);
 
   async function handleApprove(id: string) {
     setProcessing(id);

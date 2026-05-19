@@ -12,6 +12,7 @@ import { createAdminClient, createClient, checkIsAdmin } from '@/lib/supabase/se
 import { matchService, type RealMatch } from '@/lib/services/match-service';
 import { fetchMatchStats } from '@/lib/services/stats-service';
 import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/slugify';
+import { callVenice } from '@/lib/services/venice-ai';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -128,8 +129,7 @@ function computeBestPick(
 }
 
 /**
- * Calls the local OpenClaw AI gateway (OpenAI-compatible endpoint).
- * Falls back to Gemini Flash if OpenClaw is not reachable.
+ * Generates match analysis text. Venice AI (primary) → Groq (fallback).
  */
 async function callAIAnalysis(
   homeTeam: string,
@@ -141,41 +141,23 @@ async function callAIAnalysis(
   awayForm: string,
   sport: string = 'football'
 ): Promise<string> {
-  const prompt = `Tu es un analyste ${sport} professionnel. Rédige une analyse SEO riche et unique (min 4 phrases) pour le match ${homeTeam} vs ${awayTeam} en ${league}.
-Inclut des détails sur la forme : ${homeTeam} (${homeForm}) vs ${awayTeam} (${awayForm}).
+  const system = `Tu es un expert en pronostics ${sport}. Rédige des analyses concises et percutantes en français.`;
+  const prompt = `Rédige une analyse SEO riche et unique (min 4 phrases) pour le match ${homeTeam} vs ${awayTeam} en ${league}.
+Détails de forme : ${homeTeam} (${homeForm}) vs ${awayTeam} (${awayForm}).
 Pronostic IA : ${prediction} (${probability}%).
 Termine par un 'Ticket du Match' spécifique (ex: Score exact ou combiné buteur/résultat).
 Rédige en français, ton expert, sans mentionner l'IA.`;
 
-  // --- 1. Try OpenClaw (local AI engine) ---
-  const openClawUrl = process.env.OPENCLAW_GATEWAY_URL;
-  const openClawToken = process.env.OPENCLAW_GATEWAY_TOKEN;
-  if (openClawUrl && openClawToken) {
+  // 1. Venice AI (primary)
+  if (process.env.VENICE_API_KEY) {
     try {
-      const res = await fetch(openClawUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${openClawToken}`,
-        },
-        body: JSON.stringify({
-          model: 'openclaw',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 200,
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const content = data.choices?.[0]?.message?.content?.trim();
-        if (content) return content;
-      }
-    } catch {
-      // OpenClaw unavailable — fall through to Gemini
+      return await callVenice(system, prompt, { maxTokens: 300, temperature: 0.5, timeoutMs: 20000 });
+    } catch (err: any) {
+      console.warn('[pronostics/generate] Venice AI failed:', err.message);
     }
   }
 
-  // --- 2. Fallback: Groq ---
+  // 2. Groq (fallback)
   const groqKey = process.env.GROQ_API_KEY;
   if (!groqKey) return '';
   try {
@@ -187,7 +169,10 @@ Rédige en français, ton expert, sans mentionner l'IA.`;
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: prompt }],
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: prompt },
+        ],
         temperature: 0.5,
         max_tokens: 200,
       }),
@@ -531,4 +516,47 @@ async function generateSpecialTickets(supabase: any, date: string) {
     confidence_pct: confidencePct,
     status: 'pending',
   }, { onConflict: 'date,type' });
+
+  // 3. CLASSIC — top 3 picks by probability + value edge, odds 1.40–2.50
+  const classicPool = pool
+    .filter((m: any) => (m.probability ?? 0) >= 55 && (m.recommended_odds ?? 0) >= 1.4 && (m.recommended_odds ?? 0) <= 2.5)
+    .sort((a: any, b: any) =>
+      ((b.probability ?? 0) + (b.value_edge ?? 0)) - ((a.probability ?? 0) + (a.value_edge ?? 0))
+    )
+    .slice(0, 3);
+
+  if (classicPool.length >= 3) {
+    const classicPicks = classicPool.map((m: any) => {
+      const { type, value } = mapPickDisplay(m.prediction_type);
+      return {
+        matchId: m.slug,
+        homeTeam: m.home_team,
+        awayTeam: m.away_team,
+        league: m.league,
+        kickoffTime: `${m.match_date} ${m.match_time || ''}`.trim(),
+        selection: {
+          type,
+          value,
+          odds: m.recommended_odds,
+          impliedPct: Math.round((1 / (m.recommended_odds || 2)) * 100),
+          modelPct: m.probability,
+          valueEdge: m.value_edge,
+        },
+      };
+    });
+    const classicOdds = Math.round(classicPool.reduce((acc: number, m: any) => acc * (m.recommended_odds || 1), 1) * 100) / 100;
+    const classicConf = Math.round(classicPool.reduce((acc: number, m: any) => acc + (m.probability || 60), 0) / classicPool.length);
+
+    await supabase.from('daily_ticket').upsert({
+      date,
+      type: 'classic',
+      matches: classicPicks,
+      total_odds: classicOdds,
+      confidence_pct: classicConf,
+      risk_level: 'balanced',
+      status: 'pending',
+    }, { onConflict: 'date,type' });
+
+    console.log(`[generate] Classic ticket pré-généré: ${classicPicks.length} picks, cote totale ${classicOdds}`);
+  }
 }
