@@ -15,7 +15,7 @@ import { createMatchSlug, createLeagueSlug, createTeamSlug } from '@/lib/utils/s
 import { callVenice } from '@/lib/services/venice-ai';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

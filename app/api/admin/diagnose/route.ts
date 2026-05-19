@@ -9,7 +9,13 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   const today = new Date().toISOString().split('T')[0];
-  const report: Record<string, any> = { date: today, timestamp: new Date().toISOString() };
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+  const report: Record<string, any> = {
+    date: today,
+    timestamp: new Date().toISOString(),
+    supabase_ref: supabaseRef,
+  };
 
   // ── 1. API-Football ─────────────────────────────────────────────────────
   const apifKey = process.env.API_FOOTBALL_KEY;
