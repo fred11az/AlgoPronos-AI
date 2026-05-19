@@ -1190,6 +1190,16 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         }
       }
 
+      // Reject AI-hallucinated football fixtures: only accept real apif- IDs
+      if (sport === 'football' && matches.length > 0) {
+        const aiGenerated = matches.filter((m) => !m.id.startsWith('apif-'));
+        if (aiGenerated.length > 0) {
+          console.warn(`[MatchService] Cache for ${date} contains ${aiGenerated.length} AI-generated fixture(s) — purging to force real API-Football fetch`);
+          await supabase.from('matches_cache').delete().eq('date', date);
+          return null;
+        }
+      }
+
       return matches;
     } catch {
       return null;

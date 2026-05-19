@@ -510,7 +510,18 @@ export async function GET(req: Request) {
       const { data: existing, error: existErr } = await existingQuery;
 
       if (existing) {
-        return NextResponse.json({ ticket: existing, fromCache: true });
+        // Reject tickets that contain AI-hallucinated fixture IDs — force regeneration
+        const picks: any[] = existing.matches ?? [];
+        const hasAiIds = picks.some((p: any) => {
+          const id: string = p.matchId ?? '';
+          return id.startsWith('venice-') || id.startsWith('openclaw-') || id.startsWith('sync-');
+        });
+        if (!hasAiIds) {
+          return NextResponse.json({ ticket: existing, fromCache: true });
+        }
+        console.warn(`[ticket-du-jour] Cached ${type} ticket for ${today} has AI-generated match IDs — purging and regenerating with real data`);
+        await adminSupabase.from('daily_ticket').delete().eq('date', today).eq('type', type);
+        await adminSupabase.from('matches_cache').delete().eq('date', today);
       }
 
       // If type column doesn't exist, try without it (date-only lookup)
