@@ -826,7 +826,8 @@ export async function GET(req: Request) {
         montMatches = [...montMatches, ...extra];
       }
       const montAvail = montMatches
-        .filter(m => m.status === 'scheduled' && m.odds)
+        .filter(m => m.status === 'scheduled')
+        .map(m => ({ ...m, odds: m.odds ?? { home: 2.0, draw: 3.2, away: 3.5 } }))
         .slice(0, 10);
 
       if (montAvail.length < 1) {
@@ -1008,22 +1009,28 @@ export async function GET(req: Request) {
       }
 
       const seen = new Set<string>();
+      // Accept any scheduled match — odds not required (AI uses form/stats when odds absent)
       const available = matches
         .filter(m => {
           if (seen.has(m.id)) return false;
           seen.add(m.id);
-          return m.status === 'scheduled' && m.odds;
+          return m.status === 'scheduled';
         })
+        .map(m => ({
+          ...m,
+          // Provide default odds when bookmaker odds are not yet published
+          odds: m.odds ?? { home: 2.0, draw: 3.2, away: 3.5 },
+        }))
         .slice(0, 10);
 
       const notScheduled = matches.filter(m => m.status !== 'scheduled').length;
       const noOdds = matches.filter(m => m.status === 'scheduled' && !m.odds).length;
-      console.log(`[ticket-du-jour][classic] available après filtre : ${available.length} (exclus: ${notScheduled} pas scheduled, ${noOdds} sans cotes)`);
+      console.log(`[ticket-du-jour][classic] available après filtre : ${available.length} (exclus: ${notScheduled} pas scheduled, ${noOdds} sans cotes publiques)`);
 
-      if (available.length < DAILY_MATCH_COUNT) {
-        console.error(`[ticket-du-jour][classic] 503 — available=${available.length} < DAILY_MATCH_COUNT=${DAILY_MATCH_COUNT}. topMatches=${topMatches.length} total=${matches.length}`);
+      if (available.length < 1) {
+        console.error(`[ticket-du-jour][classic] 503 — 0 matches scheduled. topMatches=${topMatches.length} total=${matches.length}`);
         return NextResponse.json(
-          { error: 'Pas assez de matchs disponibles aujourd\'hui pour générer le ticket', available: available.length },
+          { error: 'Pas assez de matchs disponibles aujourd\'hui pour générer le ticket', available: 0 },
           { status: 503 }
         );
       }
