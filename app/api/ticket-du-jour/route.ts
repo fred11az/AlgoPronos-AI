@@ -199,7 +199,7 @@ function buildOptimusCombo<T extends OptimusCandidate>(pool: T[]): T[] {
       }
     }
 
-  // Fallback: aucun combo dans [5, 8] → le plus proche de 5.0
+  // Fallback 1: aucun combo dans [5, 8] → 3-combo le plus proche de 5.0
   if (best.length === 0) {
     let bestDiff = Infinity;
     for (let i = 0; i < c.length; i++)
@@ -209,6 +209,22 @@ function buildOptimusCombo<T extends OptimusCandidate>(pool: T[]): T[] {
           const d = Math.abs(o - 5.0);
           if (d < bestDiff) { bestDiff = d; best = [c[i], c[j], c[k]]; }
         }
+  }
+
+  // Fallback 2: trop peu de matchs pour un 3-combo → 2-combo le plus proche de 5.0
+  if (best.length === 0 && c.length >= 2) {
+    let bestDiff = Infinity;
+    for (let i = 0; i < c.length; i++)
+      for (let j = i + 1; j < c.length; j++) {
+        const o = (c[i].recommended_odds||1) * (c[j].recommended_odds||1);
+        const d = Math.abs(o - 5.0);
+        if (d < bestDiff) { bestDiff = d; best = [c[i], c[j]]; }
+      }
+  }
+
+  // Fallback 3 (last resort): retourne le pool complet trié par probabilité
+  if (best.length === 0 && pool.length > 0) {
+    best = [...pool].sort((a, b) => (b.probability || 0) - (a.probability || 0)).slice(0, Math.min(3, pool.length));
   }
 
   return best;
