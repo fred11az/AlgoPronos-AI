@@ -68,33 +68,28 @@ class MatchService {
       }
 
       if (sport === 'football') {
-        // ── LEVEL 2: The Odds API (fixtures + odds, TTL 12h) ─────────────
-        console.log(`[Sync] ${date} (OddsAPI): Cache MISS — fetching via The Odds API...`);
+        // ── LEVEL 2: API-Football fixtures + Odds API odds overlay ────────
+        console.log(`[Sync] ${date}: Cache MISS — fetching real fixtures from API-Football...`);
         const apiMatches = await this.fetchFootballFromAPI(date);
 
         if (apiMatches.length > 0) {
-          console.log(`[Sync] ${date} (OddsAPI): Success! Found ${apiMatches.length} matches via The Odds API.`);
+          console.log(`[Sync] ${date}: Found ${apiMatches.length} real fixtures.`);
           byDate[date] = apiMatches;
           rawFixturesCount += apiMatches.length;
           await this.cacheMatches(date, apiMatches, sport);
-          continue; // Found via API, skip AI fallback
+          continue;
         }
 
-        console.error(`[Sync] ${date}: The Odds API returned 0 fixtures — vérifier THE_ODDS_API_KEY et crédits restants.`);
-      }
-
-      // ── LEVEL 3: AI Search fallback ───────────────────────────────────
-      console.log(`[Sync] ${date} (${sport}): Falling back to exhaustive global search...`);
-      const openClawMatches = await this.searchMatchesWithAI(date, sport);
-
-      if (openClawMatches.length > 0) {
-        console.log(`[Sync] ${date} (${sport}): AI Success! Captured ${openClawMatches.length} matches.`);
-        byDate[date] = openClawMatches;
-        rawFixturesCount += openClawMatches.length;
-        await this.cacheMatches(date, openClawMatches, sport);
-      } else {
-        console.warn(`[Sync] ${date} (${sport}): No matches found.`);
+        // No real matches found — return empty. Venice AI must NOT invent fixtures.
+        console.warn(`[Sync] ${date}: API-Football returned 0 priority-league fixtures. No ticket generation today.`);
         byDate[date] = [];
+      } else {
+        // Non-football sports: AI search still allowed (no real API configured)
+        console.log(`[Sync] ${date} (${sport}): Falling back to AI search...`);
+        const aiMatches = await this.searchMatchesWithAI(date, sport);
+        byDate[date] = aiMatches;
+        rawFixturesCount += aiMatches.length;
+        if (aiMatches.length > 0) await this.cacheMatches(date, aiMatches, sport);
       }
     }
 
@@ -102,8 +97,8 @@ class MatchService {
   }
 
   /**
-   * Use AI (Venice web search → Gemini → OpenRouter → OpenClaw) to find matches.
-   * Venice AI with enable_web_search:on is the primary fallback after The Odds API.
+   * Use AI to find matches for NON-FOOTBALL sports only (tennis, basketball, MMA…).
+   * NEVER called for football — real fixtures come from API-Football exclusively.
    */
   private async searchMatchesWithAI(date: string, sport: string): Promise<RealMatch[]> {
     console.log(`[MatchService] Starting MULTI-SEGMENT AI search for ${sport} on ${date}...`);
