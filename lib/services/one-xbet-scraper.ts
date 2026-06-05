@@ -41,7 +41,7 @@ export class OneXBetScraper {
             formats: ['json'],
             waitFor: 5000,
             location: {
-              country: 'FR'
+              country: 'BJ'
             },
             jsonOptions: {
               schema: {
