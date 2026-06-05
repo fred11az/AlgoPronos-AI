@@ -40,6 +40,9 @@ export class OneXBetScraper {
             url: `${this.MIRROR}/fr/line/football`,
             formats: ['json'],
             waitFor: 5000,
+            location: {
+              country: 'FR'
+            },
             jsonOptions: {
               schema: {
                 type: 'object',
