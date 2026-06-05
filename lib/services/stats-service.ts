@@ -52,7 +52,11 @@ export interface MatchStats {
   bttsProbability: number | null;   // % chance BTTS
   over25Probability: number | null; // % chance Over 2.5
   // Whether we got real data or not
-  dataSource: 'api-football' | 'estimated';
+  dataSource: 'api-football' | 'estimated' | 'flashscore';
+
+  homeRank?: number | null;
+  awayRank?: number | null;
+  preMatchInfo?: string | null;
 
   // Dixon-Coles parameters (Attack/Defense strength)
   homeAttack?: number;
@@ -140,6 +144,61 @@ export async function fetchMatchStats(
     over25Probability: estOver25,
     dataSource: 'estimated',
   };
+
+  // Try Flashscore scraping with Firecrawl first if API key is set
+  if (process.env.FIRECRAWL_API_KEY) {
+    try {
+      const { FlashscoreScraper } = await import('./flashscore-scraper');
+      const fsStats = await FlashscoreScraper.getMatchStats(homeTeam, awayTeam);
+      if (fsStats) {
+        base.dataSource = 'flashscore';
+        base.homeRank = fsStats.homeRank;
+        base.awayRank = fsStats.awayRank;
+        base.preMatchInfo = fsStats.preMatchInfo;
+
+        if (fsStats.homeForm) {
+          base.homeForm = {
+            form: fsStats.homeForm,
+            goalsFor: fsStats.homeGoalsForAvg,
+            goalsAgainst: fsStats.homeGoalsAgainstAvg,
+            attackRating: 'N/A',
+            defenseRating: 'N/A',
+          };
+          base.homeAttack = Math.max(0.5, Math.min(2.5, fsStats.homeGoalsForAvg / 1.35));
+          base.homeDefense = Math.max(0.5, Math.min(2.5, fsStats.homeGoalsAgainstAvg / 1.35));
+        }
+
+        if (fsStats.awayForm) {
+          base.awayForm = {
+            form: fsStats.awayForm,
+            goalsFor: fsStats.awayGoalsForAvg,
+            goalsAgainst: fsStats.awayGoalsAgainstAvg,
+            attackRating: 'N/A',
+            defenseRating: 'N/A',
+          };
+          base.awayAttack = Math.max(0.5, Math.min(2.5, fsStats.awayGoalsForAvg / 1.35));
+          base.awayDefense = Math.max(0.5, Math.min(2.5, fsStats.awayGoalsAgainstAvg / 1.35));
+        }
+
+        if (fsStats.h2h && fsStats.h2h.length > 0) {
+          const homeWins = fsStats.h2h.filter(m => m.winner === 'home').length;
+          const awayWins = fsStats.h2h.filter(m => m.winner === 'away').length;
+          const draws = fsStats.h2h.filter(m => m.winner === 'draw').length;
+          base.h2h = {
+            homeWins,
+            draws,
+            awayWins,
+            totalMatches: fsStats.h2h.length,
+            lastMatches: fsStats.h2h
+          };
+        }
+
+        return base;
+      }
+    } catch (err) {
+      console.error('[stats-service] Failed to fetch Flashscore stats via Firecrawl:', err);
+    }
+  }
 
   // Without API key or non-API-Football match ID, return estimated stats
   // (API-Football account suspended — The Odds API cotes are the primary source)
@@ -314,12 +373,19 @@ export function formatStatsForPrompt(stats: MatchStats): string {
   const effectiveOdds = stats.realOdds ?? null;
   const source = stats.dataSource === 'api-football'
     ? 'Données réelles API-Football'
+    : stats.dataSource === 'flashscore'
+    ? 'Données réelles Flashscore (Firecrawl)'
     : 'Estimé depuis les cotes (pas de clé API ou match hors API-Football)';
 
   const lines: string[] = [
     `  [Source: ${source}]`,
-    `  Probabilités statistiques: Domicile ${stats.homePct}% | Nul ${stats.drawPct}% | Extérieur ${stats.awayPct}%`,
   ];
+
+  if (stats.homeRank || stats.awayRank) {
+    lines.push(`  Classement Championnat: Domicile #${stats.homeRank ?? 'N/A'} | Extérieur #${stats.awayRank ?? 'N/A'}`);
+  }
+
+  lines.push(`  Probabilités statistiques: Domicile ${stats.homePct}% | Nul ${stats.drawPct}% | Extérieur ${stats.awayPct}%`);
 
   if (stats.goalsHomeExpected > 0 || stats.goalsAwayExpected > 0) {
     const totalExpected = stats.goalsHomeExpected + stats.goalsAwayExpected;
@@ -356,6 +422,10 @@ export function formatStatsForPrompt(stats: MatchStats): string {
 
   if (stats.awayForm) {
     lines.push(`  Forme ${stats.awayTeam} (5 derniers): ${stats.awayForm.form} | Buts marqués moy: ${stats.awayForm.goalsFor} | Buts encaissés moy: ${stats.awayForm.goalsAgainst}`);
+  }
+
+  if (stats.preMatchInfo) {
+    lines.push(`  Infos d'avant-match (blessés, absents, météo, etc.): ${stats.preMatchInfo}`);
   }
 
   if (effectiveOdds) {

@@ -744,7 +744,47 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
    */
   private async fetchFootballFromAPI(date: string): Promise<RealMatch[]> {
     try {
-      // 1. Real fixtures from API-Football (available days in advance)
+      // Try fetching matches and odds from 1xBet using Firecrawl first
+      try {
+        const { OneXBetScraper } = await import('./one-xbet-scraper');
+        const scraped = await OneXBetScraper.syncAllFootball();
+        if (scraped && scraped.length > 0) {
+          // Filter by target date
+          const dateMatches = scraped.filter((m) => {
+            const mDate = new Date(m.date * 1000).toISOString().split('T')[0];
+            return mDate === date;
+          });
+
+          if (dateMatches.length > 0) {
+            console.log(`[MatchService] 1xBet Scraper: Found ${dateMatches.length} matches for ${date}`);
+            return dateMatches.map((m): RealMatch => {
+              const dt = new Date(m.date * 1000);
+              const leagueCode = this.inferLeagueCode(m.league, '');
+              return {
+                id: `1xbet-${m.id}`,
+                homeTeam: m.homeTeam,
+                awayTeam: m.awayTeam,
+                league: m.league,
+                leagueCode,
+                country: '',
+                date: dt.toISOString().split('T')[0],
+                time: dt.toISOString().substring(11, 16),
+                status: 'scheduled',
+                sport: 'football',
+                odds: m.odds ? {
+                  home: m.odds.home,
+                  draw: m.odds.draw,
+                  away: m.odds.away,
+                } : undefined,
+              };
+            });
+          }
+        }
+      } catch (err: any) {
+        console.error('[MatchService] 1xBet Scraper failed, falling back to API:', err.message || err);
+      }
+
+      // Fallback: 1. Real fixtures from API-Football (available days in advance)
       const apifMatches = await this.fetchFixturesFromAPIFootball(date);
 
       // 2. Real odds from The Odds API (may not be published yet for future games)
@@ -1190,11 +1230,11 @@ Pour le Tennis/Basket sans match nul, mets "draw": null.`;
         }
       }
 
-      // Reject AI-hallucinated football fixtures: only accept real apif- IDs
+      // Reject AI-hallucinated football fixtures: only accept real apif- or 1xbet- IDs
       if (sport === 'football' && matches.length > 0) {
-        const aiGenerated = matches.filter((m) => !m.id.startsWith('apif-'));
+        const aiGenerated = matches.filter((m) => !m.id.startsWith('apif-') && !m.id.startsWith('1xbet-'));
         if (aiGenerated.length > 0) {
-          console.warn(`[MatchService] Cache for ${date} contains ${aiGenerated.length} AI-generated fixture(s) — purging to force real API-Football fetch`);
+          console.log(`[MatchService] Cache for ${date} contains ${aiGenerated.length} AI-generated fixture(s) — purging to force real sync`);
           await supabase.from('matches_cache').delete().eq('date', date);
           return null;
         }

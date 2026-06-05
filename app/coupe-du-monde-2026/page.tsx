@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { worldCupMatches, worldCupGroups } from '@/lib/worldcup2026';
 import { Trophy, MapPin, Clock, ChevronRight, Zap, Users, Globe, TrendingUp, Star, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { WorldCupCountdown } from '@/components/shared/WorldCupCountdown';
+
 
 export const metadata: Metadata = {
   title: 'Coupe du Monde 2026 — Pronostics IA, Groupes & Matchs | AlgoPronos',
@@ -26,23 +28,27 @@ export const metadata: Metadata = {
 };
 
 const KEY_FIXTURES = [
-  { home: 'Argentine', away: 'France', group: 'E', date: '26 juin 2026', slug: 'argentine-vs-france-26-juin-2026', emoji: '🔥' },
-  { home: 'Espagne', away: 'Allemagne', group: 'F', date: '24 juin 2026', slug: 'espagne-vs-allemagne-24-juin-2026', emoji: '⚡' },
-  { home: 'Brésil', away: 'Nigéria', group: 'D', date: '16 juin 2026', slug: 'bresil-vs-nigeria-16-juin-2026', emoji: '🌟' },
-  { home: 'Portugal', away: 'Pays-Bas', group: 'G', date: '21 juin 2026', slug: 'portugal-vs-pays-bas-21-juin-2026', emoji: '⚽' },
-  { home: 'Belgique', away: 'Italie', group: 'H', date: '22 juin 2026', slug: 'belgique-vs-italie-22-juin-2026', emoji: '💥' },
-  { home: 'Mexique', away: 'Angleterre', group: 'B', date: '13 juin 2026', slug: 'mexique-vs-angleterre-13-juin-2026', emoji: '🎯' },
+  { home: 'France', away: 'Sénégal', group: 'I', date: '16 juin 2026', slug: 'france-vs-senegal-16-juin-2026', emoji: '🔥' },
+  { home: 'Argentine', away: 'Autriche', group: 'J', date: '16 juin 2026', slug: 'argentine-vs-autriche-16-juin-2026', emoji: '⚡' },
+  { home: 'Brésil', away: 'Maroc', group: 'C', date: '13 juin 2026', slug: 'bresil-vs-maroc-13-juin-2026', emoji: '🌟' },
+  { home: 'Portugal', away: 'RD Congo', group: 'K', date: '17 juin 2026', slug: 'portugal-vs-rd-congo-17-juin-2026', emoji: '⚽' },
+  { home: 'Espagne', away: 'Uruguay', group: 'H', date: '15 juin 2026', slug: 'espagne-vs-uruguay-15-juin-2026', emoji: '💥' },
+  { home: 'Croatie', away: 'Angleterre', group: 'L', date: '17 juin 2026', slug: 'croatie-vs-angleterre-17-juin-2026', emoji: '🎯' },
 ];
 
 const GROUP_FLAGS: Record<string, string[]> = {
-  A: ['🇺🇸', '🇵🇦', '🇺🇾', '🇰🇷'],
-  B: ['🇲🇽', '🇯🇲', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', '🇹🇳'],
-  C: ['🇨🇦', '🇸🇦', '🇭🇷', '🇲🇦'],
-  D: ['🇧🇷', '🇳🇬', '🇨🇭', '🇷🇸'],
-  E: ['🇦🇷', '🇵🇪', '🇫🇷', '🇸🇪'],
-  F: ['🇪🇸', '🇧🇴', '🇩🇪', '🇪🇬'],
-  G: ['🇵🇹', '🇬🇭', '🇳🇱', '🇨🇱'],
-  H: ['🇧🇪', '🇰🇪', '🇮🇹', '🇻🇪'],
+  A: ['🇲🇽', '🇿🇦', '🇰🇷', '🇨🇿'],
+  B: ['🇨🇦', '🇧🇦', '🇶🇦', '🇨🇭'],
+  C: ['🇧🇷', '🇲🇦', '🇭🇹', '🏴󠁧󠁢󠁳󠁣󠁴󠁿'],
+  D: ['🇺🇸', '🇵🇾', '🇦🇺', '🇹🇷'],
+  E: ['🇩🇪', '🇨🇮', '🇨🇼', '🇪🇨'],
+  F: ['🇳🇱', '🇸🇪', '🇯🇵', '🇹🇳'],
+  G: ['🇧🇪', '🇪🇬', '🇮🇷', '🇳🇿'],
+  H: ['🇪🇸', '🇺🇾', '🇨🇻', '🇸🇦'],
+  I: ['🇫🇷', '🇸🇳', '🇮🇶', '🇳🇴'],
+  J: ['🇦🇷', '🇦🇹', '🇩🇿', '🇯🇴'],
+  K: ['🇵🇹', '🇨🇩', '🇨🇴', '🇺🇿'],
+  L: ['🇭🇷', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', '🇬🇭', '🇵🇦'],
 };
 
 function getDaysUntilWC(): number {
@@ -83,26 +89,20 @@ export default function CoupeDuMonde2026Page() {
             </h1>
 
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              32 équipes, 8 groupes, 48 matchs. L&apos;IA AlgoPronos analyse chaque rencontre
+              48 équipes, 12 groupes, 104 matchs. L&apos;IA AlgoPronos analyse chaque rencontre
               pour vous fournir les meilleures cotes et value bets du tournoi.
             </p>
 
             {/* Countdown */}
-            <div className="flex items-center justify-center gap-4 flex-wrap pt-2">
-              <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-surface border border-yellow-400/30">
-                <Clock className="h-5 w-5 text-yellow-400 shrink-0" />
-                <div className="text-left">
-                  <div className="text-3xl font-black text-yellow-400 leading-none">J-{days}</div>
-                  <div className="text-xs text-text-muted mt-0.5">avant le coup d&apos;envoi</div>
-                </div>
-              </div>
+            <div className="flex items-center justify-center gap-6 flex-wrap pt-2">
+              <WorldCupCountdown />
               <div className="flex flex-col gap-1.5 text-sm text-text-secondary">
                 <div className="flex items-center gap-1.5">
-                  <Globe className="h-3.5 w-3.5 shrink-0" />
+                  <Globe className="h-3.5 w-3.5 shrink-0 text-yellow-400" />
                   <span>11 juin – 19 juillet 2026</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-yellow-400" />
                   <span>USA · Canada · Mexique</span>
                 </div>
               </div>
@@ -131,9 +131,9 @@ export default function CoupeDuMonde2026Page() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             {[
-              { label: 'Équipes', value: '32', icon: Users },
-              { label: 'Groupes', value: '8', icon: Trophy },
-              { label: 'Matchs', value: '48', icon: Star },
+              { label: 'Équipes', value: '48', icon: Users },
+              { label: 'Groupes', value: '12', icon: Trophy },
+              { label: 'Matchs', value: '104', icon: Star },
               { label: 'Pays hôtes', value: '3', icon: Globe },
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="flex flex-col items-center gap-1">
@@ -146,15 +146,15 @@ export default function CoupeDuMonde2026Page() {
         </div>
       </section>
 
-      {/* Groupes A–H */}
+      {/* Groupes A–L */}
       <section className="py-12 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-white">Les 8 Groupes</h2>
-            <span className="text-sm text-text-muted hidden sm:block">Phase de groupes · 11–30 juin</span>
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Les 12 Groupes</h2>
+            <span className="text-sm text-text-muted hidden sm:block">Phase de groupes · 11 juin – 2 juillet</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {groups.map(([letter, group]) => (
               <div
                 key={letter}
