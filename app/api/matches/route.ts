@@ -45,28 +45,22 @@ export async function GET(request: NextRequest) {
 
     // ── World Cup 2026: serve directly from static data ─────────────────────
     if (leagueCodes.includes('WC')) {
-      const target = new Date(date);
-      const from = new Date(target);
-      from.setDate(from.getDate() - 2);
-      const to = new Date(target);
-      to.setDate(to.getDate() + 2);
-
       let wcSelectedMatches = worldCupMatches.filter((m) => {
-        const d = new Date(m.date);
-        return d >= from && d <= to;
+        return m.date === date;
       });
 
-      // Fallback: If no matches in the 5-day window, get upcoming matches starting from target date
+      // Fallback: If no matches on the exact date, get upcoming matches starting from target date
       if (wcSelectedMatches.length === 0) {
+        const target = new Date(date);
         wcSelectedMatches = worldCupMatches.filter((m) => {
           const d = new Date(m.date);
           return d >= target;
-        }).slice(0, 24);
+        }).slice(0, 12);
       }
 
-      // If still empty (e.g. target date is after the World Cup), show first 24 matches
+      // If still empty (e.g. target date is after the World Cup), show first 12 matches
       if (wcSelectedMatches.length === 0) {
-        wcSelectedMatches = worldCupMatches.slice(0, 24);
+        wcSelectedMatches = worldCupMatches.slice(0, 12);
       }
 
       const mappedWcMatches = wcSelectedMatches.map((m) => ({

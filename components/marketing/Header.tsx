@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/shared/Logo';
@@ -18,6 +18,21 @@ const navItems = [
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [daysLeft, setDaysLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    const targetDate = new Date('2026-06-11T00:00:00');
+    const calculateDays = () => {
+      const diff = targetDate.getTime() - new Date().getTime();
+      return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    };
+    setDaysLeft(calculateDays());
+    const interval = setInterval(() => {
+      setDaysLeft(calculateDays());
+    }, 3600000); // refresh every hour
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <header className="sticky top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl border-b border-surface-light/50">
@@ -39,7 +54,7 @@ export function Header() {
                 <span className={(item as any).wc ? 'text-yellow-400 font-semibold' : ''}>{item.label}</span>
                 {(item as any).wc && (
                   <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.6rem', fontWeight: 800, padding: '2px 5px', borderRadius: '4px', letterSpacing: '0.5px' }}>
-                    J-31
+                    {daysLeft !== null ? `J-${daysLeft}` : 'J-...'}
                   </span>
                 )}
                 {item.live && (
@@ -112,7 +127,9 @@ export function Header() {
                 <span className={(item as any).wc ? 'text-yellow-400 font-semibold' : ''}>{item.label}</span>
               </div>
               {(item as any).wc && (
-                <span className="bg-yellow-400 text-black text-[10px] font-extrabold px-1.5 py-0.5 rounded">J-31</span>
+                <span className="bg-yellow-400 text-black text-[10px] font-extrabold px-1.5 py-0.5 rounded">
+                  {daysLeft !== null ? `J-${daysLeft}` : 'J-...'}
+                </span>
               )}
               {item.live && (
                 <span className="bg-[#e53e3e] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded animate-pulse">

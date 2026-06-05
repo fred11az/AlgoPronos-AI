@@ -14,6 +14,7 @@ import { matchService } from '@/lib/services/match-service';
 import { revalidatePath } from 'next/cache';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
