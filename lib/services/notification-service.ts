@@ -671,6 +671,7 @@ export interface MobcashRequestPayload {
   bookmaker: string;
   bookmakerId: string;
   phone: string;
+  network: string;
   fullName: string;
   email?: string;
   notes?: string;
@@ -700,7 +701,8 @@ function buildMobcashAdminEmailHtml(p: MobcashRequestPayload): string {
         ${[
           ['Nom',           p.fullName],
           ['Téléphone',     p.phone],
-          ['ID Bookmaker',  p.bookmakerId],
+          ['Réseau',        p.network],
+          ['ID 1xBet',      p.bookmakerId],
           ['Email',         p.email || '—'],
           ['Notes',         p.notes || '—'],
           ['Référence',     p.requestId.slice(0,8).toUpperCase()],
@@ -742,7 +744,7 @@ export async function notifyMobcashRequest(p: MobcashRequestPayload): Promise<bo
       to: adminEmail,
       subject: `💳 Demande ${typeLabel} MobCash — ${p.amount.toLocaleString('fr-FR')} FCFA — ${p.fullName}`,
       html: buildMobcashAdminEmailHtml(p),
-      text: `Nouvelle demande ${typeLabel} MobCash\n\nMontant : ${p.amount.toLocaleString('fr-FR')} FCFA\nNom : ${p.fullName}\nTél : ${p.phone}\nID ${p.bookmaker} : ${p.bookmakerId}\n${p.notes ? `Notes : ${p.notes}\n` : ''}\nTraiter sur : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai'}/admin/mobcash`,
+      text: `Nouvelle demande ${typeLabel} MobCash\n\nMontant : ${p.amount.toLocaleString('fr-FR')} FCFA\nNom : ${p.fullName}\nTél : ${p.phone}\nRéseau : ${p.network}\nID 1xBet : ${p.bookmakerId}\n${p.notes ? `Notes : ${p.notes}\n` : ''}\nTraiter sur : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai'}/admin/mobcash`,
     });
     if (error) { console.error('[Notification] MobCash admin email error:', error); return false; }
     return true;

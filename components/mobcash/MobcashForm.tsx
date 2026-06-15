@@ -5,58 +5,44 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, ArrowDownCircle, ArrowUpCircle, ChevronDown } from 'lucide-react';
+import {
+  Loader2, CheckCircle2, ArrowDownCircle, ArrowUpCircle, ChevronDown,
+  Smartphone, Hash, User, Banknote, Info,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const BOOKMAKERS = [
-  { id: '1xbet',      name: '1xBet'      },
-  { id: 'melbet',     name: 'Melbet'     },
-  { id: 'betwinner',  name: 'Betwinner'  },
-  { id: 'betway',     name: 'Betway'     },
-  { id: 'premierbet', name: 'PremierBet' },
+// Réseaux mobile money disponibles
+const NETWORKS = [
+  { id: 'mtn',    name: 'MTN Mobile Money' },
+  { id: 'moov',   name: 'Moov Money'       },
+  { id: 'orange', name: 'Orange Money'     },
+  { id: 'celcash', name: 'Celtis Cash'     },
+  { id: 'other',  name: 'Autre réseau'     },
 ];
 
 type RequestType = 'depot' | 'retrait';
 
-interface FormState {
-  type: RequestType;
-  amount: string;
-  bookmaker: string;
-  bookmaker_id: string;
-  phone: string;
-  full_name: string;
-  email: string;
-  notes: string;
-}
-
 export function MobcashForm() {
-  const [form, setForm] = useState<FormState>({
-    type: 'depot',
-    amount: '',
-    bookmaker: '1xbet',
-    bookmaker_id: '',
-    phone: '',
-    full_name: '',
-    email: '',
-    notes: '',
-  });
+  const [type, setType]           = useState<RequestType>('depot');
+  const [amount, setAmount]       = useState('');
+  const [bookmarkerId, setBookmarkerId] = useState('');
+  const [phone, setPhone]         = useState('');
+  const [network, setNetwork]     = useState('');
+  const [fullName, setFullName]   = useState('');
+  const [networkOpen, setNetworkOpen] = useState(false);
   const [loading, setLoading]     = useState(false);
   const [success, setSuccess]     = useState(false);
-  const [bmOpen, setBmOpen]       = useState(false);
 
-  const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm(f => ({ ...f, [field]: e.target.value }));
-
-  const selectedBM = BOOKMAKERS.find(b => b.id === form.bookmaker);
+  const selectedNetwork = NETWORKS.find(n => n.id === network);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.amount || !form.bookmaker_id.trim() || !form.phone.trim() || !form.full_name.trim()) {
+    if (!amount || !bookmarkerId.trim() || !phone.trim() || !fullName.trim() || !network) {
       toast.error('Veuillez remplir tous les champs obligatoires');
       return;
     }
-    const amount = parseFloat(form.amount);
-    if (isNaN(amount) || amount <= 0) {
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) {
       toast.error('Montant invalide');
       return;
     }
@@ -67,14 +53,14 @@ export function MobcashForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: form.type,
-          amount,
-          bookmaker: form.bookmaker,
-          bookmaker_id: form.bookmaker_id.trim(),
-          phone: form.phone.trim(),
-          full_name: form.full_name.trim(),
-          email: form.email.trim() || undefined,
-          notes: form.notes.trim() || undefined,
+          type,
+          amount: amt,
+          bookmaker: '1xbet',
+          bookmaker_id: bookmarkerId.trim(),
+          phone: phone.trim(),
+          network,
+          full_name: fullName.trim(),
+          notes: `Réseau: ${selectedNetwork?.name || network}`,
         }),
       });
       const data = await res.json();
@@ -94,15 +80,40 @@ export function MobcashForm() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-success/10 border border-success/20 mb-5">
             <CheckCircle2 className="h-8 w-8 text-success" />
           </div>
-          <h2 className="text-white text-xl font-bold mb-2">Demande envoyée !</h2>
-          <p className="text-text-secondary text-sm mb-6">
-            Votre demande de {form.type === 'depot' ? 'dépôt' : 'retrait'} a bien été reçue.
-            Notre équipe va la traiter très rapidement et vous contactera sur le numéro fourni.
+          <h2 className="text-white text-xl font-bold mb-2">Demande envoyée ✅</h2>
+          <p className="text-text-secondary text-sm mb-2">
+            Votre demande de <strong className="text-white">{type === 'depot' ? 'dépôt' : 'retrait'}</strong> de{' '}
+            <strong className="text-white">{parseFloat(amount).toLocaleString('fr-FR')} FCFA</strong> a bien été reçue.
           </p>
-          <Button
-            variant="outline"
-            onClick={() => { setSuccess(false); setForm(f => ({ ...f, amount: '', bookmaker_id: '', notes: '' })); }}
-          >
+
+          {type === 'depot' ? (
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 my-4 text-left text-sm">
+              <p className="text-primary font-semibold mb-2">📲 Étapes suivantes :</p>
+              <ol className="text-text-secondary space-y-1.5 list-decimal list-inside">
+                <li>Envoyez <strong className="text-white">{parseFloat(amount).toLocaleString('fr-FR')} FCFA</strong> sur notre numéro MobCash</li>
+                <li>Notre équipe crédite votre compte 1xBet sous peu</li>
+                <li>Vous recevrez une confirmation sur votre téléphone</li>
+              </ol>
+            </div>
+          ) : (
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 my-4 text-left text-sm">
+              <p className="text-primary font-semibold mb-2">📲 Étapes suivantes :</p>
+              <ol className="text-text-secondary space-y-1.5 list-decimal list-inside">
+                <li>Notre équipe traite votre retrait 1xBet</li>
+                <li>L&apos;argent est envoyé sur votre numéro {selectedNetwork?.name}</li>
+                <li>Délai estimé : quelques minutes à 1h</li>
+              </ol>
+            </div>
+          )}
+
+          <Button variant="outline" onClick={() => {
+            setSuccess(false);
+            setAmount('');
+            setBookmarkerId('');
+            setPhone('');
+            setNetwork('');
+            setFullName('');
+          }}>
             Faire une nouvelle demande
           </Button>
         </CardContent>
@@ -119,13 +130,13 @@ export function MobcashForm() {
           <div className="grid grid-cols-2 gap-3">
             {(['depot', 'retrait'] as RequestType[]).map(t => {
               const Icon = t === 'depot' ? ArrowDownCircle : ArrowUpCircle;
-              const active = form.type === t;
+              const active = type === t;
               return (
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setForm(f => ({ ...f, type: t }))}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 font-semibold text-sm transition-all ${
+                  onClick={() => setType(t)}
+                  className={`flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-xl border-2 font-semibold text-sm transition-all ${
                     active
                       ? t === 'depot'
                         ? 'border-success bg-success/10 text-success'
@@ -133,51 +144,100 @@ export function MobcashForm() {
                       : 'border-surface-light text-text-muted hover:border-primary/40'
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  {t === 'depot' ? 'Dépôt' : 'Retrait'}
+                  <Icon className="h-5 w-5" />
+                  <span>{t === 'depot' ? 'Dépôt 1xBet' : 'Retrait 1xBet'}</span>
+                  <span className="text-xs font-normal opacity-70">
+                    {t === 'depot' ? 'Je veux recharger' : 'Je veux retirer'}
+                  </span>
                 </button>
               );
             })}
           </div>
 
+          {/* Explication contextuelle */}
+          <div className={`rounded-xl p-3 text-xs border flex items-start gap-2 ${
+            type === 'depot'
+              ? 'bg-success/5 border-success/20 text-success/80'
+              : 'bg-orange-400/5 border-orange-400/20 text-orange-300'
+          }`}>
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            {type === 'depot'
+              ? 'Vous nous envoyez de l\'argent via mobile money → nous créditons votre compte 1xBet'
+              : 'Nous débitons votre compte 1xBet → vous recevez l\'argent sur votre téléphone'}
+          </div>
+
           {/* Montant */}
           <div className="space-y-1.5">
-            <Label htmlFor="amount">Montant (FCFA) *</Label>
+            <Label htmlFor="amount" className="flex items-center gap-1.5">
+              <Banknote className="h-3.5 w-3.5" /> Montant (FCFA) *
+            </Label>
             <Input
               id="amount"
               type="number"
               placeholder="Ex: 5000"
-              value={form.amount}
-              onChange={set('amount')}
-              min={100}
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              min={500}
               required
             />
           </div>
 
-          {/* Bookmaker */}
+          {/* ID 1xBet */}
           <div className="space-y-1.5">
-            <Label>Bookmaker *</Label>
+            <Label htmlFor="bookmaker_id" className="flex items-center gap-1.5">
+              <Hash className="h-3.5 w-3.5" /> Votre ID 1xBet *
+            </Label>
+            <Input
+              id="bookmaker_id"
+              placeholder="Ex: 123456789"
+              value={bookmarkerId}
+              onChange={e => setBookmarkerId(e.target.value)}
+              required
+            />
+            <p className="text-xs text-text-muted">Retrouvez-le dans votre profil 1xBet → Mon compte → ID</p>
+          </div>
+
+          {/* Nom complet */}
+          <div className="space-y-1.5">
+            <Label htmlFor="full_name" className="flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5" /> Nom complet *
+            </Label>
+            <Input
+              id="full_name"
+              placeholder="Prénom et Nom"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              required
+            />
+          </div>
+
+          {/* Réseau mobile money */}
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <Smartphone className="h-3.5 w-3.5" />
+              {type === 'depot' ? 'Réseau de paiement *' : 'Réseau de réception *'}
+            </Label>
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setBmOpen(v => !v)}
+                onClick={() => setNetworkOpen(v => !v)}
                 className="w-full flex items-center justify-between px-4 py-2.5 bg-background border border-surface-light rounded-xl text-left hover:border-primary/40 transition-colors"
               >
-                <span className={selectedBM ? 'text-white font-medium' : 'text-text-muted'}>
-                  {selectedBM?.name ?? 'Choisir un bookmaker…'}
+                <span className={selectedNetwork ? 'text-white font-medium' : 'text-text-muted'}>
+                  {selectedNetwork?.name ?? 'Choisir un réseau…'}
                 </span>
-                <ChevronDown className={`h-4 w-4 text-text-muted transition-transform ${bmOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-text-muted transition-transform ${networkOpen ? 'rotate-180' : ''}`} />
               </button>
-              {bmOpen && (
+              {networkOpen && (
                 <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-surface border border-surface-light rounded-xl shadow-lg overflow-hidden">
-                  {BOOKMAKERS.map(bm => (
+                  {NETWORKS.map(n => (
                     <button
-                      key={bm.id}
+                      key={n.id}
                       type="button"
-                      onClick={() => { setForm(f => ({ ...f, bookmaker: bm.id })); setBmOpen(false); }}
+                      onClick={() => { setNetwork(n.id); setNetworkOpen(false); }}
                       className="w-full flex items-center px-4 py-3 text-left hover:bg-surface-light transition-colors text-white text-sm"
                     >
-                      {bm.name}
+                      {n.name}
                     </button>
                   ))}
                 </div>
@@ -185,65 +245,25 @@ export function MobcashForm() {
             </div>
           </div>
 
-          {/* ID Bookmaker */}
+          {/* Numéro de téléphone */}
           <div className="space-y-1.5">
-            <Label htmlFor="bookmaker_id">Votre ID {selectedBM?.name ?? 'Bookmaker'} *</Label>
-            <Input
-              id="bookmaker_id"
-              placeholder="Ex: 123456789"
-              value={form.bookmaker_id}
-              onChange={set('bookmaker_id')}
-              required
-            />
-            <p className="text-xs text-text-muted">Retrouvez votre ID dans votre profil bookmaker.</p>
-          </div>
-
-          {/* Téléphone */}
-          <div className="space-y-1.5">
-            <Label htmlFor="phone">Numéro de téléphone MobCash *</Label>
+            <Label htmlFor="phone" className="flex items-center gap-1.5">
+              <Smartphone className="h-3.5 w-3.5" />
+              {type === 'depot' ? 'Numéro qui sera débité *' : 'Numéro de réception *'}
+            </Label>
             <Input
               id="phone"
               type="tel"
-              placeholder="Ex: +22996123456"
-              value={form.phone}
-              onChange={set('phone')}
+              placeholder="Ex: 96 00 00 00"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
               required
             />
-          </div>
-
-          {/* Nom */}
-          <div className="space-y-1.5">
-            <Label htmlFor="full_name">Nom complet *</Label>
-            <Input
-              id="full_name"
-              placeholder="Prénom et nom"
-              value={form.full_name}
-              onChange={set('full_name')}
-              required
-            />
-          </div>
-
-          {/* Email (optionnel) */}
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email (optionnel)</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Pour recevoir une confirmation"
-              value={form.email}
-              onChange={set('email')}
-            />
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <Label htmlFor="notes">Notes (optionnel)</Label>
-            <Input
-              id="notes"
-              placeholder="Informations supplémentaires…"
-              value={form.notes}
-              onChange={set('notes')}
-            />
+            <p className="text-xs text-text-muted">
+              {type === 'depot'
+                ? 'Le montant sera prélevé sur ce numéro'
+                : "L'argent sera envoyé sur ce numéro"}
+            </p>
           </div>
 
           <Button
@@ -255,16 +275,20 @@ export function MobcashForm() {
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : form.type === 'depot' ? (
+            ) : type === 'depot' ? (
               <ArrowDownCircle className="h-4 w-4 mr-2" />
             ) : (
               <ArrowUpCircle className="h-4 w-4 mr-2" />
             )}
-            {loading ? 'Envoi en cours…' : `Envoyer ma demande de ${form.type === 'depot' ? 'dépôt' : 'retrait'}`}
+            {loading
+              ? 'Envoi en cours…'
+              : type === 'depot'
+              ? 'Envoyer ma demande de dépôt'
+              : 'Envoyer ma demande de retrait'}
           </Button>
 
           <p className="text-center text-xs text-text-muted">
-            🔒 Données sécurisées — Notre équipe vous contactera sous peu.
+            🔒 Données sécurisées · Traitement rapide par notre équipe
           </p>
         </form>
       </CardContent>

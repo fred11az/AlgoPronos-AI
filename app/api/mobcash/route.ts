@@ -7,20 +7,19 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, amount, bookmaker, bookmaker_id, phone, full_name, email, notes } = body as {
+    const { type, amount, bookmaker_id, phone, network, full_name, notes } = body as {
       type?: string;
       amount?: number;
-      bookmaker?: string;
       bookmaker_id?: string;
       phone?: string;
+      network?: string;
       full_name?: string;
-      email?: string;
       notes?: string;
     };
 
-    if (!type || !amount || !bookmaker_id?.trim() || !phone?.trim() || !full_name?.trim()) {
+    if (!type || !amount || !bookmaker_id?.trim() || !phone?.trim() || !full_name?.trim() || !network?.trim()) {
       return NextResponse.json(
-        { error: 'type, montant, ID bookmaker, téléphone et nom requis' },
+        { error: 'type, montant, ID 1xBet, telephone, reseau et nom requis' },
         { status: 400 }
       );
     }
@@ -29,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Type invalide' }, { status: 400 });
     }
 
-    if (amount <= 0 || amount > 1_000_000) {
+    if (amount <= 0 || amount > 10_000_000) {
       return NextResponse.json({ error: 'Montant invalide' }, { status: 400 });
     }
 
@@ -40,12 +39,11 @@ export async function POST(req: NextRequest) {
       .insert({
         type,
         amount,
-        bookmaker: bookmaker || '1xbet',
+        bookmaker: '1xbet',
         bookmaker_id: bookmaker_id.trim(),
         phone: phone.trim(),
         full_name: full_name.trim(),
-        email: email?.trim() || null,
-        notes: notes?.trim() || null,
+        notes: `Reseau: ${network.trim()}${notes?.trim() ? ' | ' + notes.trim() : ''}`,
         status: 'pending',
       })
       .select()
@@ -53,20 +51,18 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('[MobCash] DB Error:', error);
-      return NextResponse.json({ error: 'Erreur lors de l\'enregistrement' }, { status: 500 });
+      return NextResponse.json({ error: "Erreur lors de l'enregistrement" }, { status: 500 });
     }
 
-    // Notifier l'admin par email
     await notifyMobcashRequest({
       requestId: data.id,
       type: type as 'depot' | 'retrait',
       amount,
-      bookmaker: bookmaker || '1xbet',
+      bookmaker: '1xbet',
       bookmakerId: bookmaker_id.trim(),
       phone: phone.trim(),
+      network: network.trim(),
       fullName: full_name.trim(),
-      email: email?.trim(),
-      notes: notes?.trim(),
     });
 
     return NextResponse.json({ success: true, id: data.id });
