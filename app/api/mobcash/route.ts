@@ -7,19 +7,27 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, amount, bookmaker_id, phone, network, full_name, notes } = body as {
+    const { type, amount, bookmaker_id, phone, network, full_name, withdraw_code, notes } = body as {
       type?: string;
       amount?: number;
       bookmaker_id?: string;
       phone?: string;
       network?: string;
       full_name?: string;
+      withdraw_code?: string;
       notes?: string;
     };
 
     if (!type || !amount || !bookmaker_id?.trim() || !phone?.trim() || !full_name?.trim() || !network?.trim()) {
       return NextResponse.json(
         { error: 'type, montant, ID 1xBet, telephone, reseau et nom requis' },
+        { status: 400 }
+      );
+    }
+
+    if (type === 'retrait' && !withdraw_code?.trim()) {
+      return NextResponse.json(
+        { error: 'Le code de retrait 1xBet est obligatoire' },
         { status: 400 }
       );
     }
@@ -42,8 +50,10 @@ export async function POST(req: NextRequest) {
         bookmaker: '1xbet',
         bookmaker_id: bookmaker_id.trim(),
         phone: phone.trim(),
+        network: network.trim(),
         full_name: full_name.trim(),
-        notes: `Reseau: ${network.trim()}${notes?.trim() ? ' | ' + notes.trim() : ''}`,
+        withdraw_code: type === 'retrait' ? withdraw_code?.trim() : null,
+        notes: notes?.trim() || null,
         status: 'pending',
       })
       .select()
@@ -63,6 +73,7 @@ export async function POST(req: NextRequest) {
       phone: phone.trim(),
       network: network.trim(),
       fullName: full_name.trim(),
+      withdrawCode: withdraw_code?.trim(),
     });
 
     return NextResponse.json({ success: true, id: data.id });

@@ -20,9 +20,11 @@ interface MobcashRequest {
   bookmaker: string;
   bookmaker_id: string;
   phone: string;
+  network: string | null;
   full_name: string;
   email: string | null;
   notes: string | null;
+  withdraw_code: string | null;
   status: string;
   admin_notes: string | null;
   created_at: string;
@@ -169,7 +171,7 @@ export default function AdminMobcashPage() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-sm">
                         <p className="text-text-secondary"><span className="text-text-muted">Nom :</span> {req.full_name}</p>
-                        <p className="text-text-secondary"><span className="text-text-muted">Tél :</span> {req.phone}</p>
+                        <p className="text-text-secondary"><span className="text-text-muted">Tél :</span> {req.phone}{req.network ? ` (${req.network})` : ''}</p>
                         <p className="text-text-secondary">
                           <span className="text-text-muted">ID {req.bookmaker} :</span>{' '}
                           <code className="text-primary font-mono">{req.bookmaker_id}</code>
@@ -177,6 +179,12 @@ export default function AdminMobcashPage() {
                         {req.email && <p className="text-text-secondary"><span className="text-text-muted">Email :</span> {req.email}</p>}
                         {req.notes && <p className="text-text-muted italic col-span-2 text-xs mt-1">"{req.notes}"</p>}
                       </div>
+                      {req.withdraw_code && (
+                        <div className="mt-2 flex items-center gap-2 bg-orange-400/10 border border-orange-400/30 rounded-lg px-3 py-2">
+                          <span className="text-orange-300 text-xs font-semibold">🔑 Code retrait :</span>
+                          <code className="text-orange-200 font-mono text-sm font-bold tracking-widest">{req.withdraw_code}</code>
+                        </div>
+                      )}
                       {req.admin_notes && (
                         <p className="text-xs text-primary/70 italic mt-2 border-l-2 border-primary/30 pl-2">{req.admin_notes}</p>
                       )}

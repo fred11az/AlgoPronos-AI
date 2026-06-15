@@ -29,6 +29,7 @@ export function MobcashForm() {
   const [phone, setPhone]         = useState('');
   const [network, setNetwork]     = useState('');
   const [fullName, setFullName]   = useState('');
+  const [withdrawCode, setWithdrawCode] = useState('');
   const [networkOpen, setNetworkOpen] = useState(false);
   const [loading, setLoading]     = useState(false);
   const [success, setSuccess]     = useState(false);
@@ -39,6 +40,10 @@ export function MobcashForm() {
     e.preventDefault();
     if (!amount || !bookmarkerId.trim() || !phone.trim() || !fullName.trim() || !network) {
       toast.error('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+    if (type === 'retrait' && !withdrawCode.trim()) {
+      toast.error('Le code de retrait 1xBet est obligatoire');
       return;
     }
     const amt = parseFloat(amount);
@@ -60,6 +65,7 @@ export function MobcashForm() {
           phone: phone.trim(),
           network,
           full_name: fullName.trim(),
+          withdraw_code: type === 'retrait' ? withdrawCode.trim() : undefined,
           notes: `Réseau: ${selectedNetwork?.name || network}`,
         }),
       });
@@ -113,6 +119,7 @@ export function MobcashForm() {
             setPhone('');
             setNetwork('');
             setFullName('');
+            setWithdrawCode('');
           }}>
             Faire une nouvelle demande
           </Button>
@@ -265,6 +272,33 @@ export function MobcashForm() {
                 : "L'argent sera envoyé sur ce numéro"}
             </p>
           </div>
+
+          {/* Code de retrait 1xBet — uniquement pour les retraits */}
+          {type === 'retrait' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="withdraw_code" className="flex items-center gap-1.5">
+                <Hash className="h-3.5 w-3.5" />
+                Code de retrait 1xBet *
+              </Label>
+              <Input
+                id="withdraw_code"
+                placeholder="Code généré depuis votre compte 1xBet"
+                value={withdrawCode}
+                onChange={e => setWithdrawCode(e.target.value)}
+                required={type === 'retrait'}
+                className="font-mono tracking-widest"
+              />
+              <div className="bg-orange-400/5 border border-orange-400/20 rounded-lg p-3 text-xs text-orange-300 space-y-1">
+                <p className="font-semibold">Comment obtenir votre code ?</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-orange-200/80">
+                  <li>Connectez-vous sur 1xBet</li>
+                  <li>Allez dans &quot;Caisse&quot; → &quot;Retrait&quot;</li>
+                  <li>Choisissez &quot;Caissier&quot; et entrez le montant</li>
+                  <li>Copiez le code généré et collez-le ici</li>
+                </ol>
+              </div>
+            </div>
+          )}
 
           <Button
             type="submit"

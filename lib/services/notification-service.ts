@@ -673,6 +673,7 @@ export interface MobcashRequestPayload {
   phone: string;
   network: string;
   fullName: string;
+  withdrawCode?: string;
   email?: string;
   notes?: string;
 }
@@ -699,13 +700,13 @@ function buildMobcashAdminEmailHtml(p: MobcashRequestPayload): string {
       </div>
       <table style="width:100%;border-collapse:collapse;background:#0f0f1a;border-radius:10px;overflow:hidden">
         ${[
-          ['Nom',           p.fullName],
-          ['Téléphone',     p.phone],
-          ['Réseau',        p.network],
-          ['ID 1xBet',      p.bookmakerId],
-          ['Email',         p.email || '—'],
-          ['Notes',         p.notes || '—'],
-          ['Référence',     p.requestId.slice(0,8).toUpperCase()],
+          ['Nom',              p.fullName],
+          ['Téléphone',        p.phone],
+          ['Réseau',           p.network],
+          ['ID 1xBet',         p.bookmakerId],
+          ...(p.withdrawCode ? [['🔑 Code retrait', p.withdrawCode]] : []),
+          ['Notes',            p.notes || '—'],
+          ['Référence',        p.requestId.slice(0,8).toUpperCase()],
         ].map(([label, value]) => `
           <tr>
             <td style="padding:10px 14px;color:#6b7280;font-size:13px;width:40%;border-bottom:1px solid #1a1a2e">${label}</td>
