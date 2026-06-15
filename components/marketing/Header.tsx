@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Pronostics', href: '/pronostics' },
   { label: 'Performance', href: '/performance' },
   { label: 'Compte optimisé IA', href: '/compte-optimise-ia' },
+  { label: 'Dépôt / Retrait', href: '/depot-retrait', mobcash: true },
   { label: 'Flux Live', href: '/matchs#live-flux', live: true },
 ];
 
@@ -51,7 +52,12 @@ export function Header() {
               >
                 {(item as any).wc && <Trophy className="h-3.5 w-3.5 text-yellow-400" />}
                 {item.label === 'Compte optimisé IA' && <Sparkles className="h-3.5 w-3.5 text-primary" />}
-                <span className={(item as any).wc ? 'text-yellow-400 font-semibold' : ''}>{item.label}</span>
+                {(item as any).mobcash && <span className="text-base leading-none">💳</span>}
+                <span className={
+                  (item as any).wc ? 'text-yellow-400 font-semibold'
+                  : (item as any).mobcash ? 'text-emerald-400 font-medium'
+                  : ''
+                }>{item.label}</span>
                 {(item as any).wc && (
                   <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.6rem', fontWeight: 800, padding: '2px 5px', borderRadius: '4px', letterSpacing: '0.5px' }}>
                     {daysLeft !== null ? `J-${daysLeft}` : 'J-...'}

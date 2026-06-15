@@ -662,6 +662,98 @@ export async function sendConfirmationEmail(email: string, userName?: string): P
   }
 }
 
+// ─── MobCash Notifications ─────────────────────────────────────────────────
+
+export interface MobcashRequestPayload {
+  requestId: string;
+  type: 'depot' | 'retrait';
+  amount: number;
+  bookmaker: string;
+  bookmakerId: string;
+  phone: string;
+  network: string;
+  fullName: string;
+  email?: string;
+  notes?: string;
+}
+
+function buildMobcashAdminEmailHtml(p: MobcashRequestPayload): string {
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+  const typeLabel = p.type === 'depot' ? '💰 DÉPÔT' : '💸 RETRAIT';
+  const typeColor = p.type === 'depot' ? '#22c55e' : '#f97316';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI — MobCash</p>
+      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">Nouvelle demande ${typeLabel}</h1>
+    </div>
+    <div style="padding:28px 32px">
+      <div style="background:${typeColor}18;border:1px solid ${typeColor}33;border-radius:12px;padding:16px 20px;margin-bottom:24px">
+        <p style="margin:0;font-size:32px;font-weight:800;color:${typeColor}">${p.amount.toLocaleString('fr-FR')} FCFA</p>
+        <p style="margin:4px 0 0;color:#a0aec0;font-size:13px">${typeLabel} · ${p.bookmaker.toUpperCase()}</p>
+      </div>
+      <table style="width:100%;border-collapse:collapse;background:#0f0f1a;border-radius:10px;overflow:hidden">
+        ${[
+          ['Nom',           p.fullName],
+          ['Téléphone',     p.phone],
+          ['Réseau',        p.network],
+          ['ID 1xBet',      p.bookmakerId],
+          ['Email',         p.email || '—'],
+          ['Notes',         p.notes || '—'],
+          ['Référence',     p.requestId.slice(0,8).toUpperCase()],
+        ].map(([label, value]) => `
+          <tr>
+            <td style="padding:10px 14px;color:#6b7280;font-size:13px;width:40%;border-bottom:1px solid #1a1a2e">${label}</td>
+            <td style="padding:10px 14px;color:#e2e8f0;font-size:13px;font-weight:500;border-bottom:1px solid #1a1a2e">${value}</td>
+          </tr>`).join('')}
+      </table>
+      <div style="text-align:center;margin-top:24px">
+        <a href="${appUrl}/admin/mobcash"
+           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:600;font-size:15px">
+          Traiter la demande →
+        </a>
+      </div>
+    </div>
+    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
+      <p style="margin:0;color:#4a4a6a;font-size:11px">AlgoPronos AI — Système MobCash 1xBet</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export async function notifyMobcashRequest(p: MobcashRequestPayload): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[Notification] RESEND_API_KEY not set — MobCash email skipped');
+    return false;
+  }
+
+  const resend     = new Resend(process.env.RESEND_API_KEY);
+  const from       = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || 'fgambakpo@gmail.com';
+  const typeLabel  = p.type === 'depot' ? 'DÉPÔT' : 'RETRAIT';
+
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: adminEmail,
+      subject: `💳 Demande ${typeLabel} MobCash — ${p.amount.toLocaleString('fr-FR')} FCFA — ${p.fullName}`,
+      html: buildMobcashAdminEmailHtml(p),
+      text: `Nouvelle demande ${typeLabel} MobCash\n\nMontant : ${p.amount.toLocaleString('fr-FR')} FCFA\nNom : ${p.fullName}\nTél : ${p.phone}\nRéseau : ${p.network}\nID 1xBet : ${p.bookmakerId}\n${p.notes ? `Notes : ${p.notes}\n` : ''}\nTraiter sur : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai'}/admin/mobcash`,
+    });
+    if (error) { console.error('[Notification] MobCash admin email error:', error); return false; }
+    return true;
+  } catch (err) {
+    console.error('[Notification] MobCash email failed:', err);
+    return false;
+  }
+}
+
 // ─── Admin Notifications ────────────────────────────────────────────────────
 
 export async function notifyAdmin(
