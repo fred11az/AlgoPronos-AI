@@ -11,13 +11,19 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// Réseaux mobile money disponibles
-const NETWORKS = [
-  { id: 'mtn',    name: 'MTN Mobile Money' },
-  { id: 'moov',   name: 'Moov Money'       },
-  { id: 'orange', name: 'Orange Money'     },
-  { id: 'celcash', name: 'Celtis Cash'     },
-  { id: 'other',  name: 'Autre réseau'     },
+// Réseaux disponibles selon le type
+const DEPOSIT_NETWORKS = [
+  { id: 'mtn',     name: 'MTN Mobile Money' },
+  { id: 'moov',    name: 'Moov Money'        },
+  { id: 'celcash', name: 'Celtis Cash'       },
+  { id: 'orange',  name: 'Orange Money'      },
+  { id: 'other',   name: 'Autre réseau'      },
+];
+
+// Pour les retraits : uniquement les réseaux supportés par FedaPay payout au Bénin
+const WITHDRAWAL_NETWORKS = [
+  { id: 'mtn',  name: 'MTN Mobile Money' },
+  { id: 'moov', name: 'Moov Money'       },
 ];
 
 type RequestType = 'depot' | 'retrait';
@@ -34,7 +40,14 @@ export function MobcashForm() {
   const [loading, setLoading]     = useState(false);
   const [success, setSuccess]     = useState(false);
 
+  const NETWORKS = type === 'retrait' ? WITHDRAWAL_NETWORKS : DEPOSIT_NETWORKS;
   const selectedNetwork = NETWORKS.find(n => n.id === network);
+
+  function handleTypeChange(t: RequestType) {
+    setType(t);
+    const nets = t === 'retrait' ? WITHDRAWAL_NETWORKS : DEPOSIT_NETWORKS;
+    if (network && !nets.find(n => n.id === network)) setNetwork('');
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -142,7 +155,7 @@ export function MobcashForm() {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setType(t)}
+                  onClick={() => handleTypeChange(t)}
                   className={`flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-xl border-2 font-semibold text-sm transition-all ${
                     active
                       ? t === 'depot'
@@ -224,6 +237,9 @@ export function MobcashForm() {
               <Smartphone className="h-3.5 w-3.5" />
               {type === 'depot' ? 'Réseau de paiement *' : 'Réseau de réception *'}
             </Label>
+            {type === 'retrait' && (
+              <p className="text-xs text-orange-300/80">Virements disponibles uniquement sur MTN et Moov au Bénin.</p>
+            )}
             <div className="relative">
               <button
                 type="button"
