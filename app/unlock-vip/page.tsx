@@ -139,9 +139,16 @@ export default function ActivatePage() {
         }),
       });
 
+      const responseData = await res.json();
+
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Erreur lors de l\'envoi');
+        throw new Error(responseData.error || 'Erreur lors de l\'envoi');
+      }
+
+      if (responseData.auto_approved) {
+        toast.success('🎉 Votre Full Access a été activé avec succès !', { duration: 4000 });
+        router.push('/dashboard');
+        return;
       }
 
       toast.success('Demande envoyée ! Vérification sous 24h maximum.');
