@@ -291,11 +291,12 @@ export function MobcashForm() {
               <div className="bg-orange-400/5 border border-orange-400/20 rounded-lg p-3 text-xs text-orange-300 space-y-1">
                 <p className="font-semibold">Comment obtenir votre code ?</p>
                 <ol className="list-decimal list-inside space-y-0.5 text-orange-200/80">
-                  <li>Connectez-vous sur 1xBet</li>
-                  <li>Allez dans &quot;Caisse&quot; → &quot;Retrait&quot;</li>
-                  <li>Choisissez &quot;Caissier&quot; et entrez le montant</li>
-                  <li>Copiez le code généré et collez-le ici</li>
+                  <li>Connectez-vous sur 1xBet et allez dans votre section <strong>Retrait</strong></li>
+                  <li>Recherchez <strong>MobCash</strong> dans les méthodes de retrait</li>
+                  <li>Remplissez les champs demandés (montant, etc.)</li>
+                  <li>Copiez le <strong>code généré</strong> par 1xBet et collez-le ici</li>
                 </ol>
+                <p className="text-orange-200/60 mt-1">Ce code nous permet de valider et traiter votre retrait.</p>
               </div>
             </div>
           )}
