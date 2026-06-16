@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
+import { notifyMobcashStatusChange } from '@/lib/services/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,5 +73,18 @@ export async function PATCH(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Notify client by email when their request is finalized
+  if ((status === 'completed' || status === 'rejected') && data.email) {
+    notifyMobcashStatusChange({
+      clientEmail: data.email,
+      clientName:  data.full_name,
+      type:        data.type,
+      amount:      data.amount,
+      status,
+      adminNotes:  data.admin_notes,
+    }).catch(err => console.error('[Admin Mobcash] Client notification failed:', err));
+  }
+
   return NextResponse.json({ request: data });
 }

@@ -760,6 +760,108 @@ export async function notifyMobcashRequest(p: MobcashRequestPayload): Promise<bo
   }
 }
 
+// ─── MobCash — Notification client (statut changé) ─────────────────────────
+
+export interface MobcashStatusPayload {
+  clientEmail: string;
+  clientName: string;
+  type: 'depot' | 'retrait';
+  amount: number;
+  status: 'completed' | 'rejected';
+  adminNotes?: string | null;
+}
+
+function buildMobcashStatusEmailHtml(p: MobcashStatusPayload): string {
+  const firstName  = p.clientName.split(' ')[0];
+  const appUrl     = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com';
+  const isOk       = p.status === 'completed';
+  const typeLabel  = p.type === 'depot' ? 'dépôt' : 'retrait';
+  const amountFmt  = p.amount.toLocaleString('fr-FR');
+
+  const titleText  = isOk
+    ? `Votre ${typeLabel} de ${amountFmt} FCFA a été traité ✅`
+    : `Votre demande de ${typeLabel} a été rejetée`;
+
+  const bodyText   = isOk
+    ? p.type === 'depot'
+      ? `Votre compte 1xBet a été crédité de <strong style="color:#fff">${amountFmt} FCFA</strong>. Vous pouvez maintenant l'utiliser sur 1xBet.`
+      : `Votre retrait de <strong style="color:#fff">${amountFmt} FCFA</strong> a été envoyé sur votre numéro mobile money.`
+    : `Nous n'avons pas pu traiter votre demande de ${typeLabel} de <strong style="color:#fff">${amountFmt} FCFA</strong>.`;
+
+  const statusColor = isOk ? '#22c55e' : '#ef4444';
+  const statusIcon  = isOk ? '✅' : '❌';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+
+    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI · MobCash</p>
+      <h1 style="margin:8px 0 0;font-size:20px;color:#fff;font-weight:700">${titleText}</h1>
+    </div>
+
+    <div style="padding:32px">
+      <p style="margin:0 0 20px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
+
+      <div style="background:${statusColor}18;border:1px solid ${statusColor}40;border-radius:12px;padding:20px;margin-bottom:24px;text-align:center">
+        <p style="margin:0;font-size:32px">${statusIcon}</p>
+        <p style="margin:8px 0 4px;font-size:22px;font-weight:800;color:${statusColor}">${amountFmt} FCFA</p>
+        <p style="margin:0;color:#a0aec0;font-size:13px;text-transform:uppercase;letter-spacing:1px">${typeLabel}</p>
+      </div>
+
+      <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.6">${bodyText}</p>
+
+      ${p.adminNotes && !isOk ? `
+      <div style="background:#0f0f1a;border-radius:10px;padding:16px;margin-bottom:24px;border-left:3px solid #ef4444">
+        <p style="margin:0 0 4px;color:#f87171;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Motif</p>
+        <p style="margin:0;color:#e2e8f0;font-size:13px;line-height:1.5">${p.adminNotes}</p>
+      </div>` : ''}
+
+      <div style="text-align:center">
+        <a href="${appUrl}/depot-retrait"
+           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:13px 32px;border-radius:10px;font-weight:600;font-size:14px">
+          ${isOk ? 'Faire une nouvelle demande' : 'Réessayer'}
+        </a>
+        <p style="margin:14px 0 0;color:#6b7280;font-size:12px">Des questions ? Répondez directement à cet email.</p>
+      </div>
+    </div>
+
+    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
+      <p style="margin:0;color:#4a4a6a;font-size:11px">AlgoPronos AI — MobCash · Dépôt & Retrait 1xBet</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export async function notifyMobcashStatusChange(p: MobcashStatusPayload): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY || !p.clientEmail) return false;
+  const resend  = new Resend(process.env.RESEND_API_KEY);
+  const from    = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const typeLabel = p.type === 'depot' ? 'dépôt' : 'retrait';
+  const subject = p.status === 'completed'
+    ? `✅ Votre ${typeLabel} de ${p.amount.toLocaleString('fr-FR')} FCFA a été traité | MobCash`
+    : `❌ Votre demande de ${typeLabel} MobCash`;
+
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to: p.clientEmail,
+      subject,
+      replyTo: 'support@algopronos.com',
+      html: buildMobcashStatusEmailHtml(p),
+    });
+    if (error) { console.error('[Notification] MobCash status email error:', error); return false; }
+    return true;
+  } catch (err) {
+    console.error('[Notification] MobCash status email failed:', err);
+    return false;
+  }
+}
+
 // ─── Admin Notifications ────────────────────────────────────────────────────
 
 export async function notifyAdmin(
