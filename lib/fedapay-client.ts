@@ -3,8 +3,8 @@
  * Credentials: FEDAPAY_SECRET_KEY env var (never in code).
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { FedaPay, Transaction, Payout, Customer } = require('fedapay');
+import { FedaPay, Transaction, Payout, Customer } from 'fedapay';
+import crypto from 'crypto';
 
 // Modes COLLECTES (dépôts) — réseaux disponibles dans le widget FedaPay Bénin
 export const FEDAPAY_COLLECTION_MODES: Record<string, string> = {
@@ -138,8 +138,6 @@ export function verifyWebhookSignature(payload: string, header: string | null): 
   if (!secret || !header) return false;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const crypto = require('crypto') as typeof import('crypto');
     const parts = Object.fromEntries(
       header.split(',').map(p => { const [k, ...rest] = p.split('='); return [k, rest.join('=')]; })
     );
