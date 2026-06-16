@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Loader2, CheckCircle2, ArrowDownCircle, ArrowUpCircle, ChevronDown,
-  Smartphone, Hash, User, Banknote, Info,
+  Smartphone, Hash, User, Banknote, Info, Mail, Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase/client';
 
 // Réseaux disponibles selon le type
 const DEPOSIT_NETWORKS = [
@@ -29,17 +31,36 @@ const WITHDRAWAL_NETWORKS = [
 type RequestType = 'depot' | 'retrait';
 
 export function MobcashForm() {
-  const [type, setType]           = useState<RequestType>('depot');
-  const [amount, setAmount]       = useState('');
+  const [type, setType]                 = useState<RequestType>('depot');
+  const [amount, setAmount]             = useState('');
   const [bookmarkerId, setBookmarkerId] = useState('');
-  const [phone, setPhone]         = useState('');
-  const [network, setNetwork]     = useState('');
-  const [fullName, setFullName]   = useState('');
+  const [phone, setPhone]               = useState('');
+  const [network, setNetwork]           = useState('');
+  const [fullName, setFullName]         = useState('');
+  const [email, setEmail]               = useState('');
   const [withdrawCode, setWithdrawCode] = useState('');
-  const [networkOpen, setNetworkOpen] = useState(false);
-  const [loading, setLoading]         = useState(false);
-  const [success, setSuccess]         = useState(false);
+  const [networkOpen, setNetworkOpen]   = useState(false);
+  const [loading, setLoading]           = useState(false);
+  const [success, setSuccess]           = useState(false);
   const [fedapayInitiated, setFedapayInitiated] = useState(false);
+
+  // Auth state for withdrawal gate
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoggedIn, setIsLoggedIn]   = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setIsLoggedIn(true);
+        if (!email) setEmail(data.user.email || '');
+        if (!fullName && data.user.user_metadata?.full_name) {
+          setFullName(data.user.user_metadata.full_name);
+        }
+      }
+      setAuthChecked(true);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const NETWORKS = type === 'retrait' ? WITHDRAWAL_NETWORKS : DEPOSIT_NETWORKS;
   const selectedNetwork = NETWORKS.find(n => n.id === network);
@@ -54,6 +75,10 @@ export function MobcashForm() {
     e.preventDefault();
     if (!amount || !bookmarkerId.trim() || !phone.trim() || !fullName.trim() || !network) {
       toast.error('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+    if (!email.trim()) {
+      toast.error('L\'adresse email est obligatoire pour recevoir la confirmation');
       return;
     }
     if (type === 'retrait' && !withdrawCode.trim()) {
@@ -79,6 +104,7 @@ export function MobcashForm() {
           phone: phone.trim(),
           network,
           full_name: fullName.trim(),
+          email: email.trim(),
           withdraw_code: type === 'retrait' ? withdrawCode.trim() : undefined,
           notes: `Réseau: ${selectedNetwork?.name || network}`,
         }),
@@ -94,6 +120,20 @@ export function MobcashForm() {
     }
   }
 
+  function handleReset() {
+    setSuccess(false);
+    setFedapayInitiated(false);
+    setAmount('');
+    setBookmarkerId('');
+    setPhone('');
+    setNetwork('');
+    setWithdrawCode('');
+    if (!isLoggedIn) {
+      setFullName('');
+      setEmail('');
+    }
+  }
+
   if (success) {
     return (
       <Card className="border-success/30 bg-surface">
@@ -105,6 +145,9 @@ export function MobcashForm() {
           <p className="text-text-secondary text-sm mb-2">
             Votre demande de <strong className="text-white">{type === 'depot' ? 'dépôt' : 'retrait'}</strong> de{' '}
             <strong className="text-white">{parseFloat(amount).toLocaleString('fr-FR')} FCFA</strong> a bien été reçue.
+          </p>
+          <p className="text-text-muted text-xs mb-4">
+            Vous recevrez une confirmation par email à <strong className="text-white">{email}</strong> dès que votre demande est traitée.
           </p>
 
           {type === 'depot' ? (
@@ -137,18 +180,40 @@ export function MobcashForm() {
             </div>
           )}
 
-          <Button variant="outline" onClick={() => {
-            setSuccess(false);
-            setFedapayInitiated(false);
-            setAmount('');
-            setBookmarkerId('');
-            setPhone('');
-            setNetwork('');
-            setFullName('');
-            setWithdrawCode('');
-          }}>
+          <Button variant="outline" onClick={handleReset}>
             Faire une nouvelle demande
           </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Gate : retrait nécessite un compte AlgoPronos
+  if (type === 'retrait' && authChecked && !isLoggedIn) {
+    return (
+      <Card className="border-surface-light bg-surface">
+        <CardContent className="p-8 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-400/10 border border-orange-400/20 mb-5">
+            <Lock className="h-8 w-8 text-orange-400" />
+          </div>
+          <h2 className="text-white text-xl font-bold mb-2">Compte requis pour les retraits</h2>
+          <p className="text-text-secondary text-sm mb-6 max-w-xs mx-auto">
+            Pour effectuer un retrait, vous devez avoir un compte AlgoPronos AI. C&apos;est gratuit et prend moins d&apos;une minute.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button variant="gradient" asChild>
+              <Link href="/login?redirect=/depot-retrait">Créer un compte</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/login?redirect=/depot-retrait">Se connecter</Link>
+            </Button>
+          </div>
+          <button
+            className="mt-5 text-xs text-text-muted underline underline-offset-2 hover:text-white transition-colors"
+            onClick={() => handleTypeChange('depot')}
+          >
+            Revenir au dépôt (sans compte)
+          </button>
         </CardContent>
       </Card>
     );
@@ -244,6 +309,26 @@ export function MobcashForm() {
             />
           </div>
 
+          {/* Email */}
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="flex items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5" /> Email de confirmation *
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="votre@email.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              readOnly={isLoggedIn}
+              className={isLoggedIn ? 'opacity-70 cursor-default' : ''}
+            />
+            <p className="text-xs text-text-muted">
+              Vous recevrez un email dès que votre demande est traitée.
+            </p>
+          </div>
+
           {/* Réseau mobile money */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5">
@@ -335,7 +420,7 @@ export function MobcashForm() {
             variant="gradient"
             className="w-full"
             size="lg"
-            disabled={loading}
+            disabled={loading || (type === 'retrait' && !authChecked)}
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />

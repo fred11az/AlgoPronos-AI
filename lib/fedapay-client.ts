@@ -62,10 +62,14 @@ export async function initiateDeposit(opts: {
   const { firstname, lastname } = splitName(opts.fullName);
   const phone = normalizePhone(opts.phone);
 
+  // FedaPay adds 1.8% on top of the transaction amount — divide by 1.018 so the
+  // client is debited exactly opts.amount (what they entered in the form).
+  const collectionAmount = Math.round(opts.amount / 1.018);
+
   // 1. Create transaction
   const transaction = await Transaction.create({
     description: `Depot AlgoPronos MobCash #${opts.requestId.slice(0, 8)}`,
-    amount: opts.amount,
+    amount: collectionAmount,
     currency: { iso: 'XOF' },
     customer: {
       firstname,
