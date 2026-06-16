@@ -673,6 +673,7 @@ export interface MobcashRequestPayload {
   phone: string;
   network: string;
   fullName: string;
+  withdrawCode?: string;
   email?: string;
   notes?: string;
 }
@@ -699,13 +700,13 @@ function buildMobcashAdminEmailHtml(p: MobcashRequestPayload): string {
       </div>
       <table style="width:100%;border-collapse:collapse;background:#0f0f1a;border-radius:10px;overflow:hidden">
         ${[
-          ['Nom',           p.fullName],
-          ['Téléphone',     p.phone],
-          ['Réseau',        p.network],
-          ['ID 1xBet',      p.bookmakerId],
-          ['Email',         p.email || '—'],
-          ['Notes',         p.notes || '—'],
-          ['Référence',     p.requestId.slice(0,8).toUpperCase()],
+          ['Nom',              p.fullName],
+          ['Téléphone',        p.phone],
+          ['Réseau',           p.network],
+          ['ID 1xBet',         p.bookmakerId],
+          ...(p.withdrawCode ? [['🔑 Code retrait', p.withdrawCode]] : []),
+          ['Notes',            p.notes || '—'],
+          ['Référence',        p.requestId.slice(0,8).toUpperCase()],
         ].map(([label, value]) => `
           <tr>
             <td style="padding:10px 14px;color:#6b7280;font-size:13px;width:40%;border-bottom:1px solid #1a1a2e">${label}</td>
@@ -733,15 +734,20 @@ export async function notifyMobcashRequest(p: MobcashRequestPayload): Promise<bo
     return false;
   }
 
-  const resend     = new Resend(process.env.RESEND_API_KEY);
-  const from       = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || 'fgambakpo@gmail.com';
-  const typeLabel  = p.type === 'depot' ? 'DÉPÔT' : 'RETRAIT';
+  const resend    = new Resend(process.env.RESEND_API_KEY);
+  const from      = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const typeLabel = p.type === 'depot' ? 'DÉPÔT' : 'RETRAIT';
+
+  // Support plusieurs emails séparés par des virgules
+  const adminEmails = (process.env.ADMIN_NOTIFICATION_EMAIL || 'fgambakpo@gmail.com')
+    .split(',')
+    .map(e => e.trim())
+    .filter(Boolean);
 
   try {
     const { error } = await resend.emails.send({
       from,
-      to: adminEmail,
+      to: adminEmails,
       subject: `💳 Demande ${typeLabel} MobCash — ${p.amount.toLocaleString('fr-FR')} FCFA — ${p.fullName}`,
       html: buildMobcashAdminEmailHtml(p),
       text: `Nouvelle demande ${typeLabel} MobCash\n\nMontant : ${p.amount.toLocaleString('fr-FR')} FCFA\nNom : ${p.fullName}\nTél : ${p.phone}\nRéseau : ${p.network}\nID 1xBet : ${p.bookmakerId}\n${p.notes ? `Notes : ${p.notes}\n` : ''}\nTraiter sur : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai'}/admin/mobcash`,

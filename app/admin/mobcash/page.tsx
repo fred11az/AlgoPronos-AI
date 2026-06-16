@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Loader2, RefreshCw, ArrowDownCircle, ArrowUpCircle,
-  CheckCircle2, XCircle, Clock, AlertCircle,
+  CheckCircle2, XCircle, Clock, AlertCircle, Send,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -20,9 +20,11 @@ interface MobcashRequest {
   bookmaker: string;
   bookmaker_id: string;
   phone: string;
+  network: string | null;
   full_name: string;
   email: string | null;
   notes: string | null;
+  withdraw_code: string | null;
   status: string;
   admin_notes: string | null;
   created_at: string;
@@ -42,6 +44,7 @@ export default function AdminMobcashPage() {
   const [loading, setLoading]     = useState(true);
   const [filter, setFilter]       = useState<Status>('all');
   const [updating, setUpdating]   = useState<string | null>(null);
+  const [paying, setPaying]       = useState<string | null>(null);
   const [noteInputs, setNoteInputs] = useState<Record<string, string>>({});
 
   const fetchRequests = useCallback(async () => {
@@ -77,6 +80,25 @@ export default function AdminMobcashPage() {
       toast.error(err instanceof Error ? err.message : 'Erreur');
     } finally {
       setUpdating(null);
+    }
+  }
+
+  async function sendPayout(id: string) {
+    setPaying(id);
+    try {
+      const res = await fetch('/api/admin/mobcash/payout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Virement FedaPay lancé — ${data.amount?.toLocaleString('fr-FR')} FCFA envoyés au client`);
+      fetchRequests();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur virement FedaPay');
+    } finally {
+      setPaying(null);
     }
   }
 
@@ -169,7 +191,7 @@ export default function AdminMobcashPage() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-sm">
                         <p className="text-text-secondary"><span className="text-text-muted">Nom :</span> {req.full_name}</p>
-                        <p className="text-text-secondary"><span className="text-text-muted">Tél :</span> {req.phone}</p>
+                        <p className="text-text-secondary"><span className="text-text-muted">Tél :</span> {req.phone}{req.network ? ` (${req.network})` : ''}</p>
                         <p className="text-text-secondary">
                           <span className="text-text-muted">ID {req.bookmaker} :</span>{' '}
                           <code className="text-primary font-mono">{req.bookmaker_id}</code>
@@ -177,48 +199,77 @@ export default function AdminMobcashPage() {
                         {req.email && <p className="text-text-secondary"><span className="text-text-muted">Email :</span> {req.email}</p>}
                         {req.notes && <p className="text-text-muted italic col-span-2 text-xs mt-1">"{req.notes}"</p>}
                       </div>
+                      {req.withdraw_code && (
+                        <div className="mt-2 flex items-center gap-2 bg-orange-400/10 border border-orange-400/30 rounded-lg px-3 py-2">
+                          <span className="text-orange-300 text-xs font-semibold">🔑 Code retrait :</span>
+                          <code className="text-orange-200 font-mono text-sm font-bold tracking-widest">{req.withdraw_code}</code>
+                        </div>
+                      )}
                       {req.admin_notes && (
                         <p className="text-xs text-primary/70 italic mt-2 border-l-2 border-primary/30 pl-2">{req.admin_notes}</p>
                       )}
 
                       {/* Actions */}
                       {req.status !== 'completed' && req.status !== 'rejected' && (
-                        <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                          <Input
-                            placeholder="Note admin (optionnel)…"
-                            value={noteInputs[req.id] || ''}
-                            onChange={e => setNoteInputs(n => ({ ...n, [req.id]: e.target.value }))}
-                            className="text-sm bg-background border-surface-light h-8 flex-1"
-                          />
-                          <div className="flex gap-2 shrink-0">
-                            {req.status === 'pending' && (
+                        <div className="mt-3 flex flex-col gap-2">
+                          {/* FedaPay payout button — only for withdrawals on supported networks */}
+                          {req.type === 'retrait' && (req.network === 'mtn' || req.network === 'moov') && (
+                            <div className="flex items-center gap-2 bg-orange-400/5 border border-orange-400/20 rounded-lg px-3 py-2">
+                              <div className="flex-1 text-xs text-orange-300">
+                                <span className="font-semibold">Virement automatique :</span>{' '}
+                                {req.amount.toLocaleString('fr-FR')} FCFA envoyés au client
+                              </div>
                               <Button
                                 size="sm"
-                                variant="outline"
-                                className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-                                onClick={() => updateStatus(req.id, 'processing')}
-                                disabled={updating === req.id}
+                                className="bg-orange-500 hover:bg-orange-400 text-white shrink-0"
+                                onClick={() => sendPayout(req.id)}
+                                disabled={paying === req.id || updating === req.id}
                               >
-                                {updating === req.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'En cours'}
+                                {paying === req.id
+                                  ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                  : <Send className="h-3 w-3 mr-1" />}
+                                Payer via FedaPay
                               </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              className="bg-success hover:bg-success/90 text-white"
-                              onClick={() => updateStatus(req.id, 'completed')}
-                              disabled={updating === req.id}
-                            >
-                              {updating === req.id ? <Loader2 className="h-3 w-3 animate-spin" /> : '✓ Complétée'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-error hover:bg-error/10"
-                              onClick={() => updateStatus(req.id, 'rejected')}
-                              disabled={updating === req.id}
-                            >
-                              Rejeter
-                            </Button>
+                            </div>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Input
+                              placeholder="Note admin (optionnel)…"
+                              value={noteInputs[req.id] || ''}
+                              onChange={e => setNoteInputs(n => ({ ...n, [req.id]: e.target.value }))}
+                              className="text-sm bg-background border-surface-light h-8 flex-1"
+                            />
+                            <div className="flex gap-2 shrink-0">
+                              {req.status === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                                  onClick={() => updateStatus(req.id, 'processing')}
+                                  disabled={updating === req.id || paying === req.id}
+                                >
+                                  {updating === req.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'En cours'}
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                className="bg-success hover:bg-success/90 text-white"
+                                onClick={() => updateStatus(req.id, 'completed')}
+                                disabled={updating === req.id || paying === req.id}
+                              >
+                                {updating === req.id ? <Loader2 className="h-3 w-3 animate-spin" /> : '✓ Complétée'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-error hover:bg-error/10"
+                                onClick={() => updateStatus(req.id, 'rejected')}
+                                disabled={updating === req.id || paying === req.id}
+                              >
+                                Rejeter
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       )}
