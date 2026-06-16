@@ -275,9 +275,12 @@ export function MobcashForm() {
               placeholder="Ex: 5000"
               value={amount}
               onChange={e => setAmount(e.target.value)}
-              min={500}
+              min={type === 'retrait' ? 900 : 200}
               required
             />
+            <p className="text-xs text-text-muted">
+              Minimum : {type === 'retrait' ? '900' : '200'} FCFA
+            </p>
           </div>
 
           {/* ID 1xBet */}

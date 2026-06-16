@@ -53,8 +53,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (amount <= 0 || amount > 10_000_000) {
-      return NextResponse.json({ error: 'Montant invalide' }, { status: 400 });
+    const minAmount = type === 'retrait' ? 900 : 200;
+    if (amount < minAmount || amount > 10_000_000) {
+      return NextResponse.json(
+        { error: `Montant minimum : ${minAmount} FCFA` },
+        { status: 400 }
+      );
     }
 
     const supabase = createAdminClient();

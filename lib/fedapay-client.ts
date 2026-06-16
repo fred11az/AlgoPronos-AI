@@ -23,6 +23,23 @@ export const FEDAPAY_PAYOUT_MODES: Record<string, string> = {
 // Alias utilisé dans /api/admin/mobcash/payout
 export const FEDAPAY_MODES = FEDAPAY_PAYOUT_MODES;
 
+// FedaPay SDK errors extend a custom Base class that does NOT extend native Error.
+// The real API error message is in err.errorMessage (from response data['message']).
+function fedapayErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    if (typeof e['errorMessage'] === 'string' && e['errorMessage']) return e['errorMessage'];
+    if (e['errors'] && typeof e['errors'] === 'object') {
+      const msgs = Object.values(e['errors'] as Record<string, string[]>).flat();
+      if (msgs.length) return msgs.join(', ');
+    }
+    if (typeof e['message'] === 'string' && e['message']) return e['message'];
+    return JSON.stringify(err);
+  }
+  return String(err);
+}
+
 function init() {
   const key = process.env.FEDAPAY_SECRET_KEY;
   if (!key) throw new Error('FEDAPAY_SECRET_KEY not configured');
@@ -45,8 +62,8 @@ function normalizePhone(phone: string): string {
 
 /**
  * Initiate a FedaPay deposit collection.
- * Creates a transaction, generates a token, sends USSD push to client phone.
- * Returns the FedaPay transaction ID to store in DB.
+ * Amount passed is what the client should be debited — FedaPay's 1.8% fee is absorbed
+ * by dividing by 1.018 before creating the transaction.
  */
 export async function initiateDeposit(opts: {
   amount: number;
@@ -55,33 +72,36 @@ export async function initiateDeposit(opts: {
   network: string;
   requestId: string;
 }): Promise<{ id: number }> {
-  init();
-  const mode = FEDAPAY_COLLECTION_MODES[opts.network];
-  if (!mode) throw new Error(`Réseau non supporté pour FedaPay: ${opts.network}`);
+  try {
+    init();
+    const mode = FEDAPAY_COLLECTION_MODES[opts.network];
+    if (!mode) throw new Error(`Réseau non supporté pour FedaPay: ${opts.network}`);
 
-  const { firstname, lastname } = splitName(opts.fullName);
-  const phone = normalizePhone(opts.phone);
+    const { firstname, lastname } = splitName(opts.fullName);
+    const phone = normalizePhone(opts.phone);
 
-  // FedaPay adds 1.8% on top of the transaction amount — divide by 1.018 so the
-  // client is debited exactly opts.amount (what they entered in the form).
-  const collectionAmount = Math.round(opts.amount / 1.018);
+    // FedaPay adds 1.8% on top of the transaction amount — divide by 1.018 so the
+    // client is debited exactly opts.amount (what they entered in the form).
+    const collectionAmount = Math.round(opts.amount / 1.018);
 
-  // 1. Create transaction
-  const transaction = await Transaction.create({
-    description: `Depot AlgoPronos MobCash #${opts.requestId.slice(0, 8)}`,
-    amount: collectionAmount,
-    currency: { iso: 'XOF' },
-    customer: {
-      firstname,
-      lastname,
-      phone_number: { number: phone, country: 'BJ' },
-    },
-  });
+    const transaction = await Transaction.create({
+      description: `Depot AlgoPronos MobCash #${opts.requestId.slice(0, 8)}`,
+      amount: collectionAmount,
+      currency: { iso: 'XOF' },
+      customer: {
+        firstname,
+        lastname,
+        phone_number: { number: phone, country: 'BJ' },
+      },
+    });
 
-  // 2. Generate payment token + send USSD push (SDK handles both steps)
-  await transaction.sendNow(mode);
+    // Generate payment token + send USSD push (SDK handles both steps)
+    await transaction.sendNow(mode);
 
-  return { id: transaction.id };
+    return { id: transaction.id };
+  } catch (err) {
+    throw new Error(fedapayErrorMessage(err));
+  }
 }
 
 /**
@@ -91,17 +111,21 @@ export async function createCustomer(opts: {
   fullName: string;
   phone: string;
 }): Promise<{ id: number }> {
-  init();
-  const { firstname, lastname } = splitName(opts.fullName);
-  const phone = normalizePhone(opts.phone);
+  try {
+    init();
+    const { firstname, lastname } = splitName(opts.fullName);
+    const phone = normalizePhone(opts.phone);
 
-  const customer = await Customer.create({
-    firstname,
-    lastname,
-    phone_number: { number: phone, country: 'BJ' },
-  });
+    const customer = await Customer.create({
+      firstname,
+      lastname,
+      phone_number: { number: phone, country: 'BJ' },
+    });
 
-  return { id: customer.id };
+    return { id: customer.id };
+  } catch (err) {
+    throw new Error(fedapayErrorMessage(err));
+  }
 }
 
 /**
@@ -114,23 +138,26 @@ export async function initiatePayout(opts: {
   network: string;
   requestId: string;
 }): Promise<{ id: number }> {
-  init();
-  const mode = FEDAPAY_PAYOUT_MODES[opts.network];
-  if (!mode) throw new Error(`Réseau non supporté pour virement: ${opts.network}`);
+  try {
+    init();
+    const mode = FEDAPAY_PAYOUT_MODES[opts.network];
+    if (!mode) throw new Error(`Réseau non supporté pour virement: ${opts.network}`);
 
-  // 1. Create payout
-  const payout = await Payout.create({
-    description: `Retrait AlgoPronos MobCash #${opts.requestId.slice(0, 8)}`,
-    amount: opts.amount,
-    currency: { iso: 'XOF' },
-    mode,
-    customer: { id: opts.customerId },
-  });
+    const payout = await Payout.create({
+      description: `Retrait AlgoPronos MobCash #${opts.requestId.slice(0, 8)}`,
+      amount: opts.amount,
+      currency: { iso: 'XOF' },
+      mode,
+      customer: { id: opts.customerId },
+    });
 
-  // 2. Send immediately (SDK calls PUT /payouts/start with { payouts: [{ id }] })
-  await payout.sendNow();
+    // SDK calls PUT /v1/payouts/start with { payouts: [{ id }] }
+    await payout.sendNow();
 
-  return { id: payout.id };
+    return { id: payout.id };
+  } catch (err) {
+    throw new Error(fedapayErrorMessage(err));
+  }
 }
 
 /**

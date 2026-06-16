@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Cette demande est déjà finalisée' }, { status: 409 });
   }
 
-  if (request.amount < 500) {
-    return NextResponse.json({ error: 'Montant trop faible pour un virement' }, { status: 422 });
+  if (request.amount < 900) {
+    return NextResponse.json({ error: 'Montant minimum pour un virement : 900 FCFA' }, { status: 422 });
   }
 
   try {
