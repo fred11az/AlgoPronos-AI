@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { notifyMobcashRequest } from '@/lib/services/notification-service';
-import { initiateDeposit, FEDAPAY_MODES } from '@/lib/fedapay-client';
+import { initiateDeposit, FEDAPAY_COLLECTION_MODES } from '@/lib/fedapay-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,9 +65,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erreur lors de l'enregistrement" }, { status: 500 });
     }
 
-    // For deposits on supported networks (MTN/Moov), trigger FedaPay USSD push
+    // For deposits on supported networks (MTN/Moov/Orange/Celtis Cash), trigger FedaPay USSD push
     let fedapay_initiated = false;
-    if (type === 'depot' && FEDAPAY_MODES[network.trim()]) {
+    if (type === 'depot' && FEDAPAY_COLLECTION_MODES[network.trim()]) {
       try {
         const fedapayTx = await initiateDeposit({
           amount,

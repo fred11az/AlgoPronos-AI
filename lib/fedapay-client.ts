@@ -6,13 +6,24 @@
 
 const FEDAPAY_API_BASE = 'https://api.fedapay.com/v1';
 
-// Map our network IDs to FedaPay mode strings
-export const FEDAPAY_MODES: Record<string, string> = {
+// Modes pour les COLLECTES (dépôts) — tous les réseaux du widget FedaPay Bénin
+export const FEDAPAY_COLLECTION_MODES: Record<string, string> = {
+  mtn:     'mtn_open',
+  moov:    'moov_bj',
+  orange:  'orange_bj',
+  celcash: 'celcash',
+};
+
+// Modes pour les VIREMENTS (retraits) — uniquement MTN et Moov supportés par FedaPay Bénin
+export const FEDAPAY_PAYOUT_MODES: Record<string, string> = {
   mtn:  'mtn_open',
   moov: 'moov_bj',
 };
 
-export const SERVICE_FEE = 300; // FCFA deducted on withdrawal payouts
+// Alias pour compatibilité (utilisé dans /api/admin/mobcash/payout)
+export const FEDAPAY_MODES = FEDAPAY_PAYOUT_MODES;
+
+export const SERVICE_FEE = 300; // FCFA retenus sur chaque retrait (marge commerciale)
 
 function headers() {
   const key = process.env.FEDAPAY_SECRET_KEY;
@@ -64,10 +75,10 @@ export async function initiateDeposit(opts: {
   amount: number;
   fullName: string;
   phone: string;
-  network: string;   // 'mtn' | 'moov'
+  network: string;   // 'mtn' | 'moov' | 'orange' | 'celcash'
   requestId: string;
 }): Promise<FedaPayTransaction> {
-  const mode = FEDAPAY_MODES[opts.network];
+  const mode = FEDAPAY_COLLECTION_MODES[opts.network];
   if (!mode) throw new Error(`Réseau non supporté pour FedaPay: ${opts.network}`);
 
   const { firstname, lastname } = splitName(opts.fullName);
