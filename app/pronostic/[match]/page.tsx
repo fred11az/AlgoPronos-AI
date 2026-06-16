@@ -110,11 +110,7 @@ export async function generateMetadata({
     .single();
 
   if (!data) {
-    const title = slugToTitle(slug);
-    return {
-      title: `Pronostic ${title} | AlgoPronos`,
-      robots: { index: false },
-    };
+    return { title: 'Pronostic Football IA | AlgoPronos' };
   }
 
   const { home_team, away_team, league, match_date, prediction, probability } = data;

@@ -50,10 +50,7 @@ export async function generateMetadata({
     .eq('slug', slug)
     .single();
 
-  if (!data) return {
-    title: 'Grandes Affiches Football IA | AlgoPronos',
-    robots: { index: false },
-  };
+  if (!data) return { title: 'Grandes Affiches Football IA | AlgoPronos' };
 
   const description = (data.summary?.slice(0, 155) || `Analyse IA des grandes affiches football — ${data.hero_match}. Value bets, cotes et pronostics algorithmiques.`);
 
