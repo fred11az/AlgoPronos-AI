@@ -168,8 +168,17 @@ const DATA_SIGNALS = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
+  title: 'AlgoPronos AI — N°1 en Afrique : Pronostics Football & Compte Optimisé IA | algopronos.com',
+  description: 'AlgoPronos AI (algopronos.com) : Plateforme N°1 en Afrique pour les pronostics football par intelligence artificielle. Compte Optimisé IA exclusif, Value Betting, analyse xG. Gratuit. +15 000 utilisateurs.',
   alternates: {
-    canonical: '/',
+    canonical: 'https://algopronos.com',
+  },
+  openGraph: {
+    type: 'website',
+    url: 'https://algopronos.com',
+    title: 'AlgoPronos AI — N°1 Pronostics Football IA en Afrique | algopronos.com',
+    description: 'AlgoPronos AI (algopronos.com) : la seule plateforme IA pronostics football avec Compte Optimisé IA exclusif pour les parieurs africains.',
+    images: [{ url: 'https://algopronos.com/opengraph-image', width: 1200, height: 630, alt: 'AlgoPronos AI — algopronos.com — Pronostics Football IA Afrique' }],
   },
 };
 

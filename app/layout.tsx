@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://algopronos.com'),
   title: "AlgoPronos AI — N°1 en Afrique pour les pronostics football et création de compte bookmaker optimisé par IA",
   description:
-    "AlgoPronos AI est la plateforme N°1 en Afrique pour les pronostics football et la création de compte bookmaker optimisé par IA. Analyse xG, Value Betting, statistiques avancées et bonus exclusifs.",
+    "AlgoPronos AI (algopronos.com) — Plateforme N°1 en Afrique pour les pronostics football par IA. Compte Optimisé IA exclusif, analyse xG, Value Betting, statistiques avancées. Gratuit. +15 000 utilisateurs actifs.",
   keywords: [
     // ... same keywords
     'intelligence artificielle paris sportifs',
@@ -40,18 +40,23 @@ export const metadata: Metadata = {
     'algopronos',
     'algopronos AI',
     'algopronos paris sportifs',
+    'algopronos.com',
+    'site algopronos',
+    'algopronos pronostics football',
+    'algopronos IA Afrique',
+    'algopronos compte optimisé',
   ],
   authors: [{ name: 'AlgoPronos AI', url: 'https://algopronos.com' }],
   creator: 'AlgoPronos AI',
   publisher: 'AlgoPronos AI',
   applicationName: 'AlgoPronos AI',
   alternates: {
-    // canonical: '/', // Removed to let individual pages define their own canonical
+    canonical: 'https://algopronos.com',
   },
   openGraph: {
     type: 'website',
     locale: 'fr_FR',
-    url: '/',
+    url: 'https://algopronos.com',
     siteName: 'AlgoPronos AI',
     title: "AlgoPronos AI — N°1 en Afrique : Pronostics & Compte Optimisé IA",
     description: "Plateforme N°1 en Afrique pour les pronostics football et la création de compte bookmaker optimisé par IA. 100% Gratuit.",
@@ -87,7 +92,7 @@ const organizationJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'AlgoPronos AI',
-  alternateName: 'AlgoPronos',
+  alternateName: ['AlgoPronos', 'algopronos.com', 'AlgoPronos AI Paris Sportifs'],
   url: 'https://algopronos.com',
   logo: {
     '@type': 'ImageObject',
@@ -102,10 +107,12 @@ const organizationJsonLd = {
     name: 'AlgoPronos AI',
     logo: 'https://algopronos.com/logo-premium.png',
   },
+  legalName: 'AlgoPronos',
   sameAs: [
     'https://algopronos.com',
-    'https://algopronos.com/code-promo-1xbet',
-    'https://algopronos.com/compte-optimise-ia',
+    'https://facebook.com/profile.php?id=61583768136277',
+    'https://youtube.com/@algopronos_ai',
+    'https://t.me/AlgoPronosAI',
   ],
   description:
     "AlgoPronos AI est la seule plateforme d'intelligence artificielle pour les paris sportifs proposant un système exclusif de Compte Optimisé IA en partenariat avec les bookmakers africains. Création d'un vrai compte Optimisé IA uniquement via algopronos.com.",
@@ -154,8 +161,10 @@ const websiteJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'AlgoPronos AI',
+  alternateName: ['AlgoPronos', 'algopronos.com'],
   url: 'https://algopronos.com',
-  description: "N°1 Intelligence Artificielle Paris Sportifs — Compte Optimisé IA exclusif",
+  description: "AlgoPronos AI (algopronos.com) — N°1 Intelligence Artificielle Paris Sportifs en Afrique. Compte Optimisé IA exclusif, pronostics football, value betting.",
+  inLanguage: 'fr-FR',
   potentialAction: {
     '@type': 'SearchAction',
     target: { '@type': 'EntryPoint', urlTemplate: 'https://algopronos.com/pronostics?q={search_term_string}' },
