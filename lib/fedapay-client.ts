@@ -23,7 +23,7 @@ export const FEDAPAY_PAYOUT_MODES: Record<string, string> = {
 // Alias pour compatibilité (utilisé dans /api/admin/mobcash/payout)
 export const FEDAPAY_MODES = FEDAPAY_PAYOUT_MODES;
 
-export const SERVICE_FEE = 300; // FCFA retenus sur chaque retrait (marge commerciale)
+// Pas de déduction sur le montant client — les commissions viennent de 1xBet séparément
 
 function headers() {
   const key = process.env.FEDAPAY_SECRET_KEY;

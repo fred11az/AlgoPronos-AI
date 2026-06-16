@@ -93,7 +93,7 @@ export default function AdminMobcashPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Virement lancé — ${data.payout_amount?.toLocaleString('fr-FR')} FCFA envoyés (frais: ${data.service_fee} FCFA)`);
+      toast.success(`Virement FedaPay lancé — ${data.amount?.toLocaleString('fr-FR')} FCFA envoyés au client`);
       fetchRequests();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur virement FedaPay');
@@ -217,7 +217,7 @@ export default function AdminMobcashPage() {
                             <div className="flex items-center gap-2 bg-orange-400/5 border border-orange-400/20 rounded-lg px-3 py-2">
                               <div className="flex-1 text-xs text-orange-300">
                                 <span className="font-semibold">Virement automatique :</span>{' '}
-                                {(req.amount - 300).toLocaleString('fr-FR')} FCFA envoyés (frais 300 FCFA déduits)
+                                {req.amount.toLocaleString('fr-FR')} FCFA envoyés au client
                               </div>
                               <Button
                                 size="sm"
