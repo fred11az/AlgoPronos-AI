@@ -1,12 +1,12 @@
 /**
- * FedaPay REST client — uses direct fetch calls for compatibility with Next.js edge/runtime.
- * Credentials: FEDAPAY_SECRET_KEY env var (never committed to code).
- * Production base: https://api.fedapay.com/v1
+ * FedaPay client — uses the official fedapay Node.js SDK.
+ * Credentials: FEDAPAY_SECRET_KEY env var (never in code).
  */
 
-const FEDAPAY_API_BASE = 'https://api.fedapay.com/v1';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { FedaPay, Transaction, Payout, Customer } = require('fedapay');
 
-// Modes pour les COLLECTES (dépôts) — tous les réseaux du widget FedaPay Bénin
+// Modes COLLECTES (dépôts) — réseaux disponibles dans le widget FedaPay Bénin
 export const FEDAPAY_COLLECTION_MODES: Record<string, string> = {
   mtn:     'mtn_open',
   moov:    'moov_bj',
@@ -14,24 +14,20 @@ export const FEDAPAY_COLLECTION_MODES: Record<string, string> = {
   celcash: 'celcash',
 };
 
-// Modes pour les VIREMENTS (retraits) — uniquement MTN et Moov supportés par FedaPay Bénin
+// Modes VIREMENTS (retraits) — uniquement MTN et Moov supportés par FedaPay Bénin
 export const FEDAPAY_PAYOUT_MODES: Record<string, string> = {
   mtn:  'mtn_open',
   moov: 'moov_bj',
 };
 
-// Alias pour compatibilité (utilisé dans /api/admin/mobcash/payout)
+// Alias utilisé dans /api/admin/mobcash/payout
 export const FEDAPAY_MODES = FEDAPAY_PAYOUT_MODES;
 
-// Pas de déduction sur le montant client — les commissions viennent de 1xBet séparément
-
-function headers() {
+function init() {
   const key = process.env.FEDAPAY_SECRET_KEY;
   if (!key) throw new Error('FEDAPAY_SECRET_KEY not configured');
-  return {
-    Authorization: `Bearer ${key}`,
-    'Content-Type': 'application/json',
-  };
+  FedaPay.setApiKey(key);
+  FedaPay.setEnvironment('live');
 }
 
 function splitName(fullName: string): { firstname: string; lastname: string } {
@@ -42,184 +38,124 @@ function splitName(fullName: string): { firstname: string; lastname: string } {
   };
 }
 
+// Strip spaces, dashes, country prefix — keeps 8-digit Benin number
 function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-().+]/g, '').replace(/^229/, '');
 }
 
-export interface FedaPayTransaction {
-  id: number;
-  reference: string;
-  status: string;
-  amount: number;
-}
-
-export interface FedaPayPayout {
-  id: number;
-  reference: string;
-  status: string;
-  amount: number;
-}
-
-export interface FedaPayCustomer {
-  id: number;
-  firstname: string;
-  lastname: string;
-}
-
 /**
- * Create a FedaPay collection Transaction and immediately send USSD push.
- * Returns the FedaPay transaction on success.
- * Throws on network/API error — caller should catch and fall back to manual processing.
+ * Initiate a FedaPay deposit collection.
+ * Creates a transaction, generates a token, sends USSD push to client phone.
+ * Returns the FedaPay transaction ID to store in DB.
  */
 export async function initiateDeposit(opts: {
   amount: number;
   fullName: string;
   phone: string;
-  network: string;   // 'mtn' | 'moov' | 'orange' | 'celcash'
+  network: string;
   requestId: string;
-}): Promise<FedaPayTransaction> {
+}): Promise<{ id: number }> {
+  init();
   const mode = FEDAPAY_COLLECTION_MODES[opts.network];
   if (!mode) throw new Error(`Réseau non supporté pour FedaPay: ${opts.network}`);
 
   const { firstname, lastname } = splitName(opts.fullName);
   const phone = normalizePhone(opts.phone);
 
-  // Create transaction
-  const createRes = await fetch(`${FEDAPAY_API_BASE}/transactions`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({
-      description: `Depot AlgoPronos MobCash #${opts.requestId.slice(0, 8)}`,
-      amount: opts.amount,
-      currency: { iso: 'XOF' },
-      customer: {
-        firstname,
-        lastname,
-        phone_number: { number: phone, country: 'BJ' },
-      },
-    }),
+  // 1. Create transaction
+  const transaction = await Transaction.create({
+    description: `Depot AlgoPronos MobCash #${opts.requestId.slice(0, 8)}`,
+    amount: opts.amount,
+    currency: { iso: 'XOF' },
+    customer: {
+      firstname,
+      lastname,
+      phone_number: { number: phone, country: 'BJ' },
+    },
   });
 
-  const createData = await createRes.json();
-  if (!createRes.ok) {
-    throw new Error(`FedaPay transaction: ${JSON.stringify(createData.errors || createData.message)}`);
-  }
+  // 2. Generate payment token + send USSD push (SDK handles both steps)
+  await transaction.sendNow(mode);
 
-  const transaction: FedaPayTransaction = createData['v1/transaction'];
-
-  // Trigger USSD push
-  const sendRes = await fetch(`${FEDAPAY_API_BASE}/${mode}`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({ id: transaction.id }),
-  });
-
-  if (!sendRes.ok) {
-    const sendData = await sendRes.json();
-    throw new Error(`FedaPay sendNow: ${JSON.stringify(sendData.errors || sendData.message)}`);
-  }
-
-  return transaction;
+  return { id: transaction.id };
 }
 
 /**
- * Create a FedaPay Customer (needed before creating a Payout).
+ * Create a FedaPay customer record (required before payout).
  */
 export async function createCustomer(opts: {
   fullName: string;
   phone: string;
-}): Promise<FedaPayCustomer> {
+}): Promise<{ id: number }> {
+  init();
   const { firstname, lastname } = splitName(opts.fullName);
   const phone = normalizePhone(opts.phone);
 
-  const res = await fetch(`${FEDAPAY_API_BASE}/customers`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({
-      firstname,
-      lastname,
-      phone_number: { number: phone, country: 'BJ' },
-    }),
+  const customer = await Customer.create({
+    firstname,
+    lastname,
+    phone_number: { number: phone, country: 'BJ' },
   });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(`FedaPay customer: ${JSON.stringify(data.errors || data.message)}`);
-  }
-
-  return data['v1/customer'];
+  return { id: customer.id };
 }
 
 /**
- * Create a FedaPay Payout and send it immediately.
- * amount = request amount minus SERVICE_FEE.
+ * Create a FedaPay payout and send it immediately.
+ * Client receives the full requested amount — commission comes from 1xBet separately.
  */
 export async function initiatePayout(opts: {
   customerId: number;
-  amount: number;   // amount to send (after fee deduction)
-  network: string;  // 'mtn' | 'moov'
+  amount: number;
+  network: string;
   requestId: string;
-}): Promise<FedaPayPayout> {
-  const mode = FEDAPAY_MODES[opts.network];
-  if (!mode) throw new Error(`Réseau non supporté pour paiement: ${opts.network}`);
+}): Promise<{ id: number }> {
+  init();
+  const mode = FEDAPAY_PAYOUT_MODES[opts.network];
+  if (!mode) throw new Error(`Réseau non supporté pour virement: ${opts.network}`);
 
-  // Create payout
-  const createRes = await fetch(`${FEDAPAY_API_BASE}/payouts`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({
-      description: `Retrait AlgoPronos MobCash #${opts.requestId.slice(0, 8)}`,
-      amount: opts.amount,
-      currency: { iso: 'XOF' },
-      mode,
-      customer: { id: opts.customerId },
-    }),
+  // 1. Create payout
+  const payout = await Payout.create({
+    description: `Retrait AlgoPronos MobCash #${opts.requestId.slice(0, 8)}`,
+    amount: opts.amount,
+    currency: { iso: 'XOF' },
+    mode,
+    customer: { id: opts.customerId },
   });
 
-  const createData = await createRes.json();
-  if (!createRes.ok) {
-    throw new Error(`FedaPay payout create: ${JSON.stringify(createData.errors || createData.message)}`);
-  }
+  // 2. Send immediately (SDK calls PUT /payouts/start with { payouts: [{ id }] })
+  await payout.sendNow();
 
-  const payout: FedaPayPayout = createData['v1/payout'];
-
-  // Start payout immediately
-  const startRes = await fetch(`${FEDAPAY_API_BASE}/payouts/${payout.id}/start`, {
-    method: 'PUT',
-    headers: headers(),
-  });
-
-  if (!startRes.ok) {
-    const startData = await startRes.json();
-    throw new Error(`FedaPay payout start: ${JSON.stringify(startData.errors || startData.message)}`);
-  }
-
-  return payout;
+  return { id: payout.id };
 }
 
 /**
  * Verify a FedaPay webhook signature.
- * Header format: "t=<timestamp>,s=<signature>"
+ * Header format sent by FedaPay: "t=<timestamp>,s=<hex-signature>"
  */
 export function verifyWebhookSignature(payload: string, header: string | null): boolean {
   const secret = process.env.FEDAPAY_WEBHOOK_SECRET;
   if (!secret || !header) return false;
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const crypto = require('crypto') as typeof import('crypto');
     const parts = Object.fromEntries(
-      header.split(',').map(p => { const [k, v] = p.split('='); return [k, v]; })
+      header.split(',').map(p => { const [k, ...rest] = p.split('='); return [k, rest.join('=')]; })
     );
     const timestamp = parts['t'];
     const signature = parts['s'];
     if (!timestamp || !signature) return false;
 
-    const crypto = require('crypto') as typeof import('crypto');
     const expected = crypto
       .createHmac('sha256', secret)
       .update(`${timestamp}.${payload}`, 'utf8')
       .digest('hex');
 
-    return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expected, 'hex')
+    );
   } catch {
     return false;
   }
