@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { notifyMobcashRequest } from '@/lib/services/notification-service';
+import { initiateDeposit, FEDAPAY_MODES } from '@/lib/fedapay-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erreur lors de l'enregistrement" }, { status: 500 });
     }
 
+    // For deposits on supported networks (MTN/Moov), trigger FedaPay USSD push
+    let fedapay_initiated = false;
+    if (type === 'depot' && FEDAPAY_MODES[network.trim()]) {
+      try {
+        const fedapayTx = await initiateDeposit({
+          amount,
+          fullName: full_name.trim(),
+          phone: phone.trim(),
+          network: network.trim(),
+          requestId: data.id,
+        });
+        await supabase
+          .from('mobcash_requests')
+          .update({ fedapay_transaction_id: String(fedapayTx.id) })
+          .eq('id', data.id);
+        fedapay_initiated = true;
+      } catch (fedaErr) {
+        // Non-blocking: log but let admin handle manually if FedaPay fails
+        console.error('[MobCash] FedaPay deposit initiation failed:', fedaErr);
+      }
+    }
+
     await notifyMobcashRequest({
       requestId: data.id,
       type: type as 'depot' | 'retrait',
@@ -76,7 +99,7 @@ export async function POST(req: NextRequest) {
       withdrawCode: withdraw_code?.trim(),
     });
 
-    return NextResponse.json({ success: true, id: data.id });
+    return NextResponse.json({ success: true, id: data.id, fedapay_initiated });
   } catch (err) {
     console.error('[MobCash] Unexpected error:', err);
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });

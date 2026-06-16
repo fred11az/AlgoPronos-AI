@@ -37,8 +37,9 @@ export function MobcashForm() {
   const [fullName, setFullName]   = useState('');
   const [withdrawCode, setWithdrawCode] = useState('');
   const [networkOpen, setNetworkOpen] = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [success, setSuccess]     = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const [success, setSuccess]         = useState(false);
+  const [fedapayInitiated, setFedapayInitiated] = useState(false);
 
   const NETWORKS = type === 'retrait' ? WITHDRAWAL_NETWORKS : DEPOSIT_NETWORKS;
   const selectedNetwork = NETWORKS.find(n => n.id === network);
@@ -84,6 +85,7 @@ export function MobcashForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur');
+      setFedapayInitiated(!!data.fedapay_initiated);
       setSuccess(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur inattendue');
@@ -108,11 +110,21 @@ export function MobcashForm() {
           {type === 'depot' ? (
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 my-4 text-left text-sm">
               <p className="text-primary font-semibold mb-2">📲 Étapes suivantes :</p>
-              <ol className="text-text-secondary space-y-1.5 list-decimal list-inside">
-                <li>Envoyez <strong className="text-white">{parseFloat(amount).toLocaleString('fr-FR')} FCFA</strong> sur notre numéro MobCash</li>
-                <li>Notre équipe crédite votre compte 1xBet sous peu</li>
-                <li>Vous recevrez une confirmation sur votre téléphone</li>
-              </ol>
+              {fedapayInitiated ? (
+                <ol className="text-text-secondary space-y-1.5 list-decimal list-inside">
+                  <li>
+                    <strong className="text-white">Confirmez le paiement</strong> sur votre téléphone — vous recevez une notification {selectedNetwork?.name} maintenant
+                  </li>
+                  <li>Dès confirmation, notre équipe crédite votre compte 1xBet</li>
+                  <li>Délai estimé : quelques minutes</li>
+                </ol>
+              ) : (
+                <ol className="text-text-secondary space-y-1.5 list-decimal list-inside">
+                  <li>Envoyez <strong className="text-white">{parseFloat(amount).toLocaleString('fr-FR')} FCFA</strong> sur notre numéro MobCash</li>
+                  <li>Notre équipe crédite votre compte 1xBet sous peu</li>
+                  <li>Vous recevrez une confirmation sur votre téléphone</li>
+                </ol>
+              )}
             </div>
           ) : (
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 my-4 text-left text-sm">
@@ -127,6 +139,7 @@ export function MobcashForm() {
 
           <Button variant="outline" onClick={() => {
             setSuccess(false);
+            setFedapayInitiated(false);
             setAmount('');
             setBookmarkerId('');
             setPhone('');
