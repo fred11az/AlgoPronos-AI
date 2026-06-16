@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Loader2, RefreshCw, ArrowDownCircle, ArrowUpCircle,
-  CheckCircle2, XCircle, Clock, AlertCircle, Send,
+  CheckCircle2, XCircle, Clock, AlertCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -44,7 +44,6 @@ export default function AdminMobcashPage() {
   const [loading, setLoading]     = useState(true);
   const [filter, setFilter]       = useState<Status>('all');
   const [updating, setUpdating]   = useState<string | null>(null);
-  const [paying, setPaying]       = useState<string | null>(null);
   const [noteInputs, setNoteInputs] = useState<Record<string, string>>({});
 
   const fetchRequests = useCallback(async () => {
@@ -80,25 +79,6 @@ export default function AdminMobcashPage() {
       toast.error(err instanceof Error ? err.message : 'Erreur');
     } finally {
       setUpdating(null);
-    }
-  }
-
-  async function sendPayout(id: string) {
-    setPaying(id);
-    try {
-      const res = await fetch('/api/admin/mobcash/payout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast.success(`Virement FedaPay lancé — ${data.amount?.toLocaleString('fr-FR')} FCFA envoyés au client`);
-      fetchRequests();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur virement FedaPay');
-    } finally {
-      setPaying(null);
     }
   }
 
@@ -212,27 +192,6 @@ export default function AdminMobcashPage() {
                       {/* Actions */}
                       {req.status !== 'completed' && req.status !== 'rejected' && (
                         <div className="mt-3 flex flex-col gap-2">
-                          {/* FedaPay payout button — only for withdrawals on supported networks */}
-                          {req.type === 'retrait' && (req.network === 'mtn' || req.network === 'moov') && (
-                            <div className="flex items-center gap-2 bg-orange-400/5 border border-orange-400/20 rounded-lg px-3 py-2">
-                              <div className="flex-1 text-xs text-orange-300">
-                                <span className="font-semibold">Virement automatique :</span>{' '}
-                                {req.amount.toLocaleString('fr-FR')} FCFA envoyés au client
-                              </div>
-                              <Button
-                                size="sm"
-                                className="bg-orange-500 hover:bg-orange-400 text-white shrink-0"
-                                onClick={() => sendPayout(req.id)}
-                                disabled={paying === req.id || updating === req.id}
-                              >
-                                {paying === req.id
-                                  ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                  : <Send className="h-3 w-3 mr-1" />}
-                                Payer via FedaPay
-                              </Button>
-                            </div>
-                          )}
-
                           <div className="flex flex-col sm:flex-row gap-2">
                             <Input
                               placeholder="Note admin (optionnel)…"
@@ -247,7 +206,7 @@ export default function AdminMobcashPage() {
                                   variant="outline"
                                   className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
                                   onClick={() => updateStatus(req.id, 'processing')}
-                                  disabled={updating === req.id || paying === req.id}
+                                  disabled={updating === req.id}
                                 >
                                   {updating === req.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'En cours'}
                                 </Button>
@@ -256,7 +215,7 @@ export default function AdminMobcashPage() {
                                 size="sm"
                                 className="bg-success hover:bg-success/90 text-white"
                                 onClick={() => updateStatus(req.id, 'completed')}
-                                disabled={updating === req.id || paying === req.id}
+                                disabled={updating === req.id}
                               >
                                 {updating === req.id ? <Loader2 className="h-3 w-3 animate-spin" /> : '✓ Complétée'}
                               </Button>
@@ -265,7 +224,7 @@ export default function AdminMobcashPage() {
                                 variant="ghost"
                                 className="text-error hover:bg-error/10"
                                 onClick={() => updateStatus(req.id, 'rejected')}
-                                disabled={updating === req.id || paying === req.id}
+                                disabled={updating === req.id}
                               >
                                 Rejeter
                               </Button>
