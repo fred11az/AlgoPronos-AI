@@ -1,13 +1,45 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import {
-  createArticle,
-  updateArticle,
-  deleteArticle,
-  toggleArticleStatus,
-  type ArticlePayload,
-} from './actions';
+import { useState, useEffect, useTransition } from 'react';
+
+// ─── Data layer — route API admin (/api/admin/articles) ─────────────────────
+// Les Server Actions précédentes échouaient en production ; on passe par une
+// route API classique comme le reste du panel admin.
+
+export interface ArticlePayload {
+  title: string;
+  slug: string;
+  summary: string;
+  content: string;
+  category: string;
+  tags: string[];
+  author: string;
+  status: 'draft' | 'published';
+  cover_image?: string;
+}
+
+async function api<T>(method: string, query: string, body?: unknown): Promise<T> {
+  const res = await fetch(`/api/admin/articles${query}`, {
+    method,
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as any).error || `Erreur ${res.status}`);
+  return data as T;
+}
+
+const createArticle = async (p: ArticlePayload) =>
+  (await api<{ article: Article }>('POST', '', p)).article;
+const updateArticle = async (id: string, p: Partial<ArticlePayload>) =>
+  (await api<{ article: Article }>('PUT', `?id=${id}`, p)).article;
+const deleteArticle = async (id: string) => {
+  await api('DELETE', `?id=${id}`);
+};
+const toggleArticleStatus = async (id: string, current: 'draft' | 'published' | 'archived') =>
+  updateArticle(id, { status: current === 'published' ? 'draft' : 'published' });
+const fetchFullArticle = async (id: string) =>
+  (await api<{ article: Article & { content: string | null; cover_image: string | null } }>('GET', `?id=${id}`)).article;
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -122,6 +154,20 @@ function ArticleEditor({ open, onClose, initial, onSaved }: EditorProps) {
   const [preview, setPreview] = useState(false);
   const [saving, startSaving] = useTransition();
   const [error, setError] = useState('');
+
+  // En édition, charge le contenu complet — avant ce fix, le formulaire
+  // partait de content:'' et l'enregistrement ÉCRASAIT le contenu existant.
+  useEffect(() => {
+    if (!open || !initial) return;
+    let cancelled = false;
+    fetchFullArticle(initial.id)
+      .then((full) => {
+        if (cancelled) return;
+        setForm((f) => ({ ...f, content: full.content ?? '', cover_image: full.cover_image ?? '' }));
+      })
+      .catch(() => { /* le contenu restera vide — l'admin peut le re-saisir */ });
+    return () => { cancelled = true; };
+  }, [open, initial]);
 
   // Reset when dialog opens with new initial
   const reset = () => {

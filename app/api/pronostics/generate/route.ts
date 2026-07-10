@@ -219,7 +219,14 @@ export async function POST(req: NextRequest) {
   toDate.setDate(today.getDate() + 6);
   const toStr = toDate.toISOString().split('T')[0];
 
-  const sports = ['football', 'tennis', 'basketball', 'mma'];
+  // Football uniquement par défaut : les fixtures viennent d'API-Football (réelles).
+  // Les autres sports reposent sur une recherche IA (Venice) qui a produit des
+  // matchs inventés ("Djokovic vs Nadal 2026", "Barty vs Osaka"…) affichés sur le
+  // site et transformés en tickets. Réactivable via ENABLE_AI_SPORTS=true une fois
+  // une vraie source de données branchée pour ces sports.
+  const sports = process.env.ENABLE_AI_SPORTS === 'true'
+    ? ['football', 'tennis', 'basketball', 'mma']
+    : ['football'];
   const results: any[] = [];
 
   for (const sport of sports) {
@@ -256,26 +263,33 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        if (!match.odds) {
-          skipped.push(`${slug} (no odds)`);
-          return;
-        }
-
-        // Fetch stats first — needed for BTTS/Over25 candidate selection
+        // Fetch stats first — needed for BTTS/Over25 candidates AND as source de
+        // cotes réelles de secours (API-Football bookmakers) quand The Odds API
+        // n'a pas encore publié les cotes (fréquent hors saison européenne :
+        // sans ce fallback, TOUS les matchs d'été étaient "skipped (no odds)"
+        // et le site n'affichait plus aucun pronostic football).
         const footballApiKey = sport === 'football' ? process.env.API_FOOTBALL_KEY : undefined;
+        const statsOdds = match.odds ?? { home: 2.0, draw: 3.3, away: 3.5 }; // provisoire, pour le fetch stats
         const stats = await fetchMatchStats(
           match.id,
           match.homeTeam,
           match.awayTeam,
-          { home: match.odds.home, draw: match.odds.draw || 3.3, away: match.odds.away },
+          { home: statsOdds.home, draw: statsOdds.draw || 3.3, away: statsOdds.away },
           footballApiKey
         );
+
+        // Cotes retenues : The Odds API > cotes bookmaker API-Football > skip
+        const odds = match.odds ?? stats.realOdds ?? null;
+        if (!odds) {
+          skipped.push(`${slug} (no odds)`);
+          return;
+        }
 
         const homeForm = stats.homeForm?.form ?? 'N/A';
         const awayForm = stats.awayForm?.form ?? 'N/A';
 
         // computeBestPick uses stats to include BTTS/Over25 markets when available
-        const finalPred = computeBestPick(match.odds.home, match.odds.draw || 3.3, match.odds.away, stats);
+        const finalPred = computeBestPick(odds.home, odds.draw || 3.3, odds.away, stats);
 
         const aiAnalysis = await callAIAnalysis(
           match.homeTeam,
@@ -303,9 +317,9 @@ export async function POST(req: NextRequest) {
           country: match.country || '',
           match_date: dateStr,
           match_time: match.time || '15:00',
-          odds_home: match.odds.home,
-          odds_draw: match.odds.draw || null,
-          odds_away: match.odds.away,
+          odds_home: odds.home,
+          odds_draw: odds.draw || null,
+          odds_away: odds.away,
           prediction: finalPred.prediction,
           prediction_type: finalPred.predictionType,
           probability: finalPred.probability,
@@ -462,6 +476,9 @@ async function generateSpecialTickets(supabase: any, date: string) {
     .from('match_predictions')
     .select('*')
     .eq('match_date', date)
+    // Football uniquement : sans ce filtre, la Montante/Optimus piochait dans
+    // les prédictions tennis issues de la recherche IA (matchs parfois inventés)
+    .eq('sport', 'football')
     .order('value_edge', { ascending: false });
 
   if (!pool || pool.length < 2) return;
