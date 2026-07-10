@@ -1,5 +1,8 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { getCurrentUser, getUserStats, getUserRecentCombines, getVipVerificationStatus, UserStats } from '@/lib/supabase/server';
+import CoachRecommendationCard from '@/components/dashboard/CoachRecommendationCard';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getUserContext } from '@/lib/anonymous';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -164,6 +167,21 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+
+      {/* Assistant de pari IA — point d'entrée principal du dashboard */}
+      <Suspense
+        fallback={
+          <Card className="border-primary/30">
+            <CardContent className="p-6 space-y-3">
+              <Skeleton className="h-6 w-64" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-16" />
+            </CardContent>
+          </Card>
+        }
+      >
+        <CoachRecommendationCard userId={isAnonymous ? null : user?.id ?? null} />
+      </Suspense>
 
       {/* Verification Status */}
       {!isVerified && isPending && (
