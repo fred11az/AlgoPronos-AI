@@ -1,10 +1,23 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 
 // ─── Data layer — route API admin (/api/admin/articles) ─────────────────────
 // Les Server Actions précédentes échouaient en production ; on passe par une
 // route API classique comme le reste du panel admin.
+
+export interface MatchInfo {
+  home_team: string;
+  away_team: string;
+  home_score: string;
+  away_score: string;
+  league: string;
+  match_date: string;
+}
+
+export const EMPTY_MATCH: MatchInfo = {
+  home_team: '', away_team: '', home_score: '', away_score: '', league: '', match_date: '',
+};
 
 export interface ArticlePayload {
   title: string;
@@ -16,7 +29,13 @@ export interface ArticlePayload {
   author: string;
   status: 'draft' | 'published';
   cover_image?: string;
+  article_type: 'standard' | 'match_result';
+  match_info: MatchInfo | null;
+  ai_analysis: string;
 }
+
+// Une ligne "![légende](https://…)" seule dans le contenu = image insérée dans l'article
+const INLINE_IMAGE_RE = /^!\[([^\]]*)\]\((https?:\/\/\S+)\)$/;
 
 async function api<T>(method: string, query: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api/admin/articles${query}`, {
@@ -39,7 +58,40 @@ const deleteArticle = async (id: string) => {
 const toggleArticleStatus = async (id: string, current: 'draft' | 'published' | 'archived') =>
   updateArticle(id, { status: current === 'published' ? 'draft' : 'published' });
 const fetchFullArticle = async (id: string) =>
-  (await api<{ article: Article & { content: string | null; cover_image: string | null } }>('GET', `?id=${id}`)).article;
+  (await api<{ article: Article & {
+    content: string | null;
+    cover_image: string | null;
+    article_type: 'standard' | 'match_result' | null;
+    match_info: Partial<MatchInfo> | null;
+    ai_analysis: string | null;
+  } }>('GET', `?id=${id}`)).article;
+
+async function uploadImage(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/admin/articles/upload', { method: 'POST', body: fd });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as any).error || `Erreur ${res.status}`);
+  return (data as { url: string }).url;
+}
+
+async function generateAiAnalysis(info: MatchInfo): Promise<string> {
+  const res = await fetch('/api/admin/articles/ai-analysis', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      home_team: info.home_team,
+      away_team: info.away_team,
+      home_score: Number(info.home_score),
+      away_score: Number(info.away_score),
+      league: info.league || undefined,
+      match_date: info.match_date || undefined,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as any).error || `Erreur ${res.status}`);
+  return (data as { analysis: string }).analysis;
+}
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -60,6 +112,9 @@ import {
   CheckCircle,
   Clock,
   FileText,
+  ImagePlus,
+  Brain,
+  Sparkles,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -94,6 +149,9 @@ const EMPTY_FORM: ArticlePayload = {
   author: 'AlgoPronos AI',
   status: 'draft',
   cover_image: '',
+  article_type: 'standard',
+  match_info: null,
+  ai_analysis: '',
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -138,15 +196,15 @@ function ArticleEditor({ open, onClose, initial, onSaved }: EditorProps) {
   const [form, setForm] = useState<ArticlePayload>(
     initial
       ? {
+          ...EMPTY_FORM,
           title: initial.title,
           slug: initial.slug,
           summary: initial.summary ?? '',
-          content: '',            // loaded separately if needed
           category: initial.category,
           tags: initial.tags ?? [],
           author: initial.author,
           status: initial.status === 'archived' ? 'draft' : initial.status,
-          cover_image: '',
+          // content / cover_image / match_info / ai_analysis chargés par l'effet ci-dessous
         }
       : EMPTY_FORM
   );
@@ -154,6 +212,11 @@ function ArticleEditor({ open, onClose, initial, onSaved }: EditorProps) {
   const [preview, setPreview] = useState(false);
   const [saving, startSaving] = useTransition();
   const [error, setError] = useState('');
+
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingInline, setUploadingInline] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const contentRef = useRef<HTMLTextAreaElement | null>(null);
 
   // En édition, charge le contenu complet — avant ce fix, le formulaire
   // partait de content:'' et l'enregistrement ÉCRASAIT le contenu existant.
@@ -163,19 +226,77 @@ function ArticleEditor({ open, onClose, initial, onSaved }: EditorProps) {
     fetchFullArticle(initial.id)
       .then((full) => {
         if (cancelled) return;
-        setForm((f) => ({ ...f, content: full.content ?? '', cover_image: full.cover_image ?? '' }));
+        setForm((f) => ({
+          ...f,
+          content: full.content ?? '',
+          cover_image: full.cover_image ?? '',
+          article_type: full.article_type ?? 'standard',
+          match_info: full.match_info ? { ...EMPTY_MATCH, ...full.match_info } : null,
+          ai_analysis: full.ai_analysis ?? '',
+        }));
       })
       .catch(() => { /* le contenu restera vide — l'admin peut le re-saisir */ });
     return () => { cancelled = true; };
   }, [open, initial]);
 
+  const setMatch = (k: keyof MatchInfo, v: string) =>
+    setForm((f) => ({ ...f, match_info: { ...(f.match_info ?? EMPTY_MATCH), [k]: v } }));
+
+  const handleCoverUpload = async (file: File | null) => {
+    if (!file) return;
+    setUploadingCover(true); setError('');
+    try {
+      const url = await uploadImage(file);
+      set('cover_image', url);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  // Upload puis insère "![légende](url)" à la position du curseur dans le contenu
+  const handleInlineImage = async (file: File | null) => {
+    if (!file) return;
+    setUploadingInline(true); setError('');
+    try {
+      const url = await uploadImage(file);
+      const snippet = `![Légende de l'image](${url})`;
+      const el = contentRef.current;
+      const pos = el ? el.selectionStart : form.content.length;
+      const before = form.content.slice(0, pos).replace(/\n*$/, '');
+      const after = form.content.slice(pos).replace(/^\n*/, '');
+      set('content', `${before}${before ? '\n\n' : ''}${snippet}${after ? '\n\n' : ''}${after}`);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setUploadingInline(false);
+    }
+  };
+
+  const handleGenerateAi = async () => {
+    const info = form.match_info;
+    if (!info?.home_team.trim() || !info?.away_team.trim()) {
+      setError('Renseigne les deux équipes avant de générer l\'analyse IA.');
+      return;
+    }
+    setGeneratingAi(true); setError('');
+    try {
+      const analysis = await generateAiAnalysis(info);
+      set('ai_analysis', analysis);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setGeneratingAi(false);
+    }
+  };
+
   // Reset when dialog opens with new initial
   const reset = () => {
     setForm(initial
-      ? { title: initial.title, slug: initial.slug, summary: initial.summary ?? '',
-          content: '', category: initial.category, tags: initial.tags ?? [],
-          author: initial.author, status: initial.status === 'archived' ? 'draft' : initial.status,
-          cover_image: '' }
+      ? { ...EMPTY_FORM, title: initial.title, slug: initial.slug, summary: initial.summary ?? '',
+          category: initial.category, tags: initial.tags ?? [],
+          author: initial.author, status: initial.status === 'archived' ? 'draft' : initial.status }
       : EMPTY_FORM);
     setTagsInput((initial?.tags ?? []).join(', '));
     setError('');
@@ -202,11 +323,16 @@ function ArticleEditor({ open, onClose, initial, onSaved }: EditorProps) {
 
     startSaving(async () => {
       try {
+        // match_info uniquement pour les articles "résultat de match"
+        const payload: ArticlePayload = {
+          ...form,
+          match_info: form.article_type === 'match_result' ? form.match_info : null,
+        };
         let saved: Article;
         if (isEdit) {
-          saved = await updateArticle(initial!.id, form) as Article;
+          saved = await updateArticle(initial!.id, payload) as Article;
         } else {
-          saved = await createArticle(form) as Article;
+          saved = await createArticle(payload) as Article;
         }
         onSaved(saved);
         onClose();
@@ -245,6 +371,10 @@ function ArticleEditor({ open, onClose, initial, onSaved }: EditorProps) {
         {preview ? (
           /* ── PREVIEW ── */
           <div className="bg-background rounded-xl p-6 border border-surface-light min-h-64">
+            {form.cover_image && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.cover_image} alt="" className="w-full max-h-64 object-cover rounded-xl mb-4" />
+            )}
             <div className="mb-2">
               <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
                 form.status === 'published'
@@ -255,12 +385,54 @@ function ArticleEditor({ open, onClose, initial, onSaved }: EditorProps) {
               </span>
             </div>
             <h1 className="text-2xl font-black text-white mb-3">{form.title || '(sans titre)'}</h1>
+
+            {/* Score en évidence sous le titre */}
+            {form.article_type === 'match_result' && form.match_info && (
+              <div className="bg-surface rounded-xl border border-primary/20 px-5 py-4 mb-4 text-center">
+                <div className="flex items-center justify-center gap-4">
+                  <span className="text-sm font-bold text-white flex-1 text-right">{form.match_info.home_team || 'Domicile'}</span>
+                  <span className="text-2xl font-black text-primary whitespace-nowrap">
+                    {form.match_info.home_score || '0'} — {form.match_info.away_score || '0'}
+                  </span>
+                  <span className="text-sm font-bold text-white flex-1 text-left">{form.match_info.away_team || 'Extérieur'}</span>
+                </div>
+                {(form.match_info.league || form.match_info.match_date) && (
+                  <p className="text-[10px] text-text-muted mt-1.5 uppercase tracking-widest">
+                    {[form.match_info.league, form.match_info.match_date].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </div>
+            )}
+
             <p className="text-text-secondary text-base italic mb-4">{form.summary}</p>
-            <div className="prose prose-invert max-w-none">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-text-secondary leading-relaxed">
-                {form.content || '(contenu vide)'}
-              </pre>
+            <div className="space-y-4">
+              {(form.content || '(contenu vide)').split(/\n\n+/).filter(Boolean).map((para, i) => {
+                const img = para.trim().match(INLINE_IMAGE_RE);
+                if (img) {
+                  return (
+                    <figure key={i}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img[2]} alt={img[1]} className="w-full rounded-xl" />
+                      {img[1] && <figcaption className="text-[11px] text-text-muted mt-1 text-center italic">{img[1]}</figcaption>}
+                    </figure>
+                  );
+                }
+                return (
+                  <p key={i} className="whitespace-pre-wrap font-sans text-sm text-text-secondary leading-relaxed">{para}</p>
+                );
+              })}
             </div>
+
+            {/* Encadré Analyse IA */}
+            {form.ai_analysis.trim() && (
+              <div className="mt-6 rounded-xl border border-secondary/30 overflow-hidden">
+                <div className="bg-gradient-to-r from-secondary/20 to-primary/10 px-4 py-2 flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-secondary" />
+                  <span className="text-xs font-black uppercase tracking-widest text-secondary">Analyse IA AlgoPronos</span>
+                </div>
+                <p className="p-4 text-sm text-text-secondary leading-relaxed">{form.ai_analysis}</p>
+              </div>
+            )}
             {form.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-4">
                 {form.tags.map((t) => (
@@ -274,6 +446,73 @@ function ArticleEditor({ open, onClose, initial, onSaved }: EditorProps) {
         ) : (
           /* ── FORM ── */
           <div className="space-y-5">
+            {/* Type d'article */}
+            <div>
+              <label className="block text-xs font-bold text-text-muted uppercase tracking-widest mb-1.5">
+                Type d&apos;article
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ['standard', 'Article standard'],
+                  ['match_result', 'Résultat de match'],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => set('article_type', value)}
+                    className={`px-4 py-3 rounded-xl border text-sm font-bold transition-colors ${
+                      form.article_type === value
+                        ? 'bg-primary/15 border-primary/40 text-primary'
+                        : 'bg-background border-surface-light text-text-muted hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Image de couverture */}
+            <div>
+              <label className="block text-xs font-bold text-text-muted uppercase tracking-widest mb-1.5">
+                Image de couverture
+              </label>
+              {form.cover_image ? (
+                <div className="relative rounded-xl overflow-hidden border border-surface-light mb-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.cover_image} alt="Couverture" className="w-full max-h-56 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => set('cover_image', '')}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-red-500/80 transition-colors"
+                    title="Retirer l'image"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-surface-light text-sm text-text-muted hover:text-white hover:border-primary/40 cursor-pointer transition-colors">
+                  {uploadingCover ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  {uploadingCover ? 'Envoi en cours…' : 'Téléverser une image (JPEG/PNG/WebP, 5 Mo max)'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={uploadingCover}
+                    onChange={(e) => { handleCoverUpload(e.target.files?.[0] ?? null); e.target.value = ''; }}
+                  />
+                </label>
+                <input
+                  type="url"
+                  value={form.cover_image ?? ''}
+                  onChange={(e) => set('cover_image', e.target.value)}
+                  placeholder="…ou coller une URL d'image"
+                  className="flex-1 bg-background border border-surface-light rounded-xl px-4 py-3 text-white placeholder:text-text-muted focus:outline-none focus:border-primary/50 text-sm"
+                />
+              </div>
+            </div>
+
             {/* Title */}
             <div>
               <label className="block text-xs font-bold text-text-muted uppercase tracking-widest mb-1.5">
@@ -320,18 +559,122 @@ function ArticleEditor({ open, onClose, initial, onSaved }: EditorProps) {
               />
             </div>
 
+            {/* Match & score (articles "résultat de match") */}
+            {form.article_type === 'match_result' && (
+              <div className="bg-background rounded-xl border border-primary/20 p-4 space-y-3">
+                <p className="text-xs font-bold text-primary uppercase tracking-widest">
+                  Match & score (affiché sous le titre)
+                </p>
+                <div className="grid grid-cols-[1fr_auto_auto_1fr] gap-2 items-center">
+                  <input
+                    type="text"
+                    value={form.match_info?.home_team ?? ''}
+                    onChange={(e) => setMatch('home_team', e.target.value)}
+                    placeholder="Équipe domicile"
+                    className="bg-surface border border-surface-light rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-primary/50"
+                  />
+                  <input
+                    type="number" min={0}
+                    value={form.match_info?.home_score ?? ''}
+                    onChange={(e) => setMatch('home_score', e.target.value)}
+                    placeholder="0"
+                    className="w-16 bg-surface border border-surface-light rounded-xl px-2 py-2.5 text-white text-center text-lg font-black focus:outline-none focus:border-primary/50"
+                  />
+                  <input
+                    type="number" min={0}
+                    value={form.match_info?.away_score ?? ''}
+                    onChange={(e) => setMatch('away_score', e.target.value)}
+                    placeholder="0"
+                    className="w-16 bg-surface border border-surface-light rounded-xl px-2 py-2.5 text-white text-center text-lg font-black focus:outline-none focus:border-primary/50"
+                  />
+                  <input
+                    type="text"
+                    value={form.match_info?.away_team ?? ''}
+                    onChange={(e) => setMatch('away_team', e.target.value)}
+                    placeholder="Équipe extérieur"
+                    className="bg-surface border border-surface-light rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-primary/50"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={form.match_info?.league ?? ''}
+                    onChange={(e) => setMatch('league', e.target.value)}
+                    placeholder="Compétition (ex: Premier League)"
+                    className="bg-surface border border-surface-light rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-primary/50"
+                  />
+                  <input
+                    type="date"
+                    value={form.match_info?.match_date ?? ''}
+                    onChange={(e) => setMatch('match_date', e.target.value)}
+                    className="bg-surface border border-surface-light rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-primary/50"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Content */}
             <div>
-              <label className="block text-xs font-bold text-text-muted uppercase tracking-widest mb-1.5">
-                Contenu (texte brut, paragraphes séparés par une ligne vide)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-text-muted uppercase tracking-widest">
+                  Contenu (texte brut, paragraphes séparés par une ligne vide)
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-white cursor-pointer transition-colors">
+                  {uploadingInline ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                  {uploadingInline ? 'Envoi…' : 'Insérer une image ici'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={uploadingInline}
+                    onChange={(e) => { handleInlineImage(e.target.files?.[0] ?? null); e.target.value = ''; }}
+                  />
+                </label>
+              </div>
               <textarea
+                ref={contentRef}
                 value={form.content}
                 onChange={(e) => set('content', e.target.value)}
                 rows={12}
-                placeholder="Rédigez l'article ici…&#10;&#10;Séparez les paragraphes par une ligne vide."
+                placeholder="Rédigez l'article ici…&#10;&#10;Séparez les paragraphes par une ligne vide.&#10;Une ligne ![légende](url) affiche une image à cet endroit."
                 className="w-full bg-background border border-surface-light rounded-xl px-4 py-3 text-white placeholder:text-text-muted focus:outline-none focus:border-primary/50 text-sm font-mono resize-y leading-relaxed"
               />
+              <p className="text-[10px] text-text-muted mt-1">
+                💡 Placez le curseur dans le texte puis cliquez « Insérer une image ici » — l&apos;image sera téléversée et insérée à cet endroit. Modifiez la légende entre crochets.
+              </p>
+            </div>
+
+            {/* Encadré Analyse IA AlgoPronos */}
+            <div className="bg-background rounded-xl border border-secondary/20 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-secondary uppercase tracking-widest flex items-center gap-2">
+                  <Brain className="h-4 w-4" />
+                  Encadré « Analyse IA AlgoPronos » (fin d&apos;article)
+                </p>
+                {form.article_type === 'match_result' && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateAi}
+                    disabled={generatingAi}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-secondary hover:text-white bg-secondary/10 hover:bg-secondary/20 border border-secondary/30 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
+                  >
+                    {generatingAi ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    {generatingAi ? 'Génération…' : 'Générer avec l\'IA'}
+                  </button>
+                )}
+              </div>
+              <textarea
+                value={form.ai_analysis}
+                onChange={(e) => set('ai_analysis', e.target.value)}
+                rows={4}
+                placeholder="Pourquoi le modèle favorisait (ou non) telle équipe : probabilités, value edge, forme… Laisser vide pour ne pas afficher l'encadré."
+                className="w-full bg-surface border border-surface-light rounded-xl px-4 py-3 text-white placeholder:text-text-muted focus:outline-none focus:border-secondary/50 text-sm resize-y leading-relaxed"
+              />
+              {form.article_type === 'match_result' && (
+                <p className="text-[10px] text-text-muted">
+                  « Générer avec l&apos;IA » croise le score saisi avec le pronostic AlgoPronos stocké pour ce match (probabilité, value edge, cotes) — le texte reste modifiable.
+                </p>
+              )}
             </div>
 
             {/* Category + Status */}

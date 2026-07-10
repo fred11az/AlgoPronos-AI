@@ -177,12 +177,12 @@ export default async function ActualitesPage() {
     const supabase = await createClient();
     const { data } = await supabase
       .from('news_articles')
-      .select('id, title, slug, summary, published_at, category, tags, author')
+      .select('id, title, slug, summary, published_at, category, tags, author, cover_image')
       .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(20);
     if (data && data.length > 0) {
-      dbArticles = data as NewsItem[];
+      dbArticles = data as unknown as NewsItem[];
     }
   } catch {
     // table may not exist yet — use static articles
@@ -281,6 +281,17 @@ export default async function ActualitesPage() {
                       Article à la une
                     </span>
                   </div>
+                )}
+                {(article as { cover_image?: string | null }).cover_image && (
+                  <Link href={`/actualites/${article.slug}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={(article as { cover_image?: string | null }).cover_image!}
+                      alt={article.title}
+                      className="w-full h-44 object-cover"
+                      loading="lazy"
+                    />
+                  </Link>
                 )}
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-3">

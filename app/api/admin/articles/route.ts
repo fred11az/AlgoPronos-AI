@@ -37,6 +37,7 @@ function revalidate() {
 
 const ALLOWED_FIELDS = [
   'title', 'slug', 'summary', 'content', 'category', 'tags', 'author', 'status', 'cover_image',
+  'article_type', 'match_info', 'ai_analysis',
 ] as const;
 
 function sanitize(body: Record<string, unknown>): Record<string, unknown> {
