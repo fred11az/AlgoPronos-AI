@@ -15,7 +15,9 @@ import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/
 import { buildCampaignEmailHtml, sendCampaign, type CampaignPayload } from '@/lib/services/campaign-email';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+// Envoi séquentiel throttlé à ~2 req/s (limite API Resend) — prévoir de la marge
+// pour la croissance de la base d'utilisateurs (300s ≈ 500 destinataires max).
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
