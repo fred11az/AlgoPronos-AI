@@ -66,6 +66,7 @@ export default async function MatchsPage({
       .select(
         'slug, home_team, away_team, league, league_slug, country, match_date, match_time, prediction, prediction_type, probability, recommended_odds, value_edge, odds_home, odds_draw, odds_away'
       )
+      .eq('sport', sport)
       .gte('match_date', today)
       .lte('match_date', limitStr)
       .order('match_date', { ascending: true })

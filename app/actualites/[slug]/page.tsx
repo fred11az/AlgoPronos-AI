@@ -24,6 +24,15 @@ import { worldCupMatches, formatWorldCupDate } from '@/lib/worldcup2026';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+interface MatchInfo {
+  home_team: string;
+  away_team: string;
+  home_score: number | string;
+  away_score: number | string;
+  league?: string;
+  match_date?: string;
+}
+
 interface Article {
   id: string;
   title: string;
@@ -35,7 +44,13 @@ interface Article {
   tags: string[];
   author: string;
   cover_image: string | null;
+  article_type: 'standard' | 'match_result' | null;
+  match_info: MatchInfo | null;
+  ai_analysis: string | null;
 }
+
+// Une ligne "![légende](https://…)" seule dans le contenu = image insérée dans l'article
+const INLINE_IMAGE_RE = /^!\[([^\]]*)\]\((https?:\/\/\S+)\)$/;
 
 // ─── Metadata ──────────────────────────────────────────────────────────────
 
@@ -49,7 +64,7 @@ export async function generateMetadata({
 
   const { data } = await supabase
     .from('news_articles')
-    .select('title, summary, category, tags, published_at, author')
+    .select('title, summary, category, tags, published_at, author, cover_image')
     .eq('slug', slug)
     .eq('status', 'published')
     .single();
@@ -84,11 +99,13 @@ export async function generateMetadata({
       publishedTime: data.published_at,
       authors: [data.author],
       tags: data.tags ?? [],
+      ...(data.cover_image ? { images: [{ url: data.cover_image, width: 1200, height: 630 }] } : {}),
     },
     twitter: {
       card: 'summary_large_image',
       title: data.title,
       description,
+      ...(data.cover_image ? { images: [data.cover_image] } : {}),
     },
   };
 }
@@ -222,6 +239,15 @@ export default async function ArticlePage({
 
             {/* Hero card */}
             <div className="bg-surface rounded-2xl border border-surface-light overflow-hidden shadow-xl mb-8">
+              {/* Image de couverture */}
+              {a.cover_image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={a.cover_image}
+                  alt={a.title}
+                  className="w-full max-h-[420px] object-cover"
+                />
+              )}
               <div className="bg-gradient-to-r from-amber-600/15 to-primary/10 px-6 py-4 border-b border-amber-500/10 flex items-center justify-between flex-wrap gap-2">
                 <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full border ${categoryStyle}`}>
                   {a.category}
@@ -246,6 +272,34 @@ export default async function ArticlePage({
                 <h1 className="text-2xl md:text-4xl font-black text-white leading-tight tracking-tight mb-4">
                   {a.title}
                 </h1>
+
+                {/* Score en évidence sous le titre (articles "résultat de match") */}
+                {a.article_type === 'match_result' && a.match_info && (
+                  <div className="bg-background rounded-2xl border border-primary/25 px-6 py-5 mb-5 text-center">
+                    <div className="flex items-center justify-center gap-4 md:gap-6">
+                      <span className="text-base md:text-lg font-black text-white flex-1 text-right">
+                        {a.match_info.home_team}
+                      </span>
+                      <span className="text-3xl md:text-4xl font-black text-primary whitespace-nowrap tracking-tight">
+                        {a.match_info.home_score}&thinsp;—&thinsp;{a.match_info.away_score}
+                      </span>
+                      <span className="text-base md:text-lg font-black text-white flex-1 text-left">
+                        {a.match_info.away_team}
+                      </span>
+                    </div>
+                    {(a.match_info.league || a.match_info.match_date) && (
+                      <p className="text-[10px] text-text-muted mt-2 uppercase tracking-widest font-bold">
+                        {[
+                          a.match_info.league,
+                          a.match_info.match_date
+                            ? new Date(a.match_info.match_date + 'T12:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                            : null,
+                        ].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {a.summary && (
                   <p className="text-lg text-text-secondary leading-relaxed font-medium italic border-l-2 border-primary/30 pl-5">
                     {a.summary}
@@ -259,6 +313,21 @@ export default async function ArticlePage({
               {paragraphs.length > 0 ? (
                 <div className="space-y-5">
                   {paragraphs.map((para, i) => {
+                    // Image insérée dans le corps : ligne "![légende](url)"
+                    const img = para.trim().match(INLINE_IMAGE_RE);
+                    if (img) {
+                      return (
+                        <figure key={i} className="my-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={img[2]} alt={img[1]} className="w-full rounded-xl border border-surface-light" loading="lazy" />
+                          {img[1] && (
+                            <figcaption className="text-xs text-text-muted mt-2 text-center italic">
+                              {img[1]}
+                            </figcaption>
+                          )}
+                        </figure>
+                      );
+                    }
                     // Detect "N. Title:" pattern → render as subheading
                     const headingMatch = para.match(/^(\d+\.\s+.+?)(?:\s*:|\s*—)/);
                     if (headingMatch && para.length < 80) {
@@ -277,6 +346,26 @@ export default async function ArticlePage({
                 </div>
               ) : (
                 <p className="text-text-muted italic">Contenu bientôt disponible.</p>
+              )}
+
+              {/* ── Encadré "Analyse IA AlgoPronos" ── */}
+              {a.ai_analysis?.trim() && (
+                <div className="mt-8 rounded-2xl border border-secondary/30 overflow-hidden shadow-lg">
+                  <div className="bg-gradient-to-r from-secondary/25 to-primary/15 px-5 py-3 flex items-center gap-2.5">
+                    <Brain className="h-5 w-5 text-secondary shrink-0" />
+                    <span className="text-xs font-black uppercase tracking-widest text-secondary">
+                      Analyse IA AlgoPronos
+                    </span>
+                    <span className="ml-auto text-[9px] font-black text-text-muted bg-surface-light px-2 py-0.5 rounded-full uppercase">
+                      Neural v4.2
+                    </span>
+                  </div>
+                  <div className="bg-secondary/5 p-5 md:p-6">
+                    <p className="text-text-secondary leading-relaxed text-base">
+                      {a.ai_analysis}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 

@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Newspaper,
   Wallet,
+  TrendingUp,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -29,6 +30,7 @@ const adminNavItems = [
   { label: 'Tickets IA',        href: '/admin/tickets',        icon: Ticket },
   { label: 'Actualités',        href: '/admin/actualites',     icon: Newspaper },
   { label: 'Analytics',         href: '/admin/analytics',      icon: BarChart3 },
+  { label: 'Acquisition Hebdo', href: '/admin/analytics/acquisition', icon: TrendingUp },
   { label: 'Paramètres',        href: '/admin/settings',       icon: Settings },
 ];
 

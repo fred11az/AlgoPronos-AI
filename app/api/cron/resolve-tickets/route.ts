@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { notifyTicketResult, TicketMatch } from '@/lib/services/notification-service';
 import { broadcastPush, PushSubscription } from '@/lib/services/push';
+import {
+  ScoreIndex,
+  ScoreResult,
+  TicketPick,
+  massEmailWarnPct,
+  resolveTicketMatches,
+  shouldNotifyUsers,
+  teamPairKey,
+} from '@/lib/services/ticket-resolution';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -28,21 +37,17 @@ const ODDS_SPORT_KEYS = [
   'soccer_argentina_primera_division',
 ];
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Groupes non-foot dont les clés actives sont récupérées dynamiquement :
+// les tickets Montante/Optimus peuvent contenir du tennis, basket ou MMA.
+const EXTRA_SPORT_GROUPS = ['Tennis', 'Basketball', 'Mixed Martial Arts'];
+const MAX_SPORT_KEYS = 30;
 
-interface TicketMatch_ {
-  matchId: string;
-  homeTeam: string;
-  awayTeam: string;
-  league: string;
-  kickoffTime: string;
-  selection: { type: string; value: string; odds: number; impliedPct: number };
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DailyTicket {
   id: string;
   date: string;
-  matches: TicketMatch_[];
+  matches: TicketPick[];
   total_odds: number;
   status: string;
 }
@@ -60,23 +65,55 @@ interface OddsEvent {
   scores: OddsScore[] | null;
 }
 
-type ScoreResult = { homeGoals: number; awayGoals: number; finished: boolean };
-
 // ─── The Odds API scores fetch ────────────────────────────────────────────────
 
-async function fetchScoresFromTheOddsAPI(
-  daysFrom: number = 3,
-): Promise<Map<string, ScoreResult>> {
-  const results = new Map<string, ScoreResult>();
+/**
+ * Liste des sports actifs à interroger : whitelist foot + clés actives
+ * tennis/basket/MMA (endpoint /sports gratuit, ne consomme pas le quota scores).
+ */
+async function fetchActiveSportKeys(apiKey: string): Promise<string[]> {
+  try {
+    const res = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${apiKey}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error(`/sports → ${res.status}`);
+    const sports = (await res.json()) as { key: string; group: string; active: boolean }[];
+
+    const active = new Set(sports.filter((s) => s.active).map((s) => s.key));
+    const soccer = ODDS_SPORT_KEYS.filter((k) => active.has(k));
+    const extras = sports
+      .filter((s) => s.active && EXTRA_SPORT_GROUPS.includes(s.group))
+      .map((s) => s.key);
+
+    const keys = [...soccer, ...extras].slice(0, MAX_SPORT_KEYS);
+    console.log(`[resolve-tickets] Sport keys actifs: ${keys.length} (foot: ${soccer.length}, autres: ${extras.length})`);
+    return keys;
+  } catch (err) {
+    console.warn('[resolve-tickets] /sports indisponible — fallback whitelist foot:', err);
+    return ODDS_SPORT_KEYS;
+  }
+}
+
+/**
+ * Récupère les scores terminés et les indexe de deux façons :
+ * - par event id (les tickets récents stockent parfois l'id brut ou préfixé)
+ * - par paire d'équipes normalisée (couvre les matchId au format slug — cause
+ *   du bug d'annulation quotidienne : le lookup par id seul échouait toujours)
+ */
+async function fetchScoresFromTheOddsAPI(daysFrom: number = 3): Promise<ScoreIndex> {
+  const index: ScoreIndex = { byId: new Map(), byTeams: new Map() };
   const apiKey = process.env.THE_ODDS_API_KEY;
 
   if (!apiKey) {
     console.error('[resolve-tickets] THE_ODDS_API_KEY not set — cannot resolve tickets');
-    return results;
+    return index;
   }
 
+  const sportKeys = await fetchActiveSportKeys(apiKey);
+
   const fetches = await Promise.allSettled(
-    ODDS_SPORT_KEYS.map(async (sportKey) => {
+    sportKeys.map(async (sportKey) => {
       const url = new URL(`https://api.the-odds-api.com/v4/sports/${sportKey}/scores/`);
       url.searchParams.set('apiKey', apiKey);
       url.searchParams.set('daysFrom', String(daysFrom));
@@ -100,50 +137,18 @@ async function fetchScoresFromTheOddsAPI(
       const awayScore = event.scores.find((s) => s.name === event.away_team);
       if (!homeScore || !awayScore) continue;
 
-      results.set(event.id, {
+      const score: ScoreResult = {
         homeGoals: parseInt(homeScore.score, 10) || 0,
         awayGoals: parseInt(awayScore.score, 10) || 0,
         finished: true,
-      });
+      };
+      index.byId.set(event.id, score);
+      index.byTeams.set(teamPairKey(event.home_team, event.away_team), score);
     }
   }
 
-  console.log(`[resolve-tickets] Scores fetched: ${results.size} completed events across ${ODDS_SPORT_KEYS.length} competitions`);
-  return results;
-}
-
-// ─── Pick evaluation ──────────────────────────────────────────────────────────
-
-function evaluatePick(
-  type: string,
-  value: string,
-  homeGoals: number,
-  awayGoals: number,
-): boolean {
-  if (type === '1X2') {
-    if (value === '1') return homeGoals > awayGoals;
-    if (value === 'X') return homeGoals === awayGoals;
-    if (value === '2') return awayGoals > homeGoals;
-  }
-  if (type === 'Double Chance') {
-    if (value === '1X') return homeGoals >= awayGoals;
-    if (value === 'X2') return awayGoals >= homeGoals;
-    if (value === '12') return homeGoals !== awayGoals;
-  }
-  if (type === 'BTTS') {
-    const btts = homeGoals > 0 && awayGoals > 0;
-    if (value === 'Oui' || value === 'Yes') return btts;
-    if (value === 'Non' || value === 'No') return !btts;
-  }
-  if (type === 'Over/Under') {
-    const total = homeGoals + awayGoals;
-    const m = value.match(/^(Over|Under)\s+([\d.]+)$/);
-    if (m) {
-      const threshold = parseFloat(m[2]);
-      return m[1] === 'Over' ? total > threshold : total <= threshold;
-    }
-  }
-  return false;
+  console.log(`[resolve-tickets] Scores fetched: ${index.byId.size} completed events across ${sportKeys.length} competitions`);
+  return index;
 }
 
 // ─── Main cron handler ────────────────────────────────────────────────────────
@@ -155,6 +160,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const runStart = Date.now();
   const adminSupabase = createAdminClient();
   const today = new Date().toISOString().split('T')[0];
 
@@ -173,13 +179,15 @@ export async function GET(req: NextRequest) {
   }
 
   if (!tickets || tickets.length === 0) {
+    console.log('[resolve-tickets] RUN SUMMARY — aucun ticket en attente, 0 email envoyé');
     return NextResponse.json({ resolved: 0, message: 'Aucun ticket en attente' });
   }
 
   // Fetch all completed scores from The Odds API (single batch, all sport_keys)
-  const scoresMap = await fetchScoresFromTheOddsAPI(3);
+  const scoreIndex = await fetchScoresFromTheOddsAPI(3);
 
-  const resolved: { id: string; date: string; status: string }[] = [];
+  const resolved: { id: string; date: string; status: string; reason: string }[] = [];
+  const counts = { won: 0, lost: 0, void: 0, waiting: 0, emailsSent: 0, notifiedTickets: 0 };
 
   for (const ticket of tickets as DailyTicket[]) {
     try {
@@ -190,67 +198,26 @@ export async function GET(req: NextRequest) {
         (Date.now() - new Date(ticket.date + 'T23:59:59Z').getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      let anyResolved = false;
-      let anyLost = false;
-      let anyVoid = false;
+      const { status: newStatus, enrichedMatches, reason } = resolveTicketMatches(
+        matches,
+        scoreIndex,
+        ticketAgeDays,
+      );
 
-      const enrichedMatches = matches.map((m) => {
-        const matchId = m.matchId;
-
-        // Legacy apif- IDs: cannot resolve via The Odds API → void
-        if (!matchId || matchId.startsWith('apif-')) {
-          anyVoid = true;
-          return { ...m, result: 'void', score: null };
-        }
-
-        const result = scoresMap.get(matchId);
-
-        if (!result || !result.finished) {
-          // Event not yet in scores or not completed
-          if (ticketAgeDays < 1) {
-            // Match probably hasn't happened yet — skip ticket
-            return { ...m, result: 'pending', score: null };
-          }
-          // Old ticket without a score — void this pick
-          anyVoid = true;
-          return { ...m, result: 'void', score: null };
-        }
-
-        const won = evaluatePick(
-          m.selection.type,
-          m.selection.value,
-          result.homeGoals,
-          result.awayGoals,
-        );
-        if (!won) anyLost = true;
-        anyResolved = true;
-        return {
-          ...m,
-          result: won ? 'won' : 'lost',
-          score: { home: result.homeGoals, away: result.awayGoals },
-        };
-      });
-
-      // If any match is still pending (too recent), skip this ticket
-      if (enrichedMatches.some((m: any) => m.result === 'pending')) {
-        console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}): matches not finished yet — waiting`);
+      if (newStatus === 'pending') {
+        counts.waiting++;
+        console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}): en attente — ${reason}`);
         continue;
       }
-
-      // If nothing resolved and ticket is recent, wait another day
-      if (!anyResolved && !anyVoid && ticketAgeDays < 2) {
-        console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}): nothing resolved yet, waiting`);
-        continue;
-      }
-
-      const newStatus = anyLost ? 'lost' : anyVoid ? 'void' : 'won';
 
       const { error: updateErr } = await adminSupabase
         .from('daily_ticket')
         .update({
           status: newStatus,
           matches: enrichedMatches,
-          result_notes: `Résolu automatiquement via The Odds API`,
+          result_notes: newStatus === 'void'
+            ? `Annulé automatiquement: ${reason}`
+            : 'Résolu automatiquement via The Odds API',
           resolved_at: new Date().toISOString(),
         })
         .eq('id', ticket.id);
@@ -260,19 +227,38 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      resolved.push({ id: ticket.id, date: ticket.date, status: newStatus });
-      console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}) → ${newStatus}`);
+      counts[newStatus]++;
+      resolved.push({ id: ticket.id, date: ticket.date, status: newStatus, reason });
+      console.log(`[resolve-tickets] Ticket ${ticket.id} (${ticket.date}) → ${newStatus} (${reason})`);
 
-      await notifyUsers(adminSupabase, ticket, newStatus);
+      // Notification UNIQUEMENT sur résultat réel (gagné/perdu).
+      // Un ticket void ne doit JAMAIS déclencher d'email de masse — c'était le
+      // bug: 100% des tickets passaient void et 100% des profils étaient emailés.
+      if (shouldNotifyUsers(newStatus)) {
+        const { emailsSent } = await notifyUsers(adminSupabase, ticket, newStatus);
+        counts.emailsSent += emailsSent;
+        counts.notifiedTickets++;
+      } else {
+        console.log(`[resolve-tickets] Ticket ${ticket.id} → ${newStatus}: AUCUNE notification envoyée (politique void)`);
+      }
     } catch (err) {
       console.error(`[resolve-tickets] Error processing ticket ${ticket.id}:`, err);
     }
   }
 
-  return NextResponse.json({
+  const summary = {
     resolved: resolved.length,
-    tickets: resolved,
-  });
+    won: counts.won,
+    lost: counts.lost,
+    void: counts.void,
+    waiting: counts.waiting,
+    notifiedTickets: counts.notifiedTickets,
+    emailsSent: counts.emailsSent,
+    durationMs: Date.now() - runStart,
+  };
+  console.log(`[resolve-tickets] RUN SUMMARY — ${JSON.stringify(summary)}`);
+
+  return NextResponse.json({ ...summary, tickets: resolved });
 }
 
 // ─── Notify users ─────────────────────────────────────────────────────────────
@@ -281,19 +267,28 @@ async function notifyUsers(
   supabase: any,
   ticket: DailyTicket,
   status: string,
-) {
+): Promise<{ emailsSent: number }> {
   try {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, email, full_name, phone, metadata')
       .not('email', 'is', null);
 
-    if (!profiles?.length) return;
+    if (!profiles?.length) return { emailsSent: 0 };
 
     const eligible = profiles.filter((p: { metadata: Record<string, unknown> | null }) => {
       const meta = p.metadata as Record<string, unknown> | null;
       return !meta || meta.notify_results !== false;
     });
+
+    // Garde-fou anti-email de masse : trace toujours le volume, warning au-delà
+    // du seuil (MASS_EMAIL_WARN_PCT, défaut 50%). L'envoi des résultats à tous
+    // les opt-in est voulu, mais le volume doit être visible dans les logs.
+    const pct = Math.round((eligible.length / profiles.length) * 100);
+    console.log(`[resolve-tickets] Notification ${status} ticket ${ticket.date}: ${eligible.length}/${profiles.length} profils éligibles (${pct}%)`);
+    if (pct > massEmailWarnPct()) {
+      console.warn(`[resolve-tickets] ⚠️ GARDE-FOU: envoi à ${pct}% des utilisateurs (> ${massEmailWarnPct()}%) — vérifier que c'est intentionnel (statut: ${status})`);
+    }
 
     const notifMatches: TicketMatch[] = ticket.matches.map((m) => ({
       home_team: m.homeTeam,
@@ -302,13 +297,14 @@ async function notifyUsers(
       odds: m.selection.odds,
     }));
 
+    let emailsSent = 0;
     const batches: typeof eligible[] = [];
     for (let i = 0; i < eligible.length; i += 10) {
       batches.push(eligible.slice(i, i + 10));
     }
 
     for (const batch of batches) {
-      await Promise.all(
+      const results = await Promise.all(
         batch.map((p: { email: string; full_name: string | null; phone: string | null }) =>
           notifyTicketResult({
             userEmail: p.email,
@@ -321,7 +317,10 @@ async function notifyUsers(
           })
         )
       );
+      emailsSent += results.filter((r) => r.email).length;
     }
+
+    console.log(`[resolve-tickets] Emails envoyés: ${emailsSent}/${eligible.length} (ticket ${ticket.date}, statut ${status})`);
 
     const allPushSubs: PushSubscription[] = [];
     for (const p of profiles) {
@@ -331,8 +330,8 @@ async function notifyUsers(
     }
 
     if (allPushSubs.length > 0) {
-      const statusEmoji = status === 'won' ? '✅' : status === 'lost' ? '❌' : '⚪';
-      const statusLabel = status === 'won' ? 'GAGNÉ' : status === 'lost' ? 'PERDU' : 'ANNULÉ';
+      const statusEmoji = status === 'won' ? '✅' : '❌';
+      const statusLabel = status === 'won' ? 'GAGNÉ' : 'PERDU';
       await broadcastPush(allPushSubs, {
         title: `${statusEmoji} Ticket IA du Jour — ${statusLabel}`,
         body: `Cote totale × ${ticket.total_odds.toFixed(2)} · Voir les détails`,
@@ -341,7 +340,10 @@ async function notifyUsers(
         requireInteraction: status === 'won',
       });
     }
+
+    return { emailsSent };
   } catch (err) {
     console.error('[resolve-tickets] Notify error:', err);
+    return { emailsSent: 0 };
   }
 }
