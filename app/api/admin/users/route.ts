@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
 
   const { data: profiles, error } = await supabase
     .from('profiles')
-    .select('id, email, full_name, tier, created_at, country')
+    .select('id, email, full_name, phone, tier, created_at, country')
     .order('created_at', { ascending: false })
-    .limit(100);
+    .limit(500);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
