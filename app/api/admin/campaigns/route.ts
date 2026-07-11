@@ -40,8 +40,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ html: buildCampaignEmailHtml(payload, 'Prénom') });
   }
 
-  // Résolution des destinataires
   const supabase = createAdminClient();
+
+  // Mode test: envoi uniquement à l'admin connecté — pour vérifier la config
+  // Resend et le rendu réel avant un envoi de masse.
+  if (body.test === true) {
+    const { data: me } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', user.id)
+      .single();
+    const testEmail = me?.email ?? user.email;
+    if (!testEmail) return NextResponse.json({ error: 'Email admin introuvable' }, { status: 400 });
+
+    try {
+      const result = await sendCampaign(payload, [{ email: testEmail, full_name: me?.full_name }]);
+      console.log(`[campaign] TEST "${payload.subject}" → ${testEmail}: ${result.sent ? 'OK' : `ÉCHEC (${result.firstError})`}`);
+      if (result.sent === 0) {
+        return NextResponse.json(
+          { error: `Échec du test vers ${testEmail}: ${result.firstError ?? 'raison inconnue'}` },
+          { status: 502 },
+        );
+      }
+      return NextResponse.json({ ...result, testEmail });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erreur lors du test';
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
+  }
+
+  // Résolution des destinataires
   let query = supabase.from('profiles').select('id, email, full_name').not('email', 'is', null);
   if (body.recipients !== 'all') {
     if (!Array.isArray(body.recipients) || body.recipients.length === 0) {
