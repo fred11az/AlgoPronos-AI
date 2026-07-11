@@ -113,34 +113,50 @@ export async function sendCampaign(
   let failed = 0;
   let firstError: string | null = null;
 
-  for (let i = 0; i < recipients.length; i += 10) {
-    const batch = recipients.slice(i, i + 10);
-    const results = await Promise.all(
-      batch.map(async (r) => {
-        try {
-          const { error } = await resend.emails.send({
-            from,
-            to: r.email,
-            subject: payload.subject,
-            replyTo: 'support@algopronos.com',
-            headers: { 'List-Unsubscribe': '<mailto:unsubscribe@algopronos.com?subject=unsubscribe>' },
-            html: buildCampaignEmailHtml(payload, r.full_name),
-          });
-          if (error) {
-            console.error(`[campaign] Échec envoi à ${r.email}:`, error);
-            if (!firstError) firstError = error.message || JSON.stringify(error);
-            return false;
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // L'API Resend limite à 2 requêtes/seconde. Un envoi en parallèle (Promise.all
+  // par lots de 10) déclenchait des 429 "Too Many Requests" en cascade — c'est
+  // la cause du "10/92 délivrés" observé en prod. Envoi séquentiel avec un délai
+  // de sécurité, + retry avec backoff en cas de 429 malgré tout.
+  const MIN_INTERVAL_MS = 550; // < 2 req/s avec marge
+  const MAX_RETRIES = 3;
+
+  for (const r of recipients) {
+    let attempt = 0;
+    while (true) {
+      attempt++;
+      try {
+        const { error } = await resend.emails.send({
+          from,
+          to: r.email,
+          subject: payload.subject,
+          replyTo: 'support@algopronos.com',
+          headers: { 'List-Unsubscribe': '<mailto:unsubscribe@algopronos.com?subject=unsubscribe>' },
+          html: buildCampaignEmailHtml(payload, r.full_name),
+        });
+
+        if (error) {
+          const isRateLimited = (error as any).name === 'rate_limit_exceeded' || (error as any).statusCode === 429;
+          if (isRateLimited && attempt <= MAX_RETRIES) {
+            console.warn(`[campaign] Rate limit — retry ${attempt}/${MAX_RETRIES} pour ${r.email}`);
+            await sleep(1000 * attempt);
+            continue;
           }
-          return true;
-        } catch (err) {
-          console.error(`[campaign] Échec envoi à ${r.email}:`, err);
-          if (!firstError) firstError = err instanceof Error ? err.message : String(err);
-          return false;
+          console.error(`[campaign] Échec envoi à ${r.email}:`, error);
+          if (!firstError) firstError = error.message || JSON.stringify(error);
+          failed++;
+        } else {
+          sent++;
         }
-      })
-    );
-    sent += results.filter(Boolean).length;
-    failed += results.filter((ok) => !ok).length;
+      } catch (err) {
+        console.error(`[campaign] Échec envoi à ${r.email}:`, err);
+        if (!firstError) firstError = err instanceof Error ? err.message : String(err);
+        failed++;
+      }
+      break;
+    }
+    await sleep(MIN_INTERVAL_MS);
   }
 
   return { total: recipients.length, sent, failed, firstError };
