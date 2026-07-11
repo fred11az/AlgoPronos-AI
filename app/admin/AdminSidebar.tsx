@@ -19,11 +19,13 @@ import {
   Newspaper,
   Wallet,
   TrendingUp,
+  Mail,
 } from 'lucide-react';
 
 const adminNavItems = [
   { label: 'Dashboard',         href: '/admin',                icon: LayoutDashboard },
   { label: 'Utilisateurs',      href: '/admin/users',          icon: Users },
+  { label: 'Campagnes email',   href: '/admin/campaigns',      icon: Mail },
   { label: 'Vérifications VIP', href: '/admin/verifications',  icon: CheckCircle },
   { label: 'IDs Bookmakers',    href: '/admin/bookmakers',     icon: ShieldCheck },
   { label: 'Caisse MobCash',    href: '/admin/mobcash',        icon: Wallet },

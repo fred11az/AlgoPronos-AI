@@ -1,14 +1,19 @@
 /**
- * POST /api/admin/campaigns — envoi d'un email marketing HTML (admin uniquement).
+ * /api/admin/campaigns — campagnes email marketing (admin uniquement).
  *
- * Body: {
+ * POST body: {
  *   subject, title, body, ctaLabel?, ctaUrl?,
  *   recipients: 'all' | string[]   // 'all' = tous les profils avec email, sinon liste d'ids
  *   preview?: boolean               // true = retourne le HTML sans rien envoyer
+ *   test?: boolean                  // true = envoie uniquement à l'admin connecté
  * }
+ * GET ?id=<uuid>  → une campagne (contenu complet, pour "Renvoyer")
+ * GET (sans id)   → historique (100 dernières campagnes réellement envoyées)
  *
- * Garde-fous: confirmation côté client + log du volume (même esprit que le
- * garde-fou anti-email de masse du cron resolve-tickets).
+ * Le contenu est enregistré dans email_campaigns AVANT l'envoi (pas après) :
+ * une campagne composée est ainsi toujours consultable/renvoyable, même si
+ * l'envoi échoue ou que la fonction est interrompue en cours de route.
+ * Aperçus et tests ne sont pas historisés.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
@@ -18,6 +23,29 @@ export const dynamic = 'force-dynamic';
 // Envoi séquentiel throttlé à ~2 req/s (limite API Resend) — prévoir de la marge
 // pour la croissance de la base d'utilisateurs (300s ≈ 500 destinataires max).
 export const maxDuration = 300;
+
+export async function GET(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Non connecté' }, { status: 401 });
+  if (!(await checkIsAdmin(user.id))) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
+  const supabase = createAdminClient();
+  const id = new URL(req.url).searchParams.get('id');
+
+  if (id) {
+    const { data, error } = await supabase.from('email_campaigns').select('*').eq('id', id).single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ campaign: data });
+  }
+
+  const { data, error } = await supabase
+    .from('email_campaigns')
+    .select('id, subject, title, target, total, sent, failed, first_error, created_at')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ campaigns: data ?? [] });
+}
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
@@ -37,7 +65,7 @@ export async function POST(req: NextRequest) {
     ctaUrl: body.ctaUrl ? String(body.ctaUrl).trim() : undefined,
   };
 
-  // Aperçu: retourne le HTML rendu, aucun envoi
+  // Aperçu: retourne le HTML rendu, aucun envoi, rien de sauvegardé
   if (body.preview === true) {
     return NextResponse.json({ html: buildCampaignEmailHtml(payload, 'Prénom') });
   }
@@ -45,7 +73,7 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient();
 
   // Mode test: envoi uniquement à l'admin connecté — pour vérifier la config
-  // Resend et le rendu réel avant un envoi de masse.
+  // Resend et le rendu réel avant un envoi de masse. Non historisé.
   if (body.test === true) {
     const { data: me } = await supabase
       .from('profiles')
@@ -72,8 +100,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Résolution des destinataires
+  const isAll = body.recipients === 'all';
   let query = supabase.from('profiles').select('id, email, full_name').not('email', 'is', null);
-  if (body.recipients !== 'all') {
+  if (!isAll) {
     if (!Array.isArray(body.recipients) || body.recipients.length === 0) {
       return NextResponse.json({ error: 'Sélectionne au moins un destinataire (ou "all")' }, { status: 400 });
     }
@@ -87,15 +116,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Aucun destinataire avec email' }, { status: 400 });
   }
 
-  console.log(`[campaign] "${payload.subject}" → ${recipients.length} destinataire(s) (mode: ${body.recipients === 'all' ? 'TOUS' : 'sélection'}) par admin ${user.id}`);
+  // Sauvegarde AVANT l'envoi — le contenu ne doit jamais dépendre du succès
+  // de l'envoi pour être récupérable (voir historique du bug: campagne
+  // composée puis perdue, aucune trace, impossible à renvoyer).
+  const { data: saved, error: saveErr } = await supabase
+    .from('email_campaigns')
+    .insert({
+      subject: payload.subject,
+      title: payload.title,
+      body: payload.body,
+      cta_label: payload.ctaLabel ?? null,
+      cta_url: payload.ctaUrl ?? null,
+      target: isAll ? 'all' : 'selection',
+      recipient_ids: isAll ? null : recipients.map((r) => r.id),
+      total: recipients.length,
+      sent_by: user.id,
+    })
+    .select('id')
+    .single();
+  if (saveErr) console.error('[campaign] Échec sauvegarde historique:', saveErr);
+
+  console.log(`[campaign] "${payload.subject}" → ${recipients.length} destinataire(s) (mode: ${isAll ? 'TOUS' : 'sélection'}) par admin ${user.id}`);
 
   try {
     const result = await sendCampaign(payload, recipients);
     console.log(`[campaign] "${payload.subject}" terminé: ${result.sent} envoyés, ${result.failed} échecs / ${result.total}`);
-    return NextResponse.json(result);
+
+    if (saved?.id) {
+      await supabase
+        .from('email_campaigns')
+        .update({ sent: result.sent, failed: result.failed, first_error: result.firstError })
+        .eq('id', saved.id);
+    }
+
+    return NextResponse.json({ ...result, campaignId: saved?.id ?? null });
   } catch (err) {
     console.error('[campaign] failed:', err);
     const msg = err instanceof Error ? err.message : 'Erreur lors de l\'envoi';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    if (saved?.id) {
+      await supabase.from('email_campaigns').update({ first_error: msg }).eq('id', saved.id);
+    }
+    return NextResponse.json({ error: msg, campaignId: saved?.id ?? null }, { status: 500 });
   }
 }

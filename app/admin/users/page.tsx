@@ -5,7 +5,9 @@
  * pays, statut, date) + sélection multiple + composeur de campagnes email HTML
  * (envoi à tous les utilisateurs ou à la sélection) via /api/admin/campaigns.
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,7 @@ import {
   Mail,
   Eye,
   Sparkles,
+  History,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -111,6 +114,18 @@ const EMPTY_CAMPAIGN: CampaignForm = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminUsersPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <AdminUsersPageInner />
+    </Suspense>
+  );
+}
+
+function AdminUsersPageInner() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -123,6 +138,30 @@ export default function AdminUsersPage() {
 
   // Campaign dialog
   const [campaignOpen, setCampaignOpen] = useState(false);
+  const [resendPrefill, setResendPrefill] = useState<{ form: CampaignForm; target: 'all' | 'selection' } | null>(null);
+
+  // Renvoi d'une campagne de l'historique (?resend=<id>) — charge son contenu
+  // et ouvre le composeur pré-rempli, prêt à être renvoyé (ou modifié avant).
+  const searchParams = useSearchParams();
+  const resendId = searchParams.get('resend');
+  useEffect(() => {
+    if (!resendId) return;
+    fetch(`/api/admin/campaigns?id=${resendId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.campaign) throw new Error(data.error || 'Campagne introuvable');
+        const c = data.campaign;
+        setResendPrefill({
+          form: {
+            subject: c.subject, title: c.title, body: c.body,
+            ctaLabel: c.cta_label ?? '', ctaUrl: c.cta_url ?? '',
+          },
+          target: 'all',
+        });
+        setCampaignOpen(true);
+      })
+      .catch(() => toast.error('Impossible de charger cette campagne pour la renvoyer'));
+  }, [resendId]);
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -218,11 +257,17 @@ export default function AdminUsersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" asChild>
+            <Link href="/admin/campaigns">
+              <History className="h-4 w-4" />
+              Historique
+            </Link>
+          </Button>
           <Button
             variant="gradient"
             size="sm"
             className="gap-2 font-bold"
-            onClick={() => setCampaignOpen(true)}
+            onClick={() => { setResendPrefill(null); setCampaignOpen(true); }}
           >
             <Mail className="h-4 w-4" />
             {selected.size > 0 ? `Envoyer un email (${selected.size})` : 'Campagne email'}
@@ -369,7 +414,9 @@ export default function AdminUsersPage() {
         <CampaignComposer
           selectedUsers={users.filter(u => selected.has(u.id))}
           totalUsers={users.length}
-          onClose={() => setCampaignOpen(false)}
+          initialForm={resendPrefill?.form}
+          initialTarget={resendPrefill?.target}
+          onClose={() => { setCampaignOpen(false); setResendPrefill(null); }}
         />
       )}
 
@@ -438,16 +485,22 @@ export default function AdminUsersPage() {
 function CampaignComposer({
   selectedUsers,
   totalUsers,
+  initialForm,
+  initialTarget,
   onClose,
 }: {
   selectedUsers: UserProfile[];
   totalUsers: number;
+  initialForm?: CampaignForm;
+  initialTarget?: 'selection' | 'all';
   onClose: () => void;
 }) {
   const [form, setForm] = useState<CampaignForm>(
-    selectedUsers.length > 0 ? EMPTY_CAMPAIGN : CAMPAIGN_TEMPLATES[0].form
+    initialForm ?? (selectedUsers.length > 0 ? EMPTY_CAMPAIGN : CAMPAIGN_TEMPLATES[0].form)
   );
-  const [target, setTarget] = useState<'selection' | 'all'>(selectedUsers.length > 0 ? 'selection' : 'all');
+  const [target, setTarget] = useState<'selection' | 'all'>(
+    initialTarget ?? (selectedUsers.length > 0 ? 'selection' : 'all')
+  );
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [sending, setSending] = useState(false);
