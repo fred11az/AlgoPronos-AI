@@ -451,6 +451,7 @@ function CampaignComposer({
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [sending, setSending] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [error, setError] = useState('');
 
   const recipientCount = target === 'all' ? totalUsers : selectedUsers.length;
@@ -471,6 +472,29 @@ function CampaignComposer({
       setError(e.message);
     } finally {
       setLoadingPreview(false);
+    }
+  };
+
+  // Envoi de test à sa propre adresse — vérifie la config Resend + le rendu réel
+  const handleTest = async () => {
+    if (!form.subject.trim() || !form.title.trim() || !form.body.trim()) {
+      setError('Objet, titre et contenu sont obligatoires (même pour un test).');
+      return;
+    }
+    setTesting(true); setError('');
+    try {
+      const res = await fetch('/api/admin/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, test: true, recipients: 'all' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+      toast.success(`Email de test envoyé à ${data.testEmail} — vérifie ta boîte (et les spams).`);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -497,7 +521,10 @@ function CampaignComposer({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
-      toast.success(`Campagne envoyée : ${data.sent}/${data.total} emails délivrés${data.failed ? ` (${data.failed} échecs)` : ''}`);
+      if (data.sent === 0) {
+        throw new Error(`Aucun email délivré (0/${data.total}). ${data.firstError ? `Cause: ${data.firstError}` : 'Vérifie la configuration Resend.'}`);
+      }
+      toast.success(`Campagne envoyée : ${data.sent}/${data.total} emails délivrés${data.failed ? ` (${data.failed} échecs — ${data.firstError})` : ''}`, { duration: 8000 });
       onClose();
     } catch (e: any) {
       setError(e.message);
@@ -646,11 +673,21 @@ function CampaignComposer({
           <Button
             variant="outline"
             onClick={handlePreview}
-            disabled={loadingPreview || sending}
+            disabled={loadingPreview || sending || testing}
             className="gap-2 border-surface-light"
           >
             {loadingPreview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
             Aperçu
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleTest}
+            disabled={testing || sending}
+            className="gap-2 border-secondary/40 text-secondary hover:bg-secondary/10"
+            title="Envoie l'email uniquement à ton adresse admin"
+          >
+            {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            M&apos;envoyer un test
           </Button>
           <div className="flex-1" />
           <Button variant="outline" onClick={onClose} disabled={sending} className="border-surface-light text-text-muted">

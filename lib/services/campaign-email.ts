@@ -91,6 +91,8 @@ export interface CampaignSendResult {
   total: number;
   sent: number;
   failed: number;
+  /** Premier message d'erreur Resend rencontré — pour diagnostiquer depuis l'UI. */
+  firstError: string | null;
 }
 
 /**
@@ -109,6 +111,7 @@ export async function sendCampaign(
 
   let sent = 0;
   let failed = 0;
+  let firstError: string | null = null;
 
   for (let i = 0; i < recipients.length; i += 10) {
     const batch = recipients.slice(i, i + 10);
@@ -125,11 +128,13 @@ export async function sendCampaign(
           });
           if (error) {
             console.error(`[campaign] Échec envoi à ${r.email}:`, error);
+            if (!firstError) firstError = error.message || JSON.stringify(error);
             return false;
           }
           return true;
         } catch (err) {
           console.error(`[campaign] Échec envoi à ${r.email}:`, err);
+          if (!firstError) firstError = err instanceof Error ? err.message : String(err);
           return false;
         }
       })
@@ -138,5 +143,5 @@ export async function sendCampaign(
     failed += results.filter((ok) => !ok).length;
   }
 
-  return { total: recipients.length, sent, failed };
+  return { total: recipients.length, sent, failed, firstError };
 }
