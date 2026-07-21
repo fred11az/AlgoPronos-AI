@@ -78,6 +78,30 @@ Il manque principalement : le webhook Messenger, les tables `prospects` / `conve
 
 ---
 
+## 📌 État d'avancement Sprint 1 (21 juillet 2026)
+
+**Socle construit** (fonctionne sans les tokens Meta, en attente de la page Facebook de Fred) :
+
+- `supabase/migrations/20260721_sales_ai_foundation.sql` — tables `sales_prospects`
+  (13 états + mémoire JSONB), `sales_conversations` (journal), `sales_relances` (prêt pour Sprint 5).
+  ⚠️ **Migration pas encore appliquée en production** (`npm run db:push`).
+- `lib/services/sales-ai/meta-messenger.ts` — signature webhook, envoi Graph API, profil FB (env-gated).
+- `lib/services/sales-ai/prospect-service.ts` — CRUD prospects, journal, mémoire, états.
+- `lib/services/sales-ai/omari.ts` — cerveau Claude, prompt v0 (Missions 1-3), sortie structurée
+  (réponse + memory_updates + suggested_state), fallback sans clé API.
+- `app/api/messenger/webhook/route.ts` — GET handshake Meta + POST pipeline complet.
+- `.env.example` — variables `ANTHROPIC_API_KEY`, `OMARI_MODEL`, `META_PAGE_ACCESS_TOKEN`,
+  `META_APP_SECRET`, `META_VERIFY_TOKEN` documentées.
+
+**Bloqué en attente de Fred** : Page Facebook + App Meta (Business) + produit Messenger
+→ fournir `META_PAGE_ACCESS_TOKEN`, `META_APP_SECRET`, `META_VERIFY_TOKEN` (inventé), `PAGE_ID`.
+
+**Reste à faire pour finir le Sprint 1** : appliquer la migration, configurer le webhook dans
+le dashboard Meta (URL `https://algopronos.com/api/messenger/webhook`), tester en réel avec
+50 conversations, puis validation avant Sprint 2.
+
+---
+
 ## ⚠️ Rappels non-négociables (pour chaque session de dev)
 
 1. **Partie 2 du cahier des charges = 8 MISSIONS commerciales**, pas des objectifs techniques.
