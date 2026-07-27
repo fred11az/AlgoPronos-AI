@@ -15,11 +15,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import { createAdminClient } from '@/lib/supabase/server';
 import { notifyAdmin } from '@/lib/services/notification-service';
+import { sendTransactional } from '@/lib/services/email/client';
 
-const FROM    = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@algopronos.com>';
 const RAW_URL = process.env.SITE_URL || 'https://www.algopronos.com';
 const APP_URL = RAW_URL.includes('vercel.app') ? 'https://www.algopronos.com' : RAW_URL.replace(/\/$/, '');
 
@@ -153,7 +152,6 @@ export async function POST(req: Request) {
       finalRedirect = `https://www.algopronos.com/auth/callback?next=/unlock-vip`;
     }
 
-    const resend        = new Resend(apiKey);
     const adminSupabase = createAdminClient();
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -190,16 +188,14 @@ export async function POST(req: Request) {
       }
 
       const displayName = fullName || email.split('@')[0];
-      const result = await resend.emails.send({
-        from: FROM,
+      const result = await sendTransactional({
         to: email,
         subject: `${otp} est votre code AlgoPronos AI`,
-        replyTo: 'support@algopronos.com',
         html: otpEmail(displayName, otp),
         text: `Bonjour ${displayName},\n\nVotre code de vérification AlgoPronos AI est : ${otp}\n\nCe code expire dans 15 minutes.\n\n© ${new Date().getFullYear()} AlgoPronos AI`,
       });
 
-      if (result.error) {
+      if (!result.ok) {
         return NextResponse.json({ error: 'Échec de l\'envoi de l\'email', details: result.error }, { status: 500 });
       }
 
@@ -215,16 +211,14 @@ export async function POST(req: Request) {
         user_metadata: { ...target.user_metadata, email_otp: otp, otp_expiry: otpExpiry }
       });
 
-      const result = await resend.emails.send({
-        from: FROM,
+      const result = await sendTransactional({
         to: email,
         subject: `${otp} est votre code AlgoPronos AI`,
-        replyTo: 'support@algopronos.com',
         html: otpEmail(target.user_metadata?.full_name || '', otp),
         text: `Bonjour,\n\nVotre code de vérification AlgoPronos AI est : ${otp}\n\nCe code expire dans 15 minutes.\n\n© ${new Date().getFullYear()} AlgoPronos AI`,
       });
 
-      if (result.error) return NextResponse.json({ error: 'Échec de l\'envoi' }, { status: 500 });
+      if (!result.ok) return NextResponse.json({ error: 'Échec de l\'envoi' }, { status: 500 });
 
     } else if (type === 'recovery') {
       const { data: users } = await adminSupabase.auth.admin.listUsers();
@@ -236,16 +230,14 @@ export async function POST(req: Request) {
         user_metadata: { ...target.user_metadata, email_otp: otp, otp_expiry: otpExpiry, is_recovery: true }
       });
 
-      const result = await resend.emails.send({
-        from: FROM,
+      const result = await sendTransactional({
         to: email,
         subject: `${otp} est votre code de récupération`,
-        replyTo: 'support@algopronos.com',
         html: otpEmail(target.user_metadata?.full_name || '', otp),
         text: `Bonjour,\n\nUtilisez ce code pour réinitialiser votre mot de passe : ${otp}\n\nCe code expire dans 15 minutes.\n\n© ${new Date().getFullYear()} AlgoPronos AI`,
       });
 
-      if (result.error) return NextResponse.json({ error: 'Échec de l\'envoi' }, { status: 500 });
+      if (!result.ok) return NextResponse.json({ error: 'Échec de l\'envoi' }, { status: 500 });
 
     } else {
       return NextResponse.json({ error: 'type invalide' }, { status: 400 });

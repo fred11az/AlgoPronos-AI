@@ -99,9 +99,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Résolution des destinataires
+  // Résolution des destinataires — les désabonnés du marketing sont exclus
+  // dès la requête (obligation légale et condition de délivrabilité : envoyer
+  // à quelqu'un qui s'est désabonné génère des plaintes qui dégradent le
+  // domaine pour TOUS les envois, y compris les codes de vérification).
   const isAll = body.recipients === 'all';
-  let query = supabase.from('profiles').select('id, email, full_name').not('email', 'is', null);
+  let query = supabase
+    .from('profiles')
+    .select('id, email, full_name')
+    .not('email', 'is', null)
+    .eq('marketing_opt_out', false);
   if (!isAll) {
     if (!Array.isArray(body.recipients) || body.recipients.length === 0) {
       return NextResponse.json({ error: 'Sélectionne au moins un destinataire (ou "all")' }, { status: 400 });
@@ -111,7 +118,11 @@ export async function POST(req: NextRequest) {
   const { data: profiles, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const recipients = (profiles ?? []).filter((p) => p.email);
+  // Deuxième filet : adresses désabonnées sans compte lié (imports, anciens contacts).
+  const { data: optOuts } = await supabase.from('email_opt_outs').select('email');
+  const blocked = new Set((optOuts ?? []).map((o) => o.email.toLowerCase()));
+
+  const recipients = (profiles ?? []).filter((p) => p.email && !blocked.has(p.email.toLowerCase()));
   if (recipients.length === 0) {
     return NextResponse.json({ error: 'Aucun destinataire avec email' }, { status: 400 });
   }

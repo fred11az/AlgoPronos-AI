@@ -1,15 +1,26 @@
 /**
  * Notification Service — Email (Resend) + WhatsApp (Meta Cloud API)
  *
+ * Les envois passent tous par lib/services/email/client.ts, qui sépare le flux
+ * transactionnel du flux marketing (cf. docs/EMAIL-DELIVERABILITY.md).
+ *
  * Env vars required:
  *   RESEND_API_KEY            — https://resend.com
- *   RESEND_FROM_EMAIL         — ex: "AlgoPronos <no-reply@algopronos.ai>"
+ *   RESEND_TRANSACTIONAL_FROM — ex: "AlgoPronos AI <no-reply@algopronos.com>"
+ *   RESEND_MARKETING_FROM     — ex: "AlgoPronos AI <news@mail.algopronos.com>"
  *   WHATSAPP_TOKEN            — Meta WhatsApp Cloud API bearer token
  *   WHATSAPP_PHONE_NUMBER_ID  — Phone Number ID (pas le numéro affiché)
  *   WHATSAPP_TEMPLATE_TICKET  — nom du template Meta approuvé (ex: "ticket_result")
  */
 
-import { Resend } from 'resend';
+import { sendTransactional, sendMarketing, sendInternal } from '@/lib/services/email/client';
+import {
+  transactionalLayout,
+  transactionalButton,
+  transactionalHeading,
+  transactionalParagraph,
+  transactionalInfoBox,
+} from '@/lib/services/email/layout';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -112,32 +123,18 @@ export async function sendTicketResultEmail(p: TicketNotificationPayload): Promi
     return false;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@algopronos.com>';
-  const replyTo = 'support@algopronos.com';
-  const statusLabel = p.status === 'won' ? '✅ Ticket GAGNÉ' : p.status === 'lost' ? '❌ Ticket PERDU' : '⚪ Ticket annulé';
+  const statusLabel = p.status === 'won' ? 'Ticket gagné' : p.status === 'lost' ? 'Ticket perdu' : 'Ticket annulé';
+  const dateFr = new Date(p.date).toLocaleDateString('fr-FR');
 
-  try {
-    const { error } = await resend.emails.send({
-      from,
-      to: p.userEmail,
-      subject: `${statusLabel} — Ticket du ${new Date(p.date).toLocaleDateString('fr-FR')} | AlgoPronos AI`,
-      replyTo,
-      headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
-      html: buildTicketEmailHtml(p),
-      text: `${statusLabel} pour votre ticket du ${new Date(p.date).toLocaleDateString('fr-FR')}.\nCote totale : ${p.totalOdds.toFixed(2)}\n\nConsultez vos sélections sur : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard/history`,
-    });
-
-    if (error) {
-      console.error('[Notification] Resend error:', error);
-      return false;
-    }
-
-    return true;
-  } catch (err) {
-    console.error('[Notification] Email send failed:', err);
-    return false;
-  }
+  // Flux transactionnel : c'est le résultat du ticket de CET utilisateur, pas
+  // une campagne. Objet sans emoji ni pipe (marqueurs promotionnels courants).
+  const { ok } = await sendTransactional({
+    to: p.userEmail,
+    subject: `${statusLabel} — votre ticket du ${dateFr}`,
+    html: buildTicketEmailHtml(p),
+    text: `${statusLabel} pour votre ticket du ${dateFr}.\nCote totale : ${p.totalOdds.toFixed(2)}\n\nConsultez vos sélections sur : ${process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com'}/dashboard/history`,
+  });
+  return ok;
 }
 
 // ─── WhatsApp ──────────────────────────────────────────────────────────────
@@ -242,236 +239,111 @@ export interface ActivationPayload {
 
 function buildActivationEmailHtml(p: ActivationPayload): string {
   const firstName = p.userName?.split(' ')[0] || 'Parieur';
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
 
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
-  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+  const features = [
+    'Analyses IA illimitées (sans quota journalier)',
+    'Probabilités du modèle et value bets visibles',
+    'Bankroll IA personnalisée sur chaque ticket',
+    'Bouclier 20 Matchs — remboursement si 1 erreur sur 20',
+    'Garantie Matchs Nuls — 100% si 2 nuls perdants',
+    'Accès aux cotes prioritaires négociées',
+  ].map(f => `<li style="margin:0 0 8px;">${f}</li>`).join('');
 
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
-      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
-      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">Compte Full Access active</h1>
-    </div>
+  const content = `
+    ${transactionalHeading('Votre accès Full Access est activé')}
+    ${transactionalParagraph(`Bonjour ${firstName},`)}
+    ${transactionalParagraph('Votre compte bookmaker a été vérifié et validé par notre équipe. Votre accès Full Access est désormais actif sur votre compte AlgoPronos AI.')}
+    ${transactionalInfoBox(`
+      <p style="margin:0 0 12px;font-weight:bold;color:#111827;">Ce que votre compte débloque</p>
+      <ul style="margin:0;padding-left:20px;color:#374151;font-size:15px;">${features}</ul>
+    `)}
+    ${transactionalButton('Accéder à mon tableau de bord', `${appUrl}/dashboard`)}
+    <p style="margin:0;font-size:14px;color:#6B7280;">
+      Une question sur votre accès ? Répondez directement à cet email.
+    </p>
+  `;
 
-    <!-- Body -->
-    <div style="padding:32px">
-      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Felicitations <strong style="color:#fff">${firstName}</strong> !</p>
-      <p style="margin:0 0 24px;color:#a0aec0;font-size:14px;line-height:1.6">
-        Votre compte bookmaker a ete verifie et valide par notre equipe.
-        Vous beneficiez maintenant du <strong style="color:#7c3aed">Full Access AlgoPronos AI</strong>.
-      </p>
+  return transactionalLayout(content, 'Votre accès Full Access AlgoPronos AI est activé');
+}
 
-      <!-- Features unlocked -->
-      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
-        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ce que vous debloquez</p>
-        ${[
-          'Analyses IA illimitees (sans quota journalier)',
-          'Probabilites du modele + value bets visibles',
-          'Bankroll IA personnalise sur chaque ticket',
-          'Bouclier 20 Matchs — remboursement si 1 erreur sur 20',
-          'Garantie Matchs Nuls — 100% si 2 nuls perdants',
-          'Acces aux cotes prioritaires negociees',
-        ].map(f => `<p style="margin:0 0 8px;color:#e2e8f0;font-size:13px">- ${f}</p>`).join('')}
-      </div>
-
-      <!-- CTA -->
-      <div style="text-align:center">
-        <a href="${appUrl}/dashboard"
-           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:15px">
-          Acceder a mon tableau de bord
-        </a>
-        <p style="margin:16px 0 0;color:#6b7280;font-size:12px">
-          Generation de combies optimises, analyse en temps reel, historique complet.
-        </p>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
-      <p style="margin:0;color:#4a4a6a;font-size:11px">
-        AlgoPronos AI — Optimisation des paris sportifs par intelligence artificielle.<br>
-        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gerer mes preferences</a>
-      </p>
-    </div>
-  </div>
-</body>
-</html>`;
+/** Étapes de (re)configuration, partagées par les emails de refus et de suspension. */
+function accessStepsHtml(): string {
+  return transactionalInfoBox(`
+    <p style="margin:0 0 12px;font-weight:bold;color:#111827;">Comment obtenir votre accès</p>
+    <p style="margin:0 0 4px;font-weight:bold;">1. Configurez votre compte depuis notre plateforme</p>
+    <p style="margin:0 0 12px;color:#6B7280;font-size:14px;">La configuration doit être faite depuis AlgoPronos : c'est cette étape qui permet à notre algorithme d'activer l'optimisation IA sur votre compte. Les comptes existants ne sont souvent pas reconnus.</p>
+    <p style="margin:0 0 12px;font-weight:bold;">2. Créez un nouveau compte de jeu après la synchronisation.</p>
+    <p style="margin:0;font-weight:bold;">3. Soumettez votre nouvel identifiant bookmaker dans votre compte AlgoPronos pour validation.</p>
+  `);
 }
 
 function buildRejectionEmailHtml(p: ActivationPayload & { reason?: string }): string {
   const firstName = p.userName?.split(' ')[0] || 'Parieur';
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
 
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
-  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+  const reasonBlock = p.reason
+    ? transactionalInfoBox(`<p style="margin:0 0 4px;font-weight:bold;color:#111827;">Motif</p><p style="margin:0;">${p.reason}</p>`)
+    : '';
 
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
-      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
-      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">Demande d'accès non validée</h1>
-    </div>
+  const content = `
+    ${transactionalHeading("Votre demande d'accès n'a pas pu être validée")}
+    ${transactionalParagraph(`Bonjour ${firstName},`)}
+    ${transactionalParagraph("Après vérification, votre demande d'accès Full Access n'a pas pu être validée par notre équipe.")}
+    ${reasonBlock}
+    ${accessStepsHtml()}
+    ${transactionalButton('Configurer mon Compte Optimisé IA', `${appUrl}/compte-optimise-ia`)}
+    <p style="margin:0;font-size:14px;color:#6B7280;">
+      Des questions ? Répondez directement à cet email, notre équipe vous répond.
+    </p>
+  `;
 
-    <!-- Body -->
-    <div style="padding:32px">
-      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
-      <p style="margin:0 0 20px;color:#a0aec0;font-size:14px;line-height:1.6">
-        Votre demande d'accès <strong style="color:#fff">Full Access AlgoPronos AI</strong> n'a pas pu être validée par notre équipe.
-      </p>
-
-      ${p.reason ? `
-      <div style="background:#0f0f1a;border-radius:12px;padding:16px;margin-bottom:20px;border-left:3px solid #7c3aed">
-        <p style="margin:0 0 4px;color:#a78bfa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Motif</p>
-        <p style="margin:0;color:#e2e8f0;font-size:14px;line-height:1.5">${p.reason}</p>
-      </div>` : ''}
-
-      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
-        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment obtenir votre acces</p>
-        <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">1. Configurez votre compte depuis notre plateforme</p>
-        <p style="margin:0 0 16px;color:#a0aec0;font-size:13px;line-height:1.6">La configuration doit etre faite depuis AlgoPronos. C'est cette etape qui permet a notre algorithme d'activer l'optimisation IA sur votre compte. Les comptes existants ne sont souvent pas reconnus.</p>
-        <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">2. Suivez les etapes et creez un nouveau compte de jeu apres la synchronisation.</p>
-        <p style="margin:0 0 16px;color:#a0aec0;font-size:13px;line-height:1.6"> </p>
-        <p style="margin:0;color:#e2e8f0;font-size:13px;font-weight:600">3. Revenez dans votre compte sur AlgoPronos et soumettez votre nouveau ID bookmaker pour validation.</p>
-      </div>
-
-      <!-- CTA -->
-      <div style="text-align:center">
-        <a href="${appUrl}/compte-optimise-ia"
-           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:15px">
-          Configurer mon compte optimise IA
-        </a>
-        <p style="margin:16px 0 0;color:#6b7280;font-size:12px">
-          Des questions ? Repondez directement a cet email.
-        </p>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
-      <p style="margin:0;color:#4a4a6a;font-size:11px">
-        AlgoPronos AI — Optimisation des paris sportifs par intelligence artificielle.<br>
-        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gerer mes preferences</a>
-      </p>
-    </div>
-  </div>
-</body>
-</html>`;
+  return transactionalLayout(content, "Votre demande d'accès Full Access AlgoPronos AI");
 }
 
 function buildRevocationEmailHtml(p: ActivationPayload & { reason?: string }): string {
   const firstName = p.userName?.split(' ')[0] || 'Parieur';
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
 
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0f0f1a;font-family:system-ui,sans-serif">
-  <div style="max-width:560px;margin:40px auto;background:#1a1a2e;border-radius:16px;overflow:hidden;border:1px solid #2d2d4a">
+  const reasonBlock = p.reason
+    ? transactionalInfoBox(`<p style="margin:0 0 4px;font-weight:bold;color:#111827;">Motif</p><p style="margin:0;">${p.reason}</p>`)
+    : '';
 
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);padding:28px 32px">
-      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:600">AlgoPronos AI</p>
-      <h1 style="margin:8px 0 0;font-size:22px;color:#fff;font-weight:700">Acces Full Access suspendu</h1>
-    </div>
+  const content = `
+    ${transactionalHeading('Votre accès Full Access a été suspendu')}
+    ${transactionalParagraph(`Bonjour ${firstName},`)}
+    ${transactionalParagraph('Votre accès Full Access AlgoPronos AI a été suspendu par notre équipe.')}
+    ${reasonBlock}
+    ${accessStepsHtml()}
+    ${transactionalButton('Réactiver mon accès', `${appUrl}/compte-optimise-ia`)}
+    <p style="margin:0;font-size:14px;color:#6B7280;">
+      Des questions ? Répondez directement à cet email, notre équipe vous répond.
+    </p>
+  `;
 
-    <!-- Body -->
-    <div style="padding:32px">
-      <p style="margin:0 0 16px;color:#a0aec0;font-size:15px">Bonjour <strong style="color:#fff">${firstName}</strong>,</p>
-      <p style="margin:0 0 20px;color:#a0aec0;font-size:14px;line-height:1.6">
-        Votre acces <strong style="color:#fff">Full Access AlgoPronos AI</strong> a ete suspendu par notre equipe.
-      </p>
-
-      ${p.reason ? `
-      <div style="background:#0f0f1a;border-radius:12px;padding:16px;margin-bottom:20px;border-left:3px solid #7c3aed">
-        <p style="margin:0 0 4px;color:#a78bfa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Motif</p>
-        <p style="margin:0;color:#e2e8f0;font-size:14px;line-height:1.5">${p.reason}</p>
-      </div>` : ''}
-
-      <div style="background:#0f0f1a;border-radius:12px;padding:20px;margin-bottom:24px">
-        <p style="margin:0 0 12px;color:#7c3aed;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Comment reactiver votre acces</p>
-        <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">1. Configurez votre compte depuis notre plateforme</p>
-        <p style="margin:0 0 16px;color:#a0aec0;font-size:13px;line-height:1.6">La configuration doit etre faite depuis AlgoPronos. C'est cette etape qui permet a notre algorithme d'activer l'optimisation IA sur votre compte. Les comptes existants ne sont souvent pas reconnus.</p>
-        <p style="margin:0 0 4px;color:#e2e8f0;font-size:13px;font-weight:600">2. Suivez les etapes et creez un nouveau compte de jeu apres la synchronisation.</p>
-        <p style="margin:0 0 16px;color:#a0aec0;font-size:13px;line-height:1.6"> </p>
-        <p style="margin:0;color:#e2e8f0;font-size:13px;font-weight:600">3. Revenez dans votre compte sur AlgoPronos et soumettez votre nouveau ID bookmaker pour validation.</p>
-      </div>
-
-      <!-- CTA -->
-      <div style="text-align:center">
-        <a href="${appUrl}/compte-optimise-ia"
-           style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:15px">
-          Reactiver mon acces
-        </a>
-        <p style="margin:16px 0 0;color:#6b7280;font-size:12px">
-          Des questions ? Repondez directement a cet email.
-        </p>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:16px 32px;border-top:1px solid #2d2d4a;text-align:center">
-      <p style="margin:0;color:#4a4a6a;font-size:11px">
-        AlgoPronos AI — Optimisation des paris sportifs par intelligence artificielle.<br>
-        <a href="${appUrl}/dashboard/settings" style="color:#7c3aed">Gerer mes preferences</a>
-      </p>
-    </div>
-  </div>
-</body>
-</html>`;
+  return transactionalLayout(content, 'Information concernant votre accès AlgoPronos AI');
 }
 
 export async function sendActivationEmail(p: ActivationPayload): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY) return false;
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-  const replyTo = 'support@algopronos.com';
-  try {
-    const { error } = await resend.emails.send({
-      from,
-      to: p.userEmail,
-      subject: 'Votre compte Full Access AlgoPronos AI est active',
-      replyTo,
-      headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
-      html: buildActivationEmailHtml(p),
-      text: `Felicitations ${p.userName || 'Parieur'} !\nVotre compte Full Access AlgoPronos AI est desormais active.\n\nAccedez a votre tableau de bord : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard`,
-    });
-    if (error) { console.error('[Notification] Activation email error:', error); return false; }
-    return true;
-  } catch (err) {
-    console.error('[Notification] Activation email failed:', err);
-    return false;
-  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
+  const { ok } = await sendTransactional({
+    to: p.userEmail,
+    subject: 'Votre accès Full Access AlgoPronos AI est activé',
+    html: buildActivationEmailHtml(p),
+    text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre compte bookmaker a été vérifié et validé. Votre accès Full Access AlgoPronos AI est désormais actif.\n\nAccédez à votre tableau de bord : ${appUrl}/dashboard`,
+  });
+  return ok;
 }
 
 export async function sendRejectionEmail(p: ActivationPayload & { reason?: string }): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY) return false;
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-  const replyTo = 'support@algopronos.com';
-  try {
-    const { error } = await resend.emails.send({
-      from,
-      to: p.userEmail,
-      subject: 'Votre demande d\'acces Full Access AlgoPronos AI',
-      replyTo,
-      headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
-      html: buildRejectionEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre demande d'acces Full Access AlgoPronos AI n'a pas pu etre validee.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nConfigurez votre compte depuis notre plateforme pour obtenir l'acces : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia`,
-    });
-    if (error) { console.error('[Notification] Rejection email error:', error); return false; }
-    return true;
-  } catch (err) {
-    console.error('[Notification] Rejection email failed:', err);
-    return false;
-  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
+  const { ok } = await sendTransactional({
+    to: p.userEmail,
+    subject: "Votre demande d'accès Full Access AlgoPronos AI",
+    html: buildRejectionEmailHtml(p),
+    text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre demande d'accès Full Access AlgoPronos AI n'a pas pu être validée.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nConfigurez votre compte depuis notre plateforme pour obtenir l'accès : ${appUrl}/compte-optimise-ia`,
+  });
+  return ok;
 }
 
 export async function sendActivationWhatsApp(p: { userPhone: string; userName?: string }): Promise<boolean> {
@@ -520,26 +392,14 @@ export async function notifyRejection(p: ActivationPayload & { reason?: string }
 }
 
 export async function sendRevocationEmail(p: ActivationPayload & { reason?: string }): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY) return false;
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-  const replyTo = 'support@algopronos.com';
-  try {
-    const { error } = await resend.emails.send({
-      from,
-      to: p.userEmail,
-      subject: 'Information importante concernant votre acces AlgoPronos AI',
-      replyTo,
-      headers: { 'List-Unsubscribe': `<mailto:unsubscribe@algopronos.com?subject=unsubscribe>` },
-      html: buildRevocationEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre acces Full Access AlgoPronos AI a ete suspendu par notre equipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nConfigurez votre compte depuis notre plateforme pour reactiver l'acces : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia`,
-    });
-    if (error) { console.error('[Notification] Revocation email error:', error); return false; }
-    return true;
-  } catch (err) {
-    console.error('[Notification] Revocation email failed:', err);
-    return false;
-  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
+  const { ok } = await sendTransactional({
+    to: p.userEmail,
+    subject: 'Information importante concernant votre accès AlgoPronos AI',
+    html: buildRevocationEmailHtml(p),
+    text: `Bonjour ${p.userName || 'Parieur'},\n\nVotre accès Full Access AlgoPronos AI a été suspendu par notre équipe.${p.reason ? `\n\nMotif : ${p.reason}` : ''}\n\nConfigurez votre compte depuis notre plateforme pour réactiver l'accès : ${appUrl}/compte-optimise-ia`,
+  });
+  return ok;
 }
 
 export async function notifyRevocation(p: ActivationPayload & { reason?: string }) {
@@ -605,61 +465,44 @@ function buildUpgradeInvitationEmailHtml(p: ActivationPayload): string {
 </html>`;
 }
 
+/**
+ * Invitation à passer en Full Access — c'est de la PROSPECTION, pas du
+ * transactionnel : elle part sur le flux marketing (avec désabonnement), pour
+ * ne pas polluer la réputation du domaine transactionnel.
+ */
 export async function sendUpgradeInvitationEmail(p: ActivationPayload): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY) return false;
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-  const replyTo = 'support@algopronos.com';
-  try {
-    const { error } = await resend.emails.send({
-      from,
-      to: p.userEmail,
-      subject: 'Debloquez le Full Access AlgoPronos AI gratuitement',
-      replyTo,
-      html: buildUpgradeInvitationEmailHtml(p),
-      text: `Bonjour ${p.userName || 'Parieur'},\n\nVous utilisez AlgoPronos AI en acces de base. En configurant un compte bookmaker optimise IA, vous debloquez toutes les fonctionnalites gratuitement.\n\nConfigurez votre compte : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/compte-optimise-ia`,
-    });
-    if (error) { console.error('[Notification] Upgrade invitation email error:', error); return false; }
-    return true;
-  } catch (err) {
-    console.error('[Notification] Upgrade invitation email failed:', err);
-    return false;
-  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
+  const { ok } = await sendMarketing({
+    to: p.userEmail,
+    subject: 'Débloquez le Full Access AlgoPronos AI gratuitement',
+    html: buildUpgradeInvitationEmailHtml(p),
+    text: `Bonjour ${p.userName || 'Parieur'},\n\nVous utilisez AlgoPronos AI en accès de base. En configurant un compte bookmaker optimisé IA, vous débloquez toutes les fonctionnalités gratuitement.\n\nConfigurez votre compte : ${appUrl}/compte-optimise-ia`,
+  });
+  return ok;
 }
 
 export async function sendConfirmationEmail(email: string, userName?: string): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY) return false;
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-  const greeting = userName ? `Bonjour ${userName},` : 'Bonjour,';
-  
-  try {
-    const { error } = await resend.emails.send({
-      from,
-      to: email,
-      subject: '✅ Votre adresse email est confirmée | AlgoPronos AI',
-      html: `
-        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#1a1a2e;color:#e2e8f0;padding:32px;border-radius:16px;border:1px solid #2d2d4a">
-          <h2 style="color:#7c3aed">${greeting}</h2>
-          <p>Votre adresse email a été confirmée avec succès sur <strong>AlgoPronos AI</strong>.</p>
-          <p>Vous avez maintenant accès à l'interface de base pour consulter nos pronostics IA.</p>
-          <div style="background:#0f0f1a;padding:20px;border-radius:12px;margin:24px 0">
-            <p style="margin:0;color:#a0aec0;font-size:14px">Souhaitez-vous débloquer le <strong>Full Access</strong> ?</p>
-            <p style="margin:8px 0 0;font-size:13px;color:#e2e8f0">Suivez les instructions dans votre tableau de bord pour vérifier votre compte bookmaker et accéder à toutes nos analyses.</p>
-          </div>
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard" 
-             style="display:inline-block;background:linear-gradient(135deg, #7c3aed, #06b6d4);color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600">
-             Accéder au Dashboard
-          </a>
-        </div>
-      `,
-      text: `Votre adresse email est confirmée sur AlgoPronos AI.\nAccédez à votre dashboard : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.com'}/dashboard`,
-    });
-    return !error;
-  } catch (err) {
-    console.error('[Notification] Confirmation email failed:', err);
-    return false;
-  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
+  const firstName = userName?.split(' ')[0];
+
+  const content = `
+    ${transactionalHeading('Votre adresse email est confirmée')}
+    ${transactionalParagraph(firstName ? `Bonjour ${firstName},` : 'Bonjour,')}
+    ${transactionalParagraph('Votre adresse email a bien été confirmée. Vous pouvez dès maintenant consulter nos pronostics IA depuis votre tableau de bord.')}
+    ${transactionalInfoBox(`
+      <p style="margin:0 0 8px;font-weight:bold;color:#111827;">Débloquer le Full Access</p>
+      <p style="margin:0;">Vérifiez votre compte bookmaker depuis votre tableau de bord pour accéder à l'ensemble de nos analyses, sans quota journalier.</p>
+    `)}
+    ${transactionalButton('Accéder à mon tableau de bord', `${appUrl}/dashboard`)}
+  `;
+
+  const { ok } = await sendTransactional({
+    to: email,
+    subject: 'Votre adresse email est confirmée',
+    html: transactionalLayout(content, 'Votre adresse email AlgoPronos AI est confirmée'),
+    text: `Votre adresse email est confirmée sur AlgoPronos AI.\n\nAccédez à votre tableau de bord : ${appUrl}/dashboard`,
+  });
+  return ok;
 }
 
 // ─── MobCash Notifications ─────────────────────────────────────────────────
@@ -729,14 +572,8 @@ function buildMobcashAdminEmailHtml(p: MobcashRequestPayload): string {
 }
 
 export async function notifyMobcashRequest(p: MobcashRequestPayload): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[Notification] RESEND_API_KEY not set — MobCash email skipped');
-    return false;
-  }
-
-  const resend    = new Resend(process.env.RESEND_API_KEY);
-  const from      = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
   const typeLabel = p.type === 'depot' ? 'DÉPÔT' : 'RETRAIT';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
 
   // Support plusieurs emails séparés par des virgules
   const adminEmails = (process.env.ADMIN_NOTIFICATION_EMAIL || 'fgambakpo@gmail.com')
@@ -744,20 +581,13 @@ export async function notifyMobcashRequest(p: MobcashRequestPayload): Promise<bo
     .map(e => e.trim())
     .filter(Boolean);
 
-  try {
-    const { error } = await resend.emails.send({
-      from,
-      to: adminEmails,
-      subject: `💳 Demande ${typeLabel} MobCash — ${p.amount.toLocaleString('fr-FR')} FCFA — ${p.fullName}`,
-      html: buildMobcashAdminEmailHtml(p),
-      text: `Nouvelle demande ${typeLabel} MobCash\n\nMontant : ${p.amount.toLocaleString('fr-FR')} FCFA\nNom : ${p.fullName}\nTél : ${p.phone}\nRéseau : ${p.network}\nID 1xBet : ${p.bookmakerId}\n${p.notes ? `Notes : ${p.notes}\n` : ''}\nTraiter sur : ${process.env.NEXT_PUBLIC_APP_URL || 'https://algopronos.ai'}/admin/mobcash`,
-    });
-    if (error) { console.error('[Notification] MobCash admin email error:', error); return false; }
-    return true;
-  } catch (err) {
-    console.error('[Notification] MobCash email failed:', err);
-    return false;
-  }
+  const { ok } = await sendInternal({
+    to: adminEmails,
+    subject: `Demande ${typeLabel} MobCash — ${p.amount.toLocaleString('fr-FR')} FCFA — ${p.fullName}`,
+    html: buildMobcashAdminEmailHtml(p),
+    text: `Nouvelle demande ${typeLabel} MobCash\n\nMontant : ${p.amount.toLocaleString('fr-FR')} FCFA\nNom : ${p.fullName}\nTél : ${p.phone}\nRéseau : ${p.network}\nID 1xBet : ${p.bookmakerId}\n${p.notes ? `Notes : ${p.notes}\n` : ''}\nTraiter sur : ${appUrl}/admin/mobcash`,
+  });
+  return ok;
 }
 
 // ─── MobCash — Notification client (statut changé) ─────────────────────────
@@ -838,28 +668,22 @@ function buildMobcashStatusEmailHtml(p: MobcashStatusPayload): string {
 }
 
 export async function notifyMobcashStatusChange(p: MobcashStatusPayload): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY || !p.clientEmail) return false;
-  const resend  = new Resend(process.env.RESEND_API_KEY);
-  const from    = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
-  const typeLabel = p.type === 'depot' ? 'dépôt' : 'retrait';
-  const subject = p.status === 'completed'
-    ? `✅ Votre ${typeLabel} de ${p.amount.toLocaleString('fr-FR')} FCFA a été traité | MobCash`
-    : `❌ Votre demande de ${typeLabel} MobCash`;
+  if (!p.clientEmail) return false;
 
-  try {
-    const { error } = await resend.emails.send({
-      from,
-      to: p.clientEmail,
-      subject,
-      replyTo: 'support@algopronos.com',
-      html: buildMobcashStatusEmailHtml(p),
-    });
-    if (error) { console.error('[Notification] MobCash status email error:', error); return false; }
-    return true;
-  } catch (err) {
-    console.error('[Notification] MobCash status email failed:', err);
-    return false;
-  }
+  const typeLabel = p.type === 'depot' ? 'dépôt' : 'retrait';
+  const amountFr = p.amount.toLocaleString('fr-FR');
+  // Notification financière : flux transactionnel, objet factuel sans emoji.
+  const subject = p.status === 'completed'
+    ? `Votre ${typeLabel} de ${amountFr} FCFA a été traité`
+    : `Votre demande de ${typeLabel} MobCash`;
+
+  const { ok } = await sendTransactional({
+    to: p.clientEmail,
+    subject,
+    html: buildMobcashStatusEmailHtml(p),
+    text: `Bonjour,\n\n${subject}.\nMontant : ${amountFr} FCFA.\n\nPour toute question, répondez à cet email.`,
+  });
+  return ok;
 }
 
 // ─── Admin Notifications ────────────────────────────────────────────────────
@@ -869,10 +693,7 @@ export async function notifyAdmin(
   data: any, 
   status?: 'pending' | 'confirmed'
 ): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY) return false;
-  const adminEmail = 'fgambakpo@gmail.com';
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || 'fgambakpo@gmail.com';
 
   let subject = '';
   if (type === 'signup') {
@@ -900,16 +721,11 @@ export async function notifyAdmin(
     </div>
   `;
 
-  try {
-    const { error } = await resend.emails.send({
-      from,
-      to: adminEmail,
-      subject,
-      html,
-    });
-    return !error;
-  } catch (err) {
-    console.error('[Notification] Admin alert failed:', err);
-    return false;
-  }
+  const { ok } = await sendInternal({
+    to: adminEmail,
+    subject,
+    html,
+    text: `${subject}\n\nEmail : ${data.email || 'N/A'}${data.fullName ? `\nNom : ${data.fullName}` : ''}${data.phone ? `\nTéléphone : ${data.phone}` : ''}${data.identifier ? `\nID Bookmaker : ${data.identifier}` : ''}`,
+  });
+  return ok;
 }

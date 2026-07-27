@@ -4,7 +4,7 @@
  * Le contenu est du texte brut (paragraphes séparés par une ligne vide) ;
  * une ligne "![légende](https://…)" insère une image, comme dans les articles.
  */
-import { Resend } from 'resend';
+import { sendMarketing } from '@/lib/services/email/client';
 
 export interface CampaignPayload {
   subject: string;
@@ -87,6 +87,29 @@ export function buildCampaignEmailHtml(p: CampaignPayload, recipientName?: strin
 </html>`;
 }
 
+/**
+ * Version texte brut de la campagne. Un email HTML sans alternative texte est
+ * un signal négatif pour les filtres — on la génère systématiquement.
+ */
+export function campaignPlainText(p: CampaignPayload, recipientName?: string | null): string {
+  const firstName = recipientName?.split(' ')[0];
+  const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+
+  const body = p.body
+    .split(/\n\n+/)
+    .filter(Boolean)
+    .map((para) => {
+      const img = para.trim().match(INLINE_IMAGE_RE);
+      return img ? (img[1] ? `[Image : ${img[1]}]` : '') : para;
+    })
+    .filter(Boolean)
+    .join('\n\n');
+
+  const cta = p.ctaLabel && p.ctaUrl ? `\n\n${p.ctaLabel} : ${p.ctaUrl}` : '';
+
+  return `${greeting}\n\n${body}${cta}\n\n—\nAlgoPronos AI — Pronostics sportifs par intelligence artificielle.\nSe désinscrire : unsubscribe@algopronos.com`;
+}
+
 export interface CampaignSendResult {
   total: number;
   sent: number;
@@ -106,8 +129,7 @@ export async function sendCampaign(
   if (!process.env.RESEND_API_KEY) {
     throw new Error('RESEND_API_KEY non configurée');
   }
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || 'AlgoPronos AI <no-reply@mail.algopronos.com>';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.algopronos.com';
 
   let sent = 0;
   let failed = 0;
@@ -127,24 +149,23 @@ export async function sendCampaign(
     while (true) {
       attempt++;
       try {
-        const { error } = await resend.emails.send({
-          from,
+        const { ok, error } = await sendMarketing({
           to: r.email,
           subject: payload.subject,
-          replyTo: 'support@algopronos.com',
-          headers: { 'List-Unsubscribe': '<mailto:unsubscribe@algopronos.com?subject=unsubscribe>' },
           html: buildCampaignEmailHtml(payload, r.full_name),
+          text: campaignPlainText(payload, r.full_name),
+          unsubscribeUrl: `${appUrl}/api/email/unsubscribe?email=${encodeURIComponent(r.email)}`,
         });
 
-        if (error) {
-          const isRateLimited = (error as any).name === 'rate_limit_exceeded' || (error as any).statusCode === 429;
+        if (!ok) {
+          const isRateLimited = /rate_limit|429|too many/i.test(error ?? '');
           if (isRateLimited && attempt <= MAX_RETRIES) {
             console.warn(`[campaign] Rate limit — retry ${attempt}/${MAX_RETRIES} pour ${r.email}`);
             await sleep(1000 * attempt);
             continue;
           }
           console.error(`[campaign] Échec envoi à ${r.email}:`, error);
-          if (!firstError) firstError = error.message || JSON.stringify(error);
+          if (!firstError) firstError = error ?? 'erreur inconnue';
           failed++;
         } else {
           sent++;
