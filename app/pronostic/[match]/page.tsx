@@ -110,8 +110,7 @@ export async function generateMetadata({
     .single();
 
   if (!data) {
-    const title = slugToTitle(slug);
-    return { title: `Pronostic ${title} | AlgoPronos` };
+    return { title: 'Pronostic Football IA | AlgoPronos' };
   }
 
   const { home_team, away_team, league, match_date, prediction, probability } = data;
@@ -120,30 +119,38 @@ export async function generateMetadata({
     month: 'long',
     year: 'numeric',
   });
+  const predLabel = prediction === '1' ? `Victoire ${home_team}` : prediction === '2' ? `Victoire ${away_team}` : prediction === 'X' ? 'Match Nul' : prediction;
+  const description = `Pronostic IA : ${home_team} vs ${away_team} le ${dateFormatted} (${league}). Prédiction algorithmique : ${predLabel} — Fiabilité ${probability}%. Value bets, cotes et analyse statistique sur algopronos.com.`;
 
   return {
-    title: `${home_team} vs ${away_team} — Pronostic IA | AlgoPronos`,
-    description: `Analyse IA du match ${home_team} vs ${away_team} le ${dateFormatted}. Value bets, cotes, statistiques.`,
+    title: `${home_team} vs ${away_team} — Pronostic IA ${dateFormatted} | AlgoPronos`,
+    description,
     keywords: [
       `pronostic ${home_team.toLowerCase()} ${away_team.toLowerCase()}`,
       `${home_team.toLowerCase()} vs ${away_team.toLowerCase()}`,
       `pronostic ${league.toLowerCase()}`,
+      `pronostic ${home_team.toLowerCase()}`,
+      `pronostic ${away_team.toLowerCase()}`,
       'value bet ia',
       'cotes football',
       'statistiques match',
       'compte optimisé IA',
-      'algo pronos ia',
+      'algopronos ia',
       '1xbet pronostic',
       'analyse football ia',
+      'pronostic algopronos',
     ].join(', '),
     alternates: {
       canonical: `https://algopronos.com/pronostic/${slug}`,
     },
     openGraph: {
-      title: `${home_team} vs ${away_team} — Pronostic IA`,
-      description: `Analyse IA du match ${home_team} vs ${away_team} le ${dateFormatted}. Value bets, cotes, statistiques.`,
+      title: `${home_team} vs ${away_team} — Pronostic IA ${dateFormatted}`,
+      description,
       type: 'article',
       url: `https://algopronos.com/pronostic/${slug}`,
+      siteName: 'AlgoPronos AI',
+      locale: 'fr_FR',
+      publishedTime: new Date(match_date).toISOString(),
     },
   };
 }
@@ -212,8 +219,38 @@ export default async function MatchPredictionPage({
 
   const valueEdgePositive = p.value_edge > 0;
 
+  const sportsEventJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SportsEvent',
+    name: `${p.home_team} vs ${p.away_team}`,
+    startDate: `${p.match_date}T${p.match_time || '15:00'}:00`,
+    sport: 'Football',
+    location: {
+      '@type': 'Place',
+      name: p.country || 'International',
+      address: { '@type': 'PostalAddress', addressCountry: p.country || 'FR' },
+    },
+    competitor: [
+      { '@type': 'SportsTeam', name: p.home_team, url: `https://algopronos.com/equipe/${p.home_team.toLowerCase().replace(/\s+/g, '-')}` },
+      { '@type': 'SportsTeam', name: p.away_team, url: `https://algopronos.com/equipe/${p.away_team.toLowerCase().replace(/\s+/g, '-')}` },
+    ],
+    organizer: { '@type': 'SportsOrganization', name: p.league, url: `https://algopronos.com/ligue/${p.league_slug}` },
+    description: `Pronostic IA AlgoPronos : ${p.home_team} vs ${p.away_team} — Fiabilité ${p.probability}%. Value Edge : ${p.value_edge > 0 ? '+' : ''}${p.value_edge}%.`,
+    url: `https://algopronos.com/pronostic/${p.slug}`,
+    image: 'https://algopronos.com/logo-premium.png',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'EUR',
+      availability: 'https://schema.org/InStock',
+      url: `https://algopronos.com/pronostic/${p.slug}`,
+      seller: { '@type': 'Organization', name: 'AlgoPronos AI', url: 'https://algopronos.com' },
+    },
+  };
+
   return (
     <main className="min-h-screen bg-background text-text">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(sportsEventJsonLd) }} />
       {/* Breadcrumb */}
       <div className="max-w-5xl mx-auto px-4 py-4">
         <nav className="flex items-center gap-2 text-sm text-text-muted">

@@ -1,8 +1,13 @@
 import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
 import { getCurrentUser, checkIsAdmin } from '@/lib/supabase/server';
 import { AdminSidebar } from './AdminSidebar';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminLayout({
   children,

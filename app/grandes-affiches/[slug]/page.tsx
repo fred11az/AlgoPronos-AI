@@ -50,11 +50,32 @@ export async function generateMetadata({
     .eq('slug', slug)
     .single();
 
-  if (!data) return { title: 'Grandes Affiches | AlgoPronos' };
+  if (!data) return { title: 'Grandes Affiches Football IA | AlgoPronos' };
+
+  const description = (data.summary?.slice(0, 155) || `Analyse IA des grandes affiches football — ${data.hero_match}. Value bets, cotes et pronostics algorithmiques.`);
 
   return {
-    title: `${data.title} | AlgoPronos`,
-    description: data.summary?.slice(0, 160) || `Analyse des grandes affiches — ${data.hero_match}`,
+    title: `${data.title} — Analyse IA Grandes Affiches | AlgoPronos`,
+    description,
+    keywords: [
+      'grandes affiches football',
+      data.hero_match ? `pronostic ${data.hero_match.toLowerCase()}` : 'grandes affiches pronostics',
+      'analyse IA football',
+      'value bets grandes affiches',
+      'pronostics algopronos',
+      'algopronos grandes affiches',
+    ].join(', '),
+    alternates: {
+      canonical: `https://algopronos.com/grandes-affiches/${slug}`,
+    },
+    openGraph: {
+      title: `${data.title} — Grandes Affiches IA | AlgoPronos`,
+      description,
+      url: `https://algopronos.com/grandes-affiches/${slug}`,
+      siteName: 'AlgoPronos AI',
+      type: 'article',
+      locale: 'fr_FR',
+    },
   };
 }
 
